@@ -52,15 +52,11 @@ function ScaleTables() {
       <div className="ds-scale">
         <div className="ds-scale-row">
           <code>--f-ui</code>
-          <span style={{ fontFamily: 'var(--f-ui)', fontSize: 'var(--t-lg)' }}>Themis decides without looking at who is asking.</span>
+          <span style={{ fontFamily: 'var(--f-ui)', fontSize: 'var(--t-lg)' }}>Strig decides without looking at who is asking.</span>
         </div>
         <div className="ds-scale-row">
           <code>--f-mono</code>
           <span style={{ fontFamily: 'var(--f-mono)' }}>document.edit depends_on document.view</span>
-        </div>
-        <div className="ds-scale-row">
-          <code>--f-caps</code>
-          <span className="ds-type-caps">Allow Deny Cases</span>
         </div>
         {TYPE_SIZE_TOKENS.map((name) => (
           <div className="ds-scale-row" key={name}>
@@ -133,7 +129,7 @@ export default function DesignSystemPage() {
 
         <section className="ds-section">
           <h2>Colour</h2>
-          <p className="ds-note">Body text needs 4.5:1 and interface elements 3:1. Gold is for ornament and focus; gold-ink carries text.</p>
+          <p className="ds-note">Body text needs 4.5:1 and interface elements 3:1. Support is for ornament and charts; support-ink carries text.</p>
           <ColorSwatches />
         </section>
 

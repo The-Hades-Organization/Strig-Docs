@@ -104,8 +104,8 @@
 .side-heading {
   margin: var(--s-5) 0 var(--s-2);
   color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-caps);
-  letter-spacing: var(--track-caps);
+  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
 }
 .side-link,
@@ -124,8 +124,8 @@
   color: var(--c-ink);
 }
 .side-link[aria-current='page'] {
-  background: var(--c-jade-bg);
-  color: var(--c-jade);
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
   font-weight: 600;
 }
 .side-folder summary {
@@ -137,8 +137,8 @@
 .toc-title {
   margin: 0 0 var(--s-3);
   color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-caps);
-  letter-spacing: var(--track-caps);
+  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
 }
 .toc ul {
@@ -159,7 +159,7 @@
   color: var(--c-ink);
 }
 .toc a[aria-current='location'] {
-  border-left-color: var(--c-gold);
+  border-left-color: var(--c-accent);
   color: var(--c-ink);
   font-weight: 600;
 }
@@ -217,7 +217,7 @@
   text-align: right;
 }
 .pager-link:hover {
-  border-color: var(--c-jade);
+  border-color: var(--c-accent);
 }
 .pager-dir {
   display: inline-flex;
@@ -289,7 +289,7 @@
   outline: none;
 }
 .search-field:focus-within {
-  box-shadow: inset 0 -2px 0 var(--c-gold);
+  box-shadow: inset 0 -2px 0 var(--c-accent);
 }
 .search-results {
   max-height: 50vh;
@@ -316,8 +316,8 @@
 .search-kind {
   min-width: 4.5rem;
   color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-caps);
-  letter-spacing: var(--track-caps);
+  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
 }
 .search-note {
@@ -355,7 +355,7 @@
   margin: var(--s-4) 0;
 }
 .prose a {
-  color: var(--c-jade);
+  color: var(--c-accent);
   text-underline-offset: 0.2em;
 }
 .prose a:hover {

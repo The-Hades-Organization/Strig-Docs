@@ -1,23 +1,25 @@
 ---
-name: Themis docs
+name: Strig docs
 description: A sober reading surface for an authorization engine, with one authored moment, the seal.
 colors:
-  bg: "#f1f0eb"
-  panel: "#f8f7f3"
-  sunk: "#eceae2"
-  line: "#dad6ca"
-  line-strong: "#bdb8a8"
-  ink: "#16201d"
-  mute: "#4e6b63"
-  jade: "#1f5c51"
-  jade-bg: "#dae8e1"
-  gold: "#b07d1e"
-  gold-ink: "#7a5410"
-  gold-bg: "#f0e3c2"
-  deny: "#8e3226"
-  deny-bg: "#f3ded6"
-  err: "#b0301f"
-  comment: "#496359"
+  bg: "#ffffff"
+  panel: "#faf7f7"
+  sunk: "#f4f0f0"
+  line: "#e8e0e0"
+  line-strong: "#cbbcbc"
+  ink: "#111111"
+  mute: "#5c4f4f"
+  accent: "#b01030"
+  accent-bg: "#f9e4e8"
+  support: "#996c6c"
+  support-ink: "#7a5050"
+  support-bg: "#f3e9e9"
+  allow: "#111111"
+  allow-bg: "#ececec"
+  deny: "#b01030"
+  deny-bg: "#f9e4e8"
+  err: "#9a3412"
+  comment: "#6b5c5c"
 typography:
   body:
     fontFamily: "Inter, system-ui, sans-serif"
@@ -34,11 +36,11 @@ typography:
     fontSize: "0.84375rem"
     fontWeight: 400
     lineHeight: 1.63
-  caps:
-    fontFamily: "Cinzel, serif"
+  label:
+    fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "0.78125rem"
     fontWeight: 600
-    letterSpacing: "0.16em"
+    letterSpacing: "0.08em"
 rounded:
   sm: "4px"
   md: "8px"
@@ -53,7 +55,7 @@ spacing:
   xxl: "48px"
 components:
   callout:
-    backgroundColor: "{colors.jade-bg}"
+    backgroundColor: "{colors.accent-bg}"
     textColor: "{colors.ink}"
     rounded: "{rounded.md}"
     padding: "16px"
@@ -69,61 +71,59 @@ components:
     padding: "16px 24px"
 ---
 
-# Design system: Themis docs
+# Design system: Strig docs
 
 ## Overview
 
-Themis decides without looking at who is asking: the blindfold, the scales, the gilt knot. The site
-applies that to reading. It is a quiet, ivory page with a near-black green night mode, fixed
-columns and native controls. The personality sits in a few details: the seal of a ruling, the band
-tilted by 9°, the gilt knot, and the spaced Roman capitals of the labels.
+Strig is the authorization library; its mark, Corte, is a full moon with a bite taken out, the fangs
+being the missing piece. The site reads like a quiet white page with a near-black night mode, fixed
+columns and native controls. The brand lives in `brand/` (sheet, SVG, Cinzel for the wordmark).
+The personality sits in a few details: the crimson of the mark, the verdict seal, and the wordmark.
 
 The source of truth is `src/styles/tokens.css`. Every component reads those custom properties; no
 component carries a colour, space, radius, font, layer or duration literal.
 
 ## Colors
 
-Green is the colour of structure and of *allow*. Gold is ornament and focus. A clay derived from the
-same warmth marks *deny*, so no red comes from another system. Deny is a decision (closed seal, the
-word, a cross); error is a defect in the text (a wavy underline, an exclamation). They never share a
-shape.
+Crimson is the one brand colour: the mark, links, structure, focus and *deny*. Allow is plain ink, so
+the two verdicts never rely on hue. Deny is a decision (the word, a cross); error is a defect in the
+text (a wavy underline, an exclamation, an orange that is not the brand).
 
-- **Ivory page** (`bg`) with lighter **panel** cards and a darker **sunk** well for code.
-- **Jade** (`jade`, on `jade-bg`): headings of structure, links, the allow state.
-- **Gold** (`gold`): focus ring, caret, active marker. Never text: it measures 3.2:1 on light.
-- **Gold ink** (`gold-ink`): who, where and numbers in code, and warning text. 5.3:1 on its surface.
-- **Deny** (`deny`, on `deny-bg`): the deny verdict and breaking changes.
+- **White page** (`bg`) with a warm-tinted **panel** and a darker **sunk** well for code.
+- **Accent** (`accent`, on `accent-bg`): links, active markers, the focus ring, the mark. `#B01030`
+  on light, `#FF5E70` on dark.
+- **Support** (`support`, `#996C6C`): ornament and charts at 3:1. Never body text.
+- **Support ink** (`support-ink`): who, where and numbers in code, and warning text.
+- **Allow** (`allow`) and **Deny** (`deny`), each on its own surface.
 
-The dark theme redeclares every colour under `[data-theme='dark']`: bg `#16201d`, panel `#1b2824`,
-sunk `#131b19`, ink `#e9e2d0`, mute `#9fc0b2`, jade `#7cc3ae`, gold `#e3b04b`, deny `#f0a08d`.
+The dark theme redeclares every colour under `[data-theme='dark']`: bg `#0a0a0a`, ink `#f2f2f2`,
+accent `#ff5e70`, support `#996c6c`.
 
 ### Named rules
 
 **Colour never decides alone.** Allow and deny are read as a word, then a shape, then a colour.
 
-**One gold for ornament, one for text.** Using `gold` as text colour is a contrast failure.
+**Support is not text.** `support` measures 4.45:1 on white; text uses `support-ink`.
 
 ## Typography
 
-Inter for the interface and prose, JetBrains Mono for code and data, Cinzel for labels, tab names,
-table heads and the ruling word. All three are served by the site from OFL files. The wordmark is
-vector lettering, not a font.
+Inter for the interface and prose, JetBrains Mono for code and data. Cinzel appears only in the
+wordmark, which is outlined vector lettering, so the site ships no Cinzel font file.
 
 - Prose is 16/26, measure capped at 44rem.
 - Interface text is 14/20; support text is 12.5.
-- Labels are capitals at 12.5 px with 0.16em spacing; the ruling word uses 0.14em; the home
-  headings use 0.08em (`--track-heading`).
+- Labels are Inter capitals at 12.5 px with 0.08em spacing (`--track-label`).
 - Code is 13.5/22 with ligatures off and tabular figures.
 
 ### Code colour follows role
 
-A word is coloured by what it does in the decision: declares (`jade`, 600), relates (`mute`), who and
-where (`gold-ink`), the question (`ink`), the grant id (`ink`, 700), allow (`jade`, 700), deny
-(`deny`, 700), quoted text (`mute`, italic), comments (`comment`, italic).
+A word is coloured by what it does in the decision: declares (`accent`, 600), relates (`mute`), who
+and where (`support-ink`), the question (`ink`), the grant id (`ink`, 700), allow (`allow`, 700),
+deny (`deny`, 700), quoted text (`mute`, italic), comments (`comment`, italic).
 
 ## Layout
 
-The home opens on the ruling: a gilt band tilted by 9° behind the headline, two actions, the two
+The home opens on the ruling: the headline over a faint Corte mark, two actions, the two
 install commands, then an allow seal and a deny seal that answer the same question for two
 resources. Below it come six ruled sections in one wide column, each with copy on one side and code
 on the other from 64rem up: the question and how a decision is made, the policy in three syntaxes
@@ -132,8 +132,7 @@ fit beside the copy; the full policy stays in the panel of the language pages), 
 gives (the first item, the fail-closed guarantee, leads at a larger size; "Decisions explain
 themselves" carries a compact verdict tag with a reason), install, and the exits (docs, playground,
 GitHub, crates.io, npm). Section padding varies on purpose: the question sits close under the hero,
-the syntaxes and the strengths get more room, install and exits are quick stops. Headings are Cinzel capitals at
-0.08em; the home never uses the 0.16em of the small labels on a sentence-length heading.
+the syntaxes and the strengths get more room, install and exits are quick stops. Headings are Inter 600.
 
 A route no page claims renders `src/pages/404.tsx`: a headline, two actions and a deny seal. The
 static build writes it to `404.html` and the server answers it with status 404.
@@ -161,23 +160,22 @@ Radii are 4 (inline code, kbd), 8 (controls, callouts), 14 (cards, code blocks, 
 
 ## Components
 
-- **Seal**: the icon of the banner. On allow the band opens, on deny it closes, and the knot ties.
-  The band tilts by −9° behind the ruling. This is the one authored moment and the only place the
-  angle appears besides the mark.
+- **Seal**: the verdict as a word, an icon and the Corte mark on a tinted surface (ink for allow, crimson
+  for deny). It is the one authored moment and the only place the mark is repeated.
 - **Callout**: tinted surface with a full 1 px border, an icon and a word (note, warning, breaking).
   No side stripe.
 - **Button**: a link that looks like a button, 44 px tall, outlined by default. The primary one is
-  jade-filled and there is one per view. Hover swaps the fill to ink on primary and to the sunk
-  surface on the default; the focus ring is the global gold one.
+  accent-filled and there is one per view. Hover swaps the fill to ink on primary and to the sunk
+  surface on the default; the focus ring is the global accent one.
 - **Code block**: sunk well, caption with the language label (or the title given on the fence) and a
   copy button, scroll inside.
 - **Doc tabs and syntax panel**: the section row and the pinned three-syntax column described in Layout.
-- **Tabs**: Roman capitals, a gold underline on the active tab, arrow-key navigation.
+- **Tabs**: Inter capitals, an accent underline on the active tab, arrow-key navigation.
 - **Search**: a native dialog over the static index; opens with Ctrl+K, closes with Esc, returns
   focus to the button that opened it.
 - **Sidebar, table of contents (kept in the design system, unused by the doc layout), breadcrumbs, pager, card link, kbd, version badge, table.**
 
-Browser surfaces are themed too: green selection, gold caret, thin scrollbars in the border colour,
+Browser surfaces are themed too: accent selection, accent caret, thin scrollbars in the border colour,
 a 2 px gold focus ring with an offset, tabular figures. Motion uses `cubic-bezier(.16, 1, .3, 1)` at
 120 ms (hover), 220 ms (tab, switch) and 720 ms (seal). With `prefers-reduced-motion` everything
 drops to 1 ms.
