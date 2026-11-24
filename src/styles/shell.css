@@ -66,6 +66,7 @@
 }
 .shell-body[data-has-sidebar='true'] {
   grid-template-columns: var(--w-sidebar) minmax(0, 1fr);
+  max-width: var(--w-doc);
 }
 .shell-body[data-has-sidebar='true'][data-has-toc='true'] {
   grid-template-columns: var(--w-sidebar) minmax(0, 1fr) var(--w-toc);
@@ -110,8 +111,10 @@
 }
 .side-link,
 .side-folder summary {
-  display: block;
-  padding: var(--s-1) var(--s-3);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
   border-radius: var(--r-2);
   color: var(--c-mute);
   text-decoration: none;
@@ -425,5 +428,30 @@
   }
   .pager-link[data-dir='next'] {
     grid-column: 1;
+  }
+}
+
+/* Language pages: the syntax panel takes the right column. Narrower than
+   80rem it follows the text instead of sitting beside it. */
+.shell-body[data-aside='panel'] .shell-toc {
+  display: block;
+}
+@media (min-width: 80rem) {
+  .shell-body[data-aside='panel'][data-has-sidebar='true'][data-has-toc='true'] {
+    grid-template-columns: var(--w-sidebar) minmax(0, 1fr) var(--w-panel);
+  }
+}
+@media (max-width: 80rem) {
+  .shell-body[data-aside='panel'] .shell-toc {
+    position: static;
+    grid-column: 2;
+    max-height: none;
+    padding: 0 var(--s-6) var(--s-8);
+  }
+}
+@media (max-width: 48rem) {
+  .shell-body[data-aside='panel'] .shell-toc {
+    grid-column: 1;
+    padding: 0 var(--s-2) var(--s-7);
   }
 }

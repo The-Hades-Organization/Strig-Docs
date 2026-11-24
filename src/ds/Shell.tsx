@@ -6,10 +6,16 @@ import { Header } from './Header';
 export function Shell({
   sidebar,
   toc,
+  top,
+  panel,
   children,
 }: {
   sidebar?: ReactNode;
   toc?: ReactNode;
+  // A row between the header and the body, such as the documentation tabs.
+  top?: ReactNode;
+  // The right column holds a wide panel instead of the table of contents.
+  panel?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -18,7 +24,13 @@ export function Shell({
         Skip to content
       </a>
       <Header nav={sidebar} />
-      <div className="shell-body" data-has-sidebar={sidebar ? 'true' : 'false'} data-has-toc={toc ? 'true' : 'false'}>
+      {top}
+      <div
+        className="shell-body"
+        data-has-sidebar={sidebar ? 'true' : 'false'}
+        data-has-toc={toc ? 'true' : 'false'}
+        data-aside={panel ? 'panel' : undefined}
+      >
         {sidebar ? <aside className="shell-sidebar">{sidebar}</aside> : null}
         <main id="content" className="shell-main">
           {children}

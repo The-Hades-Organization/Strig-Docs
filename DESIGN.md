@@ -137,14 +137,14 @@ the syntaxes and the strengths get more room, install and exits are quick stops.
 A route no page claims renders `src/pages/404.tsx`: a headline, two actions and a deny seal. The
 static build writes it to `404.html` and the server answers it with status 404.
 
-Every documentation page has the same frame: the header, a row of section tabs (the page tree in
-reading order, scrolling inside its own box when it outgrows the width), and one wide content column
-with breadcrumbs, the title, the body and the pager. There is no sidebar and no table of contents.
-A page may open with a seal as its verdict.
+Every documentation page has the same frame: the header, a row of section tabs with an icon each
+(the sharp set from the design system, one per top-level section), then three columns: the page tree on the left, one prose
+column, and the table of contents on the right. Folded below 64rem: the toc is dropped; below 48rem
+the tree moves into the header menu. Tabs and body share one width (`--w-doc`). A page may open with a seal as its verdict.
 
 The pages about the policy language add a **syntax panel**: the same policy in Blocks, Rules and
-Actors, stacked in a 28rem column beside the text. From 64rem up it is pinned below the header and
-scrolls on its own; below 64rem it follows the text. Long lines wrap in the panel, so it never
+Actors, takes the right column (28rem) in place of the toc. From 80rem up it is pinned below the header and
+scrolls on its own; below 80rem it follows the text. Long lines wrap in the panel, so it never
 scrolls sideways. Reference tables scroll inside their own box, never the page.
 
 ## Elevation & Depth
@@ -169,7 +169,8 @@ Radii are 4 (inline code, kbd), 8 (controls, callouts), 14 (cards, code blocks, 
   surface on the default; the focus ring is the global accent one.
 - **Code block**: sunk well, caption with the language label (or the title given on the fence) and a
   copy button, scroll inside.
-- **Doc tabs and syntax panel**: the section row and the pinned three-syntax column described in Layout.
+- **Doc tabs and syntax panel**: the icon section row and the pinned three-syntax column described in Layout.
+- **Clip, shot tabs, copy line**: real recordings and captures of the product (playground, inspector), never mock-ups; the clip pauses on request and does not autoplay under reduced motion.
 - **Tabs**: Inter capitals, an accent underline on the active tab, arrow-key navigation.
 - **Search**: a native dialog over the static index; opens with Ctrl+K, closes with Esc, returns
   focus to the button that opened it.

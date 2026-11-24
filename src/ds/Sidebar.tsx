@@ -1,4 +1,11 @@
 import type { Node, Root } from 'fumadocs-core/page-tree';
+import { docIcon } from './doc-icons';
+import { Icon } from './icons';
+
+function SideIcon({ url }: { url: string }) {
+  const icon = docIcon(url);
+  return icon ? <Icon name={icon} size={16} /> : null;
+}
 
 function Entry({ node, current }: { node: Node; current: string }) {
   if (node.type === 'separator') {
@@ -9,6 +16,7 @@ function Entry({ node, current }: { node: Node; current: string }) {
     return (
       <li>
         <a className="side-link" href={node.url} aria-current={active ? 'page' : undefined}>
+          <SideIcon url={node.url} />
           {node.name}
         </a>
       </li>
@@ -27,6 +35,7 @@ function Entry({ node, current }: { node: Node; current: string }) {
                 href={node.index.url}
                 aria-current={node.index.url === current ? 'page' : undefined}
               >
+                <SideIcon url={node.index.url} />
                 {node.index.name}
               </a>
             </li>

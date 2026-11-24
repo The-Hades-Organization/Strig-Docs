@@ -1,45 +1,52 @@
-/* Documentation layout: section tabs, one wide column and, on the language
-   pages, the pinned syntax panel. Only tokens, except media-query
-   breakpoints, which CSS cannot read from properties. */
+/* Documentation layout. The frame (tabs, sidebar, text, toc or panel) lives in
+   shell.css; this file holds what is specific to documentation pages. Only
+   tokens, except media-query breakpoints. */
 
 .doc-tabs {
+  position: sticky;
+  top: var(--h-header);
+  z-index: var(--z-sticky);
   border-bottom: 1px solid var(--c-line);
+  background: var(--c-bg);
 }
 .doc-tabs ul {
   display: flex;
-  gap: var(--s-5);
-  margin: 0;
-  padding: 0;
+  gap: var(--s-2);
+  max-width: var(--w-doc);
+  margin: 0 auto;
+  padding: 0 var(--s-5);
   overflow-x: auto;
   list-style: none;
 }
 .doc-tabs a {
-  display: block;
-  padding: var(--s-3) 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 2.75rem;
+  padding: var(--s-2) var(--s-4);
   border-bottom: 2px solid transparent;
   color: var(--c-mute);
+  font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
+  transition: color var(--d-fast) var(--ease), border-color var(--d-fast) var(--ease);
 }
 .doc-tabs a:hover {
   color: var(--c-ink);
 }
 .doc-tabs a[aria-current='page'] {
-  border-bottom-color: var(--c-support-ink);
+  border-bottom-color: var(--c-accent);
   color: var(--c-ink);
   font-weight: 600;
 }
+.doc-tabs a[aria-current='page'] .icon {
+  color: var(--c-accent);
+}
 
-.doc-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-6);
-  align-items: start;
-  padding-top: var(--s-6);
-}
 .doc-article {
-  max-width: none;
+  max-width: var(--w-prose);
 }
+
 .doc-panel {
   display: grid;
   gap: var(--s-3);
@@ -51,16 +58,4 @@
 .doc-panel .code-block pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-@media (min-width: 64rem) {
-  .doc-body[data-has-panel='true'] {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
-  }
-  .doc-panel {
-    position: sticky;
-    top: calc(var(--h-header) + var(--s-4));
-    max-height: calc(100vh - var(--h-header) - var(--s-6));
-    overflow-y: auto;
-  }
 }
