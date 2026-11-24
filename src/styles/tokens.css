@@ -1,5 +1,5 @@
-/* Single source of design tokens. Values for colour come from the playground
-   identity, with contrast measured there (WCAG 2.x). Components read only
+/* Single source of design tokens. Colour comes from the Strig brand
+   (brand/README.md), with contrast measured on the brand sheet (WCAG 2.x). Components read only
    these custom properties. */
 
 :root,
@@ -7,30 +7,31 @@
   color-scheme: light;
 
   /* Colour: light */
-  --c-bg: #f1f0eb;
-  --c-panel: #f8f7f3;
-  --c-sunk: #eceae2;
-  --c-line: #dad6ca;
-  --c-line-strong: #bdb8a8;
-  --c-ink: #16201d;
-  --c-mark: #1f5c51;
-  --c-mute: #4e6b63;
-  --c-jade: #1f5c51;
-  --c-jade-bg: #dae8e1;
-  --c-gold: #b07d1e;
-  --c-gold-ink: #7a5410;
-  --c-gold-bg: #f0e3c2;
-  --c-deny: #8e3226;
-  --c-deny-bg: #f3ded6;
-  --c-err: #b0301f;
-  --c-comment: #496359;
-  --c-selection: #c4dbd0;
-  --c-shadow: 22 32 29;
+  --c-bg: #ffffff;
+  --c-panel: #faf7f7;
+  --c-sunk: #f4f0f0;
+  --c-line: #e8e0e0;
+  --c-line-strong: #cbbcbc;
+  --c-ink: #111111;
+  --c-mark: #b01030;
+  --c-mute: #5c4f4f;
+  --c-accent: #b01030;
+  --c-accent-bg: #f9e4e8;
+  --c-support: #996c6c;
+  --c-support-ink: #7a5050;
+  --c-support-bg: #f3e9e9;
+  --c-allow: #111111;
+  --c-allow-bg: #ececec;
+  --c-deny: #b01030;
+  --c-deny-bg: #f9e4e8;
+  --c-err: #9a3412;
+  --c-comment: #6b5c5c;
+  --c-selection: #f2c9d1;
+  --c-shadow: 17 17 17;
 
   /* Typography */
   --f-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --f-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --f-caps: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif;
 
   --t-xs: 0.78125rem;
   --t-sm: 0.875rem;
@@ -43,9 +44,7 @@
   --lh-ui: 1.43;
   --lh-prose: 1.65;
   --lh-code: 1.63;
-  --track-caps: 0.16em;
-  --track-heading: 0.08em;
-  --track-verdict: 0.14em;
+  --track-label: 0.08em;
 
   /* Spacing */
   --s-1: 0.25rem;
@@ -73,7 +72,6 @@
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --d-fast: 120ms;
   --d-base: 220ms;
-  --d-seal: 720ms;
 
   /* Layers */
   --z-base: 0;
@@ -89,9 +87,6 @@
   --w-wide: 76rem;
   --h-header: 3.5rem;
 
-  /* The band of the icon, used by the seal and behind the verdict only */
-  --band-angle: -9deg;
-
   /* Breakpoints, kept as data. CSS media queries cannot read custom
      properties, so @media rules repeat these literal values. */
   --bp-sm: 40rem;
@@ -102,23 +97,25 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --c-bg: #16201d;
-  --c-panel: #1b2824;
-  --c-sunk: #131b19;
-  --c-line: #26352f;
-  --c-line-strong: #3a5047;
-  --c-ink: #e9e2d0;
-  --c-mark: #e9e2d0;
-  --c-mute: #9fc0b2;
-  --c-jade: #7cc3ae;
-  --c-jade-bg: #1f3a33;
-  --c-gold: #e3b04b;
-  --c-gold-ink: #e3b04b;
-  --c-gold-bg: #3a3118;
-  --c-deny: #f0a08d;
-  --c-deny-bg: #3c2420;
-  --c-err: #f4906f;
-  --c-comment: #8daa9f;
-  --c-selection: #2a4f44;
+  --c-bg: #0a0a0a;
+  --c-panel: #141111;
+  --c-sunk: #070707;
+  --c-line: #272020;
+  --c-line-strong: #403535;
+  --c-ink: #f2f2f2;
+  --c-mark: #ff5e70;
+  --c-mute: #b5a6a6;
+  --c-accent: #ff5e70;
+  --c-accent-bg: #2e1218;
+  --c-support: #996c6c;
+  --c-support-ink: #c9a0a0;
+  --c-support-bg: #221a1a;
+  --c-allow: #f2f2f2;
+  --c-allow-bg: #242424;
+  --c-deny: #ff5e70;
+  --c-deny-bg: #2e1218;
+  --c-err: #fb923c;
+  --c-comment: #a89898;
+  --c-selection: #4a1a24;
   --c-shadow: 0 0 0;
 }

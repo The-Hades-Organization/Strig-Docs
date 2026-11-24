@@ -42,14 +42,14 @@ const ACTORS_SAMPLE = `role editor
   in org:acme
     allow document.edit on project as g-edit`;
 
-const RUST_SAMPLE = `use themis::Engine;
+const RUST_SAMPLE = `use strig::Engine;
 
 fn main() {
     let engine = Engine::default();
     println!("{}", engine.is_empty());
 }`;
 
-const TS_SAMPLE = `import { compile } from 'themis';
+const TS_SAMPLE = `import { compile } from 'strig';
 
 const policy = compile(source); // 3 permissions
 console.log(policy.permissions.length);`;
@@ -67,8 +67,6 @@ export function ComponentSheet({ tree, current }: { tree: Root; current: string 
     <div className="ds-stack" style={{ width: '100%' }}>
       <div className="ds-row">
         <Mark size={40} />
-        <Mark state="open" size={40} />
-        <Mark state="closed" size={40} />
         <Wordmark height={20} />
       </div>
 
