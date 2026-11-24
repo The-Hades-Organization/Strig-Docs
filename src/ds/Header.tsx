@@ -6,7 +6,7 @@ import { ThemeToggle } from './ThemeToggle';
 export function Header({ nav }: { nav?: ReactNode }) {
   return (
     <header className="site-header">
-      <a className="brand" href="/" aria-label="Themis, home">
+      <a className="brand" href="/" aria-label="Strig, home">
         <Mark size={28} />
         <Wordmark height={16} />
       </a>

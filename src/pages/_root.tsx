@@ -16,7 +16,8 @@ export default async function RootElement({ children }: { children: ReactNode })
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
-        <title>Themis</title>
+        <title>Strig</title>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         {/* Constant string, no external input: sets the theme before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

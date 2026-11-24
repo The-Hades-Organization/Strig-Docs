@@ -1,4 +1,4 @@
-/* Home: the ruling on the 9° band, then the question, the three syntaxes,
+/* Home: the ruling, then the question, the three syntaxes,
    what the library gives, how to install it and where to go next. */
 
 .home {
@@ -12,19 +12,24 @@
   overflow: hidden;
   isolation: isolate;
 }
-.home-hero::before {
-  content: '';
+.home-hero-mark {
   position: absolute;
-  inset: 34% -10% 4%;
+  top: var(--s-7);
+  right: var(--home-gutter);
   z-index: -1;
-  background: var(--c-gold-bg);
-  transform: rotate(var(--band-angle));
+  color: var(--c-mark);
+  opacity: 0.1;
+  pointer-events: none;
+}
+@media (max-width: 64rem) {
+  .home-hero-mark {
+    display: none;
+  }
 }
 .home-hero h1 {
   max-width: 16ch;
   margin: 0 0 var(--s-5);
-  font: 600 var(--t-3xl) / var(--lh-tight) var(--f-caps);
-  letter-spacing: var(--track-heading);
+  font: 600 var(--t-3xl) / var(--lh-tight) var(--f-ui);
   text-wrap: balance;
 }
 .home-lead {
@@ -88,8 +93,7 @@
 }
 .home-section h2 {
   margin: 0 0 var(--s-4);
-  font: 600 var(--t-xl) / var(--lh-tight) var(--f-caps);
-  letter-spacing: var(--track-heading);
+  font: 600 var(--t-xl) / var(--lh-tight) var(--f-ui);
   text-wrap: balance;
 }
 .home-section h3 {
@@ -119,7 +123,7 @@
   text-underline-offset: 0.2em;
 }
 .home-copy a {
-  color: var(--c-jade);
+  color: var(--c-accent);
 }
 .home-code {
   min-width: 0;
@@ -140,7 +144,7 @@
   padding-left: var(--s-1);
 }
 .home-steps li::marker {
-  color: var(--c-gold-ink);
+  color: var(--c-support-ink);
   font-weight: 700;
 }
 
@@ -211,12 +215,12 @@
   font-size: var(--t-md);
 }
 .home-link-title .icon {
-  color: var(--c-jade);
+  color: var(--c-accent);
   transition: transform var(--d-fast) var(--ease);
 }
 .home-links a:hover .home-link-title,
 .home-links a:focus-visible .home-link-title {
-  color: var(--c-jade);
+  color: var(--c-accent);
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
