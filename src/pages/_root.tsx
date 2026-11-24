@@ -5,7 +5,8 @@ import '../styles/components.css';
 import '../styles/code.css';
 import '../styles/shell.css';
 import '../styles/design-system.css';
-import '../styles/proposals.css';
+import '../styles/doc.css';
+import '../styles/home.css';
 import { THEME_INIT_SCRIPT } from '../ds/theme';
 
 export default async function RootElement({ children }: { children: ReactNode }) {

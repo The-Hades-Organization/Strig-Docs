@@ -5,7 +5,7 @@ import { CodeBlock } from './CodeBlock';
 import { Kbd } from './Kbd';
 import { Table } from './Table';
 import { Tab, Tabs } from './Tabs';
-import { VerdictTag } from './Seal';
+import { Seal, VerdictTag } from './Seal';
 import { VersionBadge } from './VersionBadge';
 
 function textOf(node: ReactNode): string {
@@ -18,9 +18,10 @@ function Pre({ children }: ComponentPropsWithoutRef<'pre'>) {
   if (!isValidElement<{ className?: string; children?: ReactNode }>(children)) {
     return <pre>{children}</pre>;
   }
-  const className = children.props.className ?? '';
-  const lang = /language-([\w-]+)/.exec(className)?.[1];
-  return <CodeBlock code={textOf(children.props.children)} lang={lang} />;
+  const props = children.props as { className?: string; children?: ReactNode; 'data-meta'?: string };
+  const lang = /language-([\w-]+)/.exec(props.className ?? '')?.[1];
+  const title = /title="([^"]*)"/.exec(props['data-meta'] ?? '')?.[1];
+  return <CodeBlock code={textOf(props.children)} lang={lang} title={title} />;
 }
 
 // Components available to every MDX page without an import.
@@ -30,6 +31,7 @@ export const mdxComponents = {
   Callout,
   CardLink,
   Kbd,
+  Seal,
   Tab,
   Tabs,
   VerdictTag,

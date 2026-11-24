@@ -1,0 +1,50 @@
+/* Home: the ruling on the 9° band, then the question in one line. */
+
+.home-hero {
+  position: relative;
+  padding: var(--s-9) max(var(--s-5), calc((100% - var(--w-wide)) / 2 + var(--s-5))) var(--s-8);
+  overflow: hidden;
+  isolation: isolate;
+}
+.home-hero::before {
+  content: '';
+  position: absolute;
+  inset: 30% -10% 10%;
+  z-index: -1;
+  background: var(--c-gold-bg);
+  transform: rotate(var(--band-angle));
+}
+.home-hero h1 {
+  max-width: 18ch;
+  margin-bottom: var(--s-4);
+  font: 600 var(--t-3xl) / var(--lh-tight) var(--f-caps);
+  letter-spacing: var(--track-caps);
+  text-wrap: balance;
+}
+.home-seals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+  margin-top: var(--s-6);
+}
+.home-ask {
+  max-width: var(--w-prose);
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-5) var(--s-8);
+}
+.home-ask a {
+  color: var(--c-jade);
+  text-underline-offset: 0.2em;
+}
+
+@media (max-width: 40rem) {
+  .home-hero {
+    padding: var(--s-7) var(--s-4) var(--s-6);
+  }
+  .home-seals .seal {
+    width: 100%;
+  }
+  .home-hero h1 {
+    font-size: var(--t-2xl);
+  }
+}

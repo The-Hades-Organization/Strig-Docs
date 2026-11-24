@@ -1,0 +1,66 @@
+/* Documentation layout: section tabs, one wide column and, on the language
+   pages, the pinned syntax panel. Only tokens, except media-query
+   breakpoints, which CSS cannot read from properties. */
+
+.doc-tabs {
+  border-bottom: 1px solid var(--c-line);
+}
+.doc-tabs ul {
+  display: flex;
+  gap: var(--s-5);
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+.doc-tabs a {
+  display: block;
+  padding: var(--s-3) 0;
+  border-bottom: 2px solid transparent;
+  color: var(--c-mute);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.doc-tabs a:hover {
+  color: var(--c-ink);
+}
+.doc-tabs a[aria-current='page'] {
+  border-bottom-color: var(--c-gold-ink);
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+.doc-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+  padding-top: var(--s-6);
+}
+.doc-article {
+  max-width: none;
+}
+.doc-panel {
+  display: grid;
+  gap: var(--s-3);
+}
+.doc-panel .code-block {
+  margin: 0;
+}
+/* The panel is narrow: long lines wrap instead of scrolling sideways. */
+.doc-panel .code-block pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 64rem) {
+  .doc-body[data-has-panel='true'] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+  }
+  .doc-panel {
+    position: sticky;
+    top: calc(var(--h-header) + var(--s-4));
+    max-height: calc(100vh - var(--h-header) - var(--s-6));
+    overflow-y: auto;
+  }
+}

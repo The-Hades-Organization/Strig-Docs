@@ -1,4 +1,5 @@
 import { defineConfig } from 'fumadocs-mdx/config';
+import { rehypeCodeMeta } from './src/lib/rehype-code-meta';
 
 // The core ships its own code and package-manager transforms that emit
 // fumadocs-ui components. The site owns all UI, so they stay off.
@@ -7,5 +8,6 @@ export default defineConfig({
     rehypeCodeOptions: false,
     remarkNpmOptions: false,
     remarkCodeTabOptions: false,
+    rehypePlugins: (plugins) => [...plugins, rehypeCodeMeta],
   },
 });

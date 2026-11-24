@@ -122,10 +122,18 @@ where (`gold-ink`), the question (`ink`), the grant id (`ink`, 700), allow (`jad
 
 ## Layout
 
-Header, then three regions: a 17rem sidebar built from the page tree, a content column, and a 14rem
-table of contents with the active section marked. Below 64rem the table of contents is dropped;
-below 48rem the sidebar folds into the header menu. Prose never exceeds 44rem; reference tables
-scroll inside their own box, never the page.
+The home opens on the ruling: a gilt band tilted by 9° behind the headline, an allow seal and a deny
+seal, then the question in one line of code.
+
+Every documentation page has the same frame: the header, a row of section tabs (the page tree in
+reading order, scrolling inside its own box when it outgrows the width), and one wide content column
+with breadcrumbs, the title, the body and the pager. There is no sidebar and no table of contents.
+A page may open with a seal as its verdict.
+
+The pages about the policy language add a **syntax panel**: the same grant in Blocks, Rules and
+Actors, stacked in a 28rem column beside the text. From 64rem up it is pinned below the header and
+scrolls on its own; below 64rem it follows the text. Long lines wrap in the panel, so it never
+scrolls sideways. Reference tables scroll inside their own box, never the page.
 
 ## Elevation & Depth
 
@@ -145,11 +153,13 @@ Radii are 4 (inline code, kbd), 8 (controls, callouts), 14 (cards, code blocks, 
   angle appears besides the mark.
 - **Callout**: tinted surface with a full 1 px border, an icon and a word (note, warning, breaking).
   No side stripe.
-- **Code block**: sunk well, caption with the language label and a copy button, scroll inside.
+- **Code block**: sunk well, caption with the language label (or the title given on the fence) and a
+  copy button, scroll inside.
+- **Doc tabs and syntax panel**: the section row and the pinned three-syntax column described in Layout.
 - **Tabs**: Roman capitals, a gold underline on the active tab, arrow-key navigation.
 - **Search**: a native dialog over the static index; opens with Ctrl+K, closes with Esc, returns
   focus to the button that opened it.
-- **Sidebar, table of contents, breadcrumbs, pager, card link, kbd, version badge, table.**
+- **Sidebar, table of contents (kept in the design system, unused by the doc layout), breadcrumbs, pager, card link, kbd, version badge, table.**
 
 Browser surfaces are themed too: green selection, gold caret, thin scrollbars in the border colour,
 a 2 px gold focus ring with an offset, tabular figures. Motion uses `cubic-bezier(.16, 1, .3, 1)` at
