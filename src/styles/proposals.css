@@ -1,0 +1,263 @@
+/* Presentation layer for the three directions. Only tokens, no literals
+   except media-query breakpoints, which CSS cannot read from properties. */
+
+.proposal-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  padding: var(--s-2) var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-sunk);
+  font-size: var(--t-sm);
+}
+.proposal-bar ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.proposal-bar a {
+  display: inline-block;
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  color: var(--c-mute);
+  text-decoration: none;
+}
+.proposal-bar a:hover {
+  color: var(--c-ink);
+}
+.proposal-bar a[aria-current='page'] {
+  background: var(--c-jade-bg);
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.proposal-bar-switch {
+  margin-left: auto;
+}
+
+/* Index of directions */
+.proposals-index {
+  max-width: var(--w-prose);
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-5) var(--s-8);
+}
+.proposals-index h1 {
+  margin: 0 0 var(--s-3);
+  font-size: var(--t-2xl);
+  line-height: var(--lh-tight);
+}
+.direction-list {
+  display: grid;
+  gap: var(--s-6);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.direction-list h2 {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-xl);
+}
+.direction-list p {
+  margin: var(--s-2) 0;
+}
+.direction-audience {
+  color: var(--c-mute);
+}
+.direction-links {
+  display: flex;
+  gap: var(--s-5);
+}
+.direction-links a,
+.home-b-ask a,
+.home-c a {
+  color: var(--c-jade);
+  text-underline-offset: 0.2em;
+}
+
+/* A · Livro */
+.home-a {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--s-8);
+  max-width: var(--w-wide);
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-5);
+}
+.home-a-title h1 {
+  margin: 0 0 var(--s-4);
+  font: 600 var(--t-3xl) / var(--lh-tight) var(--f-caps);
+  letter-spacing: var(--track-caps);
+}
+.home-a-contents h2 {
+  margin: 0 0 var(--s-4);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--c-line-strong);
+  font-size: var(--t-lg);
+}
+.home-a-contents ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.home-a-contents li {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.home-a-contents a {
+  color: var(--c-ink);
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+.home-a-contents span {
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+}
+
+/* B · Faixa */
+.home-b-hero {
+  position: relative;
+  padding: var(--s-9) var(--s-5) var(--s-8);
+  overflow: hidden;
+  isolation: isolate;
+}
+.home-b-hero::before {
+  content: '';
+  position: absolute;
+  inset: 30% -10% 10%;
+  z-index: -1;
+  background: var(--c-gold-bg);
+  transform: rotate(var(--band-angle));
+}
+.home-b-hero > * {
+  max-width: var(--w-wide);
+  margin-left: auto;
+  margin-right: auto;
+}
+.home-b-hero h1 {
+  max-width: 18ch;
+  margin-bottom: var(--s-4);
+  font: 600 var(--t-3xl) / var(--lh-tight) var(--f-caps);
+  letter-spacing: var(--track-caps);
+  text-wrap: balance;
+}
+.home-b-seals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+  margin-top: var(--s-6);
+}
+.home-b-ask {
+  max-width: var(--w-prose);
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-5) var(--s-8);
+}
+.doc-b-tabs {
+  max-width: var(--w-wide);
+  margin: 0 auto;
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+}
+.doc-b-tabs ul {
+  display: flex;
+  gap: var(--s-5);
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+.doc-b-tabs a {
+  display: block;
+  padding: var(--s-3) 0;
+  border-bottom: 2px solid transparent;
+  color: var(--c-mute);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.doc-b-tabs a:hover {
+  color: var(--c-ink);
+}
+.doc-b-tabs a[aria-current='page'] {
+  border-bottom-color: var(--c-gold-ink);
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.doc-b-article {
+  max-width: var(--w-wide);
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-5) var(--s-8);
+}
+.doc-b-article > .seal {
+  margin: var(--s-4) 0 var(--s-5);
+}
+
+/* C · Sintaxe primeiro */
+.home-c {
+  max-width: var(--w-wide);
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-5);
+}
+.home-c h1 {
+  max-width: 20ch;
+  margin: 0 0 var(--s-4);
+  font-size: var(--t-3xl);
+  line-height: var(--lh-tight);
+  text-wrap: balance;
+}
+.home-c-syntaxes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin: var(--s-6) 0;
+}
+.doc-c-grid {
+  display: grid;
+  grid-template-columns: minmax(0, var(--w-prose)) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+.doc-c-pinned {
+  position: sticky;
+  top: calc(var(--h-header) + var(--s-4));
+  display: grid;
+  gap: var(--s-3);
+  max-height: calc(100vh - var(--h-header) - var(--s-6));
+  overflow-y: auto;
+}
+
+@media (max-width: 80rem) {
+  .home-c-syntaxes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .doc-c-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .doc-c-pinned {
+    position: static;
+    max-height: none;
+  }
+}
+@media (max-width: 64rem) {
+  .home-a {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-6);
+    padding: var(--s-6) var(--s-4);
+  }
+}
+@media (max-width: 40rem) {
+  .home-b-hero {
+    padding: var(--s-7) var(--s-4) var(--s-6);
+  }
+  .home-b-hero h1,
+  .home-a-title h1,
+  .home-c h1 {
+    font-size: var(--t-2xl);
+  }
+  .proposal-bar {
+    padding: var(--s-2) var(--s-3);
+  }
+}
