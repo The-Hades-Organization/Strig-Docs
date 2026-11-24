@@ -5,8 +5,8 @@ export type CalloutKind = 'note' | 'warning' | 'breaking';
 
 const META: Record<CalloutKind, { icon: IconName; title: string }> = {
   note: { icon: 'info', title: 'Note' },
-  warning: { icon: 'warn', title: 'Warning' },
-  breaking: { icon: 'break', title: 'Breaking change' },
+  warning: { icon: 'triangle-alert', title: 'Warning' },
+  breaking: { icon: 'circle-x', title: 'Breaking change' },
 };
 
 export function Callout({

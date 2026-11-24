@@ -36,7 +36,7 @@ export function Clip({ src, poster, title, label }: { src: string; poster: strin
       <figcaption className="clip-bar">
         <span className="clip-title">{title}</span>
         <button type="button" className="clip-toggle" onClick={toggle} aria-pressed={playing}>
-          <Icon name={playing ? 'pause' : 'play'} size={14} />
+          <Icon name={playing ? 'pause-solid' : 'play-solid'} size={14} />
           <span>{playing ? 'Pause' : 'Play'}</span>
         </button>
       </figcaption>
