@@ -74,6 +74,18 @@
   padding: var(--s-8) var(--s-5);
   border-top: 1px solid var(--c-line);
 }
+/* Vertical rhythm: the question sits close under the hero, the syntaxes and
+   the strengths get room, install and exits are quick stops. */
+.home-section.home-ask {
+  padding-block: var(--s-7);
+}
+.home-section.home-syntax {
+  padding-block: var(--s-9) var(--s-8);
+}
+.home-section.home-install,
+.home-section.home-exits {
+  padding-block: var(--s-7);
+}
 .home-section h2 {
   margin: 0 0 var(--s-4);
   font: 600 var(--t-xl) / var(--lh-tight) var(--f-caps);
@@ -156,6 +168,15 @@
 .home-strengths li:first-child p {
   max-width: var(--w-prose);
   font-size: var(--t-lg);
+}
+.home-strengths .home-strength-example {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+  margin-top: var(--s-3);
+  color: var(--c-mute);
+  font-size: var(--t-sm);
 }
 .home-strengths p {
   max-width: 36rem;
@@ -254,6 +275,14 @@
   }
   .home-section {
     padding: var(--s-7) var(--s-4);
+  }
+  .home-section.home-ask,
+  .home-section.home-install,
+  .home-section.home-exits {
+    padding-block: var(--s-6);
+  }
+  .home-section.home-syntax {
+    padding-block: var(--s-8) var(--s-7);
   }
   .home-seals .seal {
     flex-basis: 100%;

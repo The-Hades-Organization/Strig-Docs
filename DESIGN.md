@@ -127,8 +127,12 @@ The home opens on the ruling: a gilt band tilted by 9° behind the headline, two
 install commands, then an allow seal and a deny seal that answer the same question for two
 resources. Below it come six ruled sections in one wide column, each with copy on one side and code
 on the other from 64rem up: the question and how a decision is made, the policy in three syntaxes
-(tabs), what the library gives (the first item, the fail-closed guarantee, leads at a larger size),
-install, and the exits (docs, playground, GitHub, crates.io, npm). Headings are Cinzel capitals at
+(tabs, with a short policy of one permission, one role, one assignment and one grant, so the three
+fit beside the copy; the full policy stays in the panel of the language pages), what the library
+gives (the first item, the fail-closed guarantee, leads at a larger size; "Decisions explain
+themselves" carries a compact verdict tag with a reason), install, and the exits (docs, playground,
+GitHub, crates.io, npm). Section padding varies on purpose: the question sits close under the hero,
+the syntaxes and the strengths get more room, install and exits are quick stops. Headings are Cinzel capitals at
 0.08em; the home never uses the 0.16em of the small labels on a sentence-length heading.
 
 A route no page claims renders `src/pages/404.tsx`: a headline, two actions and a deny seal. The

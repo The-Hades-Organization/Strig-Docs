@@ -1,9 +1,9 @@
 import { CodeBlock } from '../ds/CodeBlock';
 import { Header } from '../ds/Header';
 import { Icon } from '../ds/icons';
-import { Seal } from '../ds/Seal';
+import { Seal, VerdictTag, type Verdict } from '../ds/Seal';
 import { Tab, Tabs } from '../ds/Tabs';
-import { ASK_SAMPLE, SYNTAXES } from '../ds/syntaxes';
+import { ASK_SAMPLE, HOME_SYNTAXES } from '../ds/syntaxes';
 import { LINKS } from '../ds/links';
 
 const STEPS = [
@@ -13,7 +13,9 @@ const STEPS = [
   'The strategy picks the deciding grant. With no candidate, the answer is deny.',
 ];
 
-const STRENGTHS = [
+type Strength = { title: string; text: string; example?: { verdict: Verdict; text: string } };
+
+const STRENGTHS: Strength[] = [
   {
     title: 'It fails closed',
     text: 'A condition that cannot be evaluated, a grant with a time window and no clock, or a decision server that does not answer never opens access. The Rust client turns a timeout, a 503 or an unreadable reply into a deny.',
@@ -29,6 +31,10 @@ const STRENGTHS = [
   {
     title: 'Decisions explain themselves',
     text: 'A decision names its reason, the grants that matched and any warnings. The inspector shows the trace of each decision, simulates grant changes, draws the access matrix and re-reads the audit trail.',
+    example: {
+      verdict: 'deny',
+      text: 'g2 denies on the invoice type, a more specific step than the organization where g1 allows.',
+    },
   },
   {
     title: 'A core that does no IO',
@@ -140,7 +146,7 @@ export default function HomePage() {
           </div>
           <div className="home-code">
             <Tabs>
-              {SYNTAXES.map((syntax) => (
+              {HOME_SYNTAXES.map((syntax) => (
                 <Tab key={syntax.lang} label={syntax.lang.charAt(0).toUpperCase() + syntax.lang.slice(1)}>
                   <CodeBlock code={syntax.code} lang={syntax.lang} />
                 </Tab>
@@ -156,6 +162,12 @@ export default function HomePage() {
               <li key={item.title}>
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
+                {item.example ? (
+                  <p className="home-strength-example">
+                    <VerdictTag verdict={item.example.verdict} />
+                    <span>{item.example.text}</span>
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -181,7 +193,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="home-section" aria-labelledby="elsewhere-title">
+        <section className="home-section home-exits" aria-labelledby="elsewhere-title">
           <h2 id="elsewhere-title">Where to go next</h2>
           <ul className="home-links">
             {ELSEWHERE.map((item) => (

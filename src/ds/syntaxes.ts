@@ -95,6 +95,73 @@ catalog
   },
 ];
 
+// The smallest policy that still has a catalog, a role, an assignment and a
+// grant. The home shows this one so the three syntaxes fit side by side in a
+// glance; the language pages show the full policy above.
+export const HOME_SYNTAXES: SyntaxSample[] = [
+  {
+    lang: 'blocks',
+    code: `language blocks
+
+target_kinds = [project, document]
+broad_targets = [org]
+
+permission document.edit {
+  targets = [project, document]
+}
+
+role editor {
+}
+
+subject user:bruno {
+  assign editor {
+    scope = project:apollo
+  }
+}
+
+grant g-edit {
+  effect = allow
+  subject = role editor
+  permission = document.edit
+  target = project
+  scope = org:acme
+}
+`,
+  },
+  {
+    lang: 'rules',
+    code: `language rules
+
+kinds document, project
+broad org
+
+permission document.edit on project, document
+role editor
+
+user:bruno has role editor in project:apollo
+
+g-edit: allow role editor to document.edit on project in org:acme
+`,
+  },
+  {
+    lang: 'actors',
+    code: `language actors
+
+role editor
+  in org:acme
+    allow document.edit on project as g-edit
+
+subject user:bruno
+  role editor in project:apollo
+
+catalog
+  kinds document, project
+  broad org
+  document.edit on project, document
+`,
+  },
+];
+
 // From the decision example in the library README.
 export const ASK_SAMPLE = `let decision = engine.decide(
     &Context::new(&grants),
