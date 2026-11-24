@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import '../styles/tokens.css';
 import '../styles/base.css';
+import '../styles/components.css';
 import { THEME_INIT_SCRIPT } from '../ds/theme';
 
 export default async function RootElement({ children }: { children: ReactNode }) {
