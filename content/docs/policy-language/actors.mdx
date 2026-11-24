@@ -1,0 +1,24 @@
+---
+title: Actors
+description: Sample page for the Actors syntax.
+---
+
+Actors groups the policy by who acts.
+
+```actors
+language actors
+
+role editor inherits viewer
+
+role editor
+  in org:acme
+    allow document.edit on project as g-edit
+
+subject user:bruno
+  role editor in project:apollo
+
+catalog
+  kinds document, folder, project
+  broad org
+  document.edit on project, folder, document depends_on document.view
+```

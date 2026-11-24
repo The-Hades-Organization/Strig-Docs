@@ -1,0 +1,22 @@
+---
+title: Rules
+description: Sample page for the Rules syntax.
+---
+
+Rules writes each fact as one line.
+
+```rules
+language rules
+
+kinds document, folder, project
+broad org
+
+permission document.view on project, folder, document implied by project.view
+permission document.edit on project, folder, document depends_on document.view
+
+role editor inherits viewer
+
+user:bruno has role editor in project:apollo
+
+g-edit: allow role editor to document.edit on project in org:acme
+```

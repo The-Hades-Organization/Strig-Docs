@@ -1,0 +1,50 @@
+---
+title: Getting started
+description: Sample page with tabs and code in several languages.
+---
+
+## Install
+
+<Tabs>
+  <Tab label="Rust">
+
+```rust
+// Cargo.toml: themis = "0.5"
+use themis::Engine;
+
+fn main() {
+    let engine = Engine::default();
+    println!("{}", engine.is_empty());
+}
+```
+
+  </Tab>
+  <Tab label="Node">
+
+```ts
+import { compile } from 'themis';
+
+const policy = compile(source);
+console.log(policy.permissions.length);
+```
+
+  </Tab>
+</Tabs>
+
+## First question
+
+```json
+{
+  "subject": "user:bruno",
+  "permission": "document.edit",
+  "path": [["org", "acme"], ["project", "apollo"]]
+}
+```
+
+<Callout kind="note">
+  Sample text. The answer carries the verdict and the grant that decided it.
+</Callout>
+
+### Next steps
+
+Sample paragraph under a third-level heading, so the table of contents shows depth.

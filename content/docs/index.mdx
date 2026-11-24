@@ -1,6 +1,43 @@
 ---
 title: Introduction
-description: Sample page.
+description: Sample page that exercises the layout, callouts, tables and link cards.
 ---
 
-Sample paragraph.
+Themis decides without looking at who is asking. This is sample copy: it exists to give the
+components real structure, not to document anything.
+
+## What the sample shows
+
+A paragraph with `inline code`, a <Kbd>Ctrl</Kbd> <Kbd>K</Kbd> shortcut and a version badge:
+<VersionBadge version="0.5.0" />.
+
+<Callout kind="note">
+  A note explains something without raising the stakes.
+</Callout>
+
+<Callout kind="warning">
+  A warning names the problem and the way out.
+</Callout>
+
+<Callout kind="breaking" title="Breaking change">
+  A breaking change names what stopped working and what replaces it.
+</Callout>
+
+## Verdicts
+
+Every ruling is a word first: <VerdictTag verdict="allow" /> or <VerdictTag verdict="deny" />.
+
+| Question | Verdict | Grant |
+| --- | --- | --- |
+| Bruno edits a document in Apollo | Allow | `g-edit` |
+| Bruno edits a document in Zephyr | Deny | none |
+
+## Where to next
+
+<CardLink href="/docs/getting-started" title="Getting started">
+  Install the engine and ask the first question.
+</CardLink>
+
+<CardLink href="/docs/policy-language/blocks" title="Policy language">
+  One policy, three syntaxes.
+</CardLink>

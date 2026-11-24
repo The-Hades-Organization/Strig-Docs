@@ -1,0 +1,42 @@
+---
+title: Blocks
+description: Sample page for the Blocks syntax.
+---
+
+Blocks writes every part of the policy as a named block.
+
+```blocks
+// Documents of an organization: who may read, edit and manage them.
+language blocks
+
+target_kinds = [project, folder, document]
+broad_targets = [org]
+
+permission document.view {
+  targets = [project, folder, document]
+  implied_by = [project.view]
+}
+
+permission document.edit {
+  targets = [project, folder, document]
+  depends_on = [document.view]  // never alone
+}
+
+role editor {
+  inherits = [viewer]
+}
+
+subject user:bruno {
+  assign editor {
+    scope = project:apollo
+  }
+}
+
+grant g-edit {
+  effect = allow
+  subject = role editor
+  permission = document.edit
+  target = project
+  scope = org:acme
+}
+```
