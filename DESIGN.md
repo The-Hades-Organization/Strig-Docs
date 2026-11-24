@@ -111,7 +111,8 @@ vector lettering, not a font.
 
 - Prose is 16/26, measure capped at 44rem.
 - Interface text is 14/20; support text is 12.5.
-- Labels are capitals at 12.5 px with 0.16em spacing; the ruling word uses 0.14em.
+- Labels are capitals at 12.5 px with 0.16em spacing; the ruling word uses 0.14em; the home
+  headings use 0.08em (`--track-heading`).
 - Code is 13.5/22 with ligatures off and tabular figures.
 
 ### Code colour follows role
@@ -122,15 +123,23 @@ where (`gold-ink`), the question (`ink`), the grant id (`ink`, 700), allow (`jad
 
 ## Layout
 
-The home opens on the ruling: a gilt band tilted by 9° behind the headline, an allow seal and a deny
-seal, then the question in one line of code.
+The home opens on the ruling: a gilt band tilted by 9° behind the headline, two actions, the two
+install commands, then an allow seal and a deny seal that answer the same question for two
+resources. Below it come six ruled sections in one wide column, each with copy on one side and code
+on the other from 64rem up: the question and how a decision is made, the policy in three syntaxes
+(tabs), what the library gives (the first item, the fail-closed guarantee, leads at a larger size),
+install, and the exits (docs, playground, GitHub, crates.io, npm). Headings are Cinzel capitals at
+0.08em; the home never uses the 0.16em of the small labels on a sentence-length heading.
+
+A route no page claims renders `src/pages/404.tsx`: a headline, two actions and a deny seal. The
+static build writes it to `404.html` and the server answers it with status 404.
 
 Every documentation page has the same frame: the header, a row of section tabs (the page tree in
 reading order, scrolling inside its own box when it outgrows the width), and one wide content column
 with breadcrumbs, the title, the body and the pager. There is no sidebar and no table of contents.
 A page may open with a seal as its verdict.
 
-The pages about the policy language add a **syntax panel**: the same grant in Blocks, Rules and
+The pages about the policy language add a **syntax panel**: the same policy in Blocks, Rules and
 Actors, stacked in a 28rem column beside the text. From 64rem up it is pinned below the header and
 scrolls on its own; below 64rem it follows the text. Long lines wrap in the panel, so it never
 scrolls sideways. Reference tables scroll inside their own box, never the page.
@@ -153,6 +162,9 @@ Radii are 4 (inline code, kbd), 8 (controls, callouts), 14 (cards, code blocks, 
   angle appears besides the mark.
 - **Callout**: tinted surface with a full 1 px border, an icon and a word (note, warning, breaking).
   No side stripe.
+- **Button**: a link that looks like a button, 44 px tall, outlined by default. The primary one is
+  jade-filled and there is one per view. Hover swaps the fill to ink on primary and to the sunk
+  surface on the default; the focus ring is the global gold one.
 - **Code block**: sunk well, caption with the language label (or the title given on the fence) and a
   copy button, scroll inside.
 - **Doc tabs and syntax panel**: the section row and the pinned three-syntax column described in Layout.

@@ -248,6 +248,7 @@
 }
 .tab {
   margin-bottom: -1px;
+  min-height: 2.75rem;
   padding: var(--s-2) var(--s-4);
   border: 0;
   border-bottom: 2px solid transparent;

@@ -27,7 +27,7 @@ Other scripts: `npm run typecheck` (`tsc --noEmit`) and `npm run lint` (ESLint).
 ```text
 content/docs/        MDX pages and meta.json files that define the page tree
 public/fonts/        self-hosted fonts (OFL), with their licenses
-src/pages/           routes: home, /docs/*, /design-system, search API
+src/pages/           routes: home, 404, /docs/*, /design-system, search API
 src/ds/              the design system: components, highlighting, tokens data
 src/styles/          tokens.css and the CSS of each area
 src/lib/             page source and the code-fence meta plugin

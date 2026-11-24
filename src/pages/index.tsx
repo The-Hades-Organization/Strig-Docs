@@ -79,6 +79,14 @@ export default function HomePage() {
               Try the playground
             </a>
           </div>
+          <ul className="home-install-line" aria-label="Install">
+            <li>
+              <code>cargo add themis-auth</code>
+            </li>
+            <li>
+              <code>npm install themis-auth</code>
+            </li>
+          </ul>
           <div className="home-seals">
             <Seal
               verdict="allow"
@@ -168,8 +176,8 @@ export default function HomePage() {
             </p>
           </div>
           <div className="home-code home-install-code">
-            <CodeBlock code={'cargo add themis-auth\n'} lang="text" title="Rust" />
-            <CodeBlock code={'npm install themis-auth\n'} lang="text" title="Node, Bun and the browser" />
+            <CodeBlock code={'cargo add themis-auth\n'} lang="text" title="cargo" />
+            <CodeBlock code={'npm install themis-auth\n'} lang="text" title="npm, for Node, Bun and the browser" />
           </div>
         </section>
 

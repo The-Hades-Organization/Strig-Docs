@@ -101,7 +101,7 @@ export const ASK_SAMPLE = `let decision = engine.decide(
     &Request::new(&dave, "document.invoice.export", &invoice),
 );
 
-// g2 denies on the invoice type, a more specific step than the
-// organization where g1 allows.
+// g2 denies on the invoice type, a more specific
+// step than the organization where g1 allows.
 assert!(!decision.is_allowed());
 `;
