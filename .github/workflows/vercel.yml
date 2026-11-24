@@ -25,6 +25,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Pull the project settings
+        run: npx -y $VERCEL_CLI pull --yes --environment=${{ github.event_name == 'push' && 'production' || 'preview' }}
       - name: Build (prod)
         if: github.event_name == 'push'
         run: npx -y $VERCEL_CLI build --prod
