@@ -1,73 +1,28 @@
-import {
-  ArrowRight,
-  BookOpen,
-  Ban,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  CodeXml,
-  Copy,
-  ExternalLink,
-  Info,
-  Layers,
-  Menu,
-  Minus,
-  Package,
-  Pause,
-  Play,
-  Route,
-  Scale,
-  Search,
-  ShieldCheck,
-  Terminal,
-  TriangleAlert,
-  X,
-  type LucideIcon,
-} from 'lucide-react';
+import { EXTRA_PATHS } from './icon-extra';
+import { ICON_PATHS } from './icon-paths';
 
-const ICONS = {
-  check: Check,
-  x: X,
-  dash: Minus,
-  bang: CircleAlert,
-  search: Search,
-  copy: Copy,
-  'chevron-right': ChevronRight,
-  'chevron-left': ChevronLeft,
-  menu: Menu,
-  info: Info,
-  warn: TriangleAlert,
-  break: Ban,
-  'arrow-right': ArrowRight,
-  'external-link': ExternalLink,
-  book: BookOpen,
-  play: Play,
-  pause: Pause,
-  terminal: Terminal,
-  shield: ShieldCheck,
-  code: CodeXml,
-  package: Package,
-  route: Route,
-  layers: Layers,
-  scale: Scale,
-} satisfies Record<string, LucideIcon>;
+const PATHS = { ...ICON_PATHS, ...EXTRA_PATHS };
 
-export type IconName = keyof typeof ICONS;
+export type IconName = keyof typeof PATHS;
 
-// Lucide (ISC), grid 24, stroke 2; 1.75 only at 16px and below. Colour is inherited.
+// Sharp set from the design system: filled polygons, no stroke, colour inherited.
+// Sizes: 14 tags, 16 code captions, 18 buttons and callouts, 20 the seal, 24 emphasis.
+// Use the -solid variant where the icon sits on a filled control.
 export function Icon({ name, size = 18, label }: { name: IconName; size?: number; label?: string }) {
-  const Glyph = ICONS[name];
   const decorative = label === undefined;
   return (
-    <Glyph
+    <svg
       className="icon"
-      size={size}
-      strokeWidth={size <= 16 ? 1.75 : 2}
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="currentColor"
       role={decorative ? undefined : 'img'}
       aria-label={label}
       aria-hidden={decorative ? true : undefined}
       focusable="false"
-    />
+    >
+      <path d={PATHS[name]} />
+    </svg>
   );
 }

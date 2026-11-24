@@ -22,28 +22,28 @@ type Shot = { label: string; icon: IconName; src: string; alt: string; caption: 
 const PLAYGROUND_SHOTS: Shot[] = [
   {
     label: 'Deny',
-    icon: 'x',
+    icon: 'circle-x',
     src: '/media/pg-deny.webp',
     alt: 'The playground answering deny for Bruno in project Zephyr, with the reason beside it.',
     caption: 'Bruno is an editor in Apollo, not in Zephyr. The answer says so.',
   },
   {
     label: 'Actors',
-    icon: 'code',
+    icon: 'terminal',
     src: '/media/pg-actors.webp',
     alt: 'The same policy written in the Actors syntax, still compiling.',
     caption: 'Switch syntax. The policy is the same and the answer does not move.',
   },
   {
     label: 'A typo',
-    icon: 'bang',
+    icon: 'circle-alert',
     src: '/media/pg-typo.webp',
     alt: 'An unknown permission underlined, with its line, column and a did-you-mean hint.',
     caption: 'A mistake comes with its line, its column and a hint.',
   },
   {
     label: 'Order',
-    icon: 'route',
+    icon: 'arrow-right',
     src: '/media/pg-order.webp',
     alt: 'Two grants swapped in the editor and the ruling changing with them.',
     caption: 'Swap two lines and the ruling changes. The trace shows which one decided.',
@@ -53,21 +53,21 @@ const PLAYGROUND_SHOTS: Shot[] = [
 const INSPECTOR_SHOTS: Shot[] = [
   {
     label: 'Decision',
-    icon: 'scale',
+    icon: 'circle-check',
     src: '/media/inspector-evaluate.webp',
     alt: 'Strig Inspect showing a denied decision, the resource path and every grant with its fate.',
     caption: 'Every grant, and what became of it. The one that decided is marked.',
   },
   {
     label: 'Matrix',
-    icon: 'layers',
+    icon: 'panel-top',
     src: '/media/inspector-matrix.webp',
     alt: 'Strig Inspect showing who can do what on one resource, as a grid.',
     caption: 'Who can do what on a resource, in one grid. Click a cell for its trace.',
   },
   {
     label: 'Audit trail',
-    icon: 'shield',
+    icon: 'shield-check',
     src: '/media/inspector-audit.webp',
     alt: 'Strig Inspect listing audit records, a verified hash chain and a re-evaluation.',
     caption: 'The hash chain is checked, then each record is decided again with today’s grants.',
@@ -93,43 +93,43 @@ type Strength = { icon: IconName; title: string; text: string };
 
 const STRENGTHS: Strength[] = [
   {
-    icon: 'shield',
+    icon: 'shield-check',
     title: 'It fails closed',
     text: 'A condition that cannot be evaluated, or a server that does not answer, never opens access.',
   },
   {
-    icon: 'layers',
+    icon: 'panel-top',
     title: 'Three models, one set of grants',
     text: 'RBAC with inheritance, ABAC with conditions, ReBAC with relation tuples.',
   },
   {
-    icon: 'scale',
+    icon: 'circle-check',
     title: 'Changes are governed and audited',
     text: 'A grant change applies only if every invariant passes. Forensic records are hash-chained.',
   },
   {
-    icon: 'route',
+    icon: 'search',
     title: 'Decisions explain themselves',
     text: 'The reason, the grants that matched and the warnings travel with every answer.',
   },
   {
-    icon: 'package',
+    icon: 'terminal',
     title: 'A core that does no IO',
     text: 'The same engine runs in Rust, Node, Bun and the browser, through WebAssembly.',
   },
   {
-    icon: 'terminal',
+    icon: 'arrow-right',
     title: 'Changes reach the client',
     text: 'Grant changes fan out over Redis, Postgres or SSE, so the interface decides with current grants.',
   },
 ];
 
 const ELSEWHERE: { href: string; title: string; text: string; icon: IconName }[] = [
-  { href: LINKS.docs, title: 'Documentation', text: 'Concepts, the policy language, the reference.', icon: 'book' },
+  { href: LINKS.docs, title: 'Documentation', text: 'Concepts, the policy language, the reference.', icon: 'book-open' },
   { href: LINKS.playground, title: 'Playground', text: 'Two commands build it locally.', icon: 'play' },
-  { href: LINKS.github, title: 'GitHub', text: 'Source, issues, changelog.', icon: 'code' },
-  { href: LINKS.crate, title: 'crates.io', text: 'The crate, with API docs on docs.rs.', icon: 'package' },
-  { href: LINKS.npm, title: 'npm', text: 'Node, Bun and the browser.', icon: 'terminal' },
+  { href: LINKS.github, title: 'GitHub', text: 'Source, issues, changelog.', icon: 'github' },
+  { href: LINKS.crate, title: 'crates.io', text: 'The crate, with API docs on docs.rs.', icon: 'external-link' },
+  { href: LINKS.npm, title: 'npm', text: 'Node, Bun and the browser.', icon: 'external-link' },
 ];
 
 export default function HomePage() {
@@ -151,20 +151,20 @@ export default function HomePage() {
             </p>
             <div className="home-actions">
               <a className="button" data-kind="primary" href={LINKS.docs}>
-                <Icon name="book" size={18} />
+                <Icon name="book-open" size={18} />
                 Read the docs
               </a>
               <a className="button" href={LINKS.playground}>
-                <Icon name="play" size={18} />
+                <Icon name="play-solid" size={18} />
                 Open the playground
               </a>
               <a className="button" href={LINKS.github}>
-                <Icon name="code" size={18} />
+                <Icon name="github" size={18} />
                 GitHub
               </a>
             </div>
             <div className="home-install-line">
-              <CopyLine command="cargo add strig" icon="package" label="cargo" />
+              <CopyLine command="cargo add strig" icon="terminal" label="cargo" />
               <CopyLine command={`npm install ${NPM_PACKAGE}`} icon="terminal" label="npm" />
             </div>
           </div>
@@ -222,7 +222,7 @@ export default function HomePage() {
           <div className="home-code">
             <Tabs>
               {HOME_SYNTAXES.map((syntax) => (
-                <Tab key={syntax.lang} label={syntax.lang.charAt(0).toUpperCase() + syntax.lang.slice(1)} icon="code">
+                <Tab key={syntax.lang} label={syntax.lang.charAt(0).toUpperCase() + syntax.lang.slice(1)} icon="terminal">
                   <CodeBlock code={syntax.code} lang={syntax.lang} />
                 </Tab>
               ))}

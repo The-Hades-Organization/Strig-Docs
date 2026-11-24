@@ -138,7 +138,7 @@ A route no page claims renders `src/pages/404.tsx`: a headline, two actions and 
 static build writes it to `404.html` and the server answers it with status 404.
 
 Every documentation page has the same frame: the header, a row of section tabs with an icon each
-(Lucide, one per top-level section), then three columns: the page tree on the left, one prose
+(the sharp set from the design system, one per top-level section), then three columns: the page tree on the left, one prose
 column, and the table of contents on the right. Folded below 64rem: the toc is dropped; below 48rem
 the tree moves into the header menu. Tabs and body share one width (`--w-doc`). A page may open with a seal as its verdict.
 

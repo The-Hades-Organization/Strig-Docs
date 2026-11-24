@@ -15,8 +15,10 @@ import { Toc, type TocItem } from './Toc';
 import { VersionBadge } from './VersionBadge';
 
 const ICON_NAMES: IconName[] = [
-  'check', 'x', 'bang', 'dash', 'search', 'copy', 'chevron-right', 'chevron-left', 'menu', 'info',
-  'warn', 'break', 'arrow-right', 'external-link', 'book', 'play', 'terminal', 'shield', 'code', 'package', 'route', 'layers', 'scale',
+  'check', 'x', 'search', 'copy', 'chevron-right', 'chevron-left', 'chevron-down', 'arrow-right', 'menu', 'info',
+  'triangle-alert', 'circle-alert', 'circle-check', 'circle-x', 'circle-minus', 'minus', 'sun', 'moon',
+  'external-link', 'book-open', 'play', 'terminal', 'shield-check', 'panel-top', 'github',
+  'play-solid', 'pause-solid', 'triangle-alert-solid', 'info-solid', 'circle-alert-solid', 'circle-check-solid', 'circle-x-solid',
 ];
 
 const SAMPLE_TOC: TocItem[] = [
