@@ -2,7 +2,7 @@
 export const LINKS = {
   docs: '/docs',
   github: 'https://github.com/The-Hades-Organization/Strig',
-  playground: 'https://github.com/The-Hades-Organization/Strig/tree/main/playground',
+  playground: 'https://the-hades-organization.github.io/Strig/',
   changelog: 'https://github.com/The-Hades-Organization/Strig/blob/main/CHANGELOG.md',
   crate: 'https://crates.io/crates/strig',
   npm: 'https://www.npmjs.com/package/@the-hades-organization/strig',

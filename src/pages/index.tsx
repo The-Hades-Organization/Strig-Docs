@@ -126,7 +126,7 @@ const STRENGTHS: Strength[] = [
 
 const ELSEWHERE: { href: string; title: string; text: string; icon: IconName }[] = [
   { href: LINKS.docs, title: 'Documentation', text: 'Concepts, the policy language, the reference.', icon: 'book-open' },
-  { href: LINKS.playground, title: 'Playground', text: 'Two commands build it locally.', icon: 'play' },
+  { href: LINKS.playground, title: 'Playground', text: 'Runs in your browser, the real engine in WebAssembly.', icon: 'play' },
   { href: LINKS.github, title: 'GitHub', text: 'Source, issues, changelog.', icon: 'github' },
   { href: LINKS.crate, title: 'crates.io', text: 'The crate, with API docs on docs.rs.', icon: 'external-link' },
   { href: LINKS.npm, title: 'npm', text: 'Node, Bun and the browser.', icon: 'external-link' },
