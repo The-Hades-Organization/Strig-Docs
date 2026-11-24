@@ -1,43 +1,161 @@
 ---
 title: Introduction
-description: Sample page that exercises the layout, callouts, tables and link cards.
+description: What Strig decides, how it reaches a verdict, and where it runs.
 ---
 
-Strig decides without looking at who is asking. This is sample copy: it exists to give the
-components real structure, not to document anything.
+Strig answers one question: may this subject do this to this resource?
 
-## What the sample shows
+You write a policy. You ask questions. Each answer is a verdict and the grant that produced it. The examples on this page run against Strig 0.6.1.
 
-A paragraph with `inline code`, a <Kbd>Ctrl</Kbd> <Kbd>K</Kbd> shortcut and a version badge:
-<VersionBadge version="0.5.0" />.
+```rules title="documents.strig"
+language rules
+
+kinds document, folder, project
+broad org
+
+permission document.view on project, folder, document
+permission document.edit on project, folder, document depends_on document.view
+
+role viewer
+role editor inherits viewer
+
+user:bruno has role editor in project:apollo
+
+g-view: allow role viewer to document.view on project in org:acme
+g-edit: allow role editor to document.edit on project in org:acme
+g-seal: deny role editor to document.edit on folder:legal in org:acme
+```
+
+Three questions, all about Bruno and `document.edit`:
+
+| Question | Verdict | Why |
+| --- | --- | --- |
+| A document in Apollo's `plans` folder | <VerdictTag verdict="allow" /> | `g-edit` gives editors the permission on the project. |
+| A document in Apollo's `legal` folder | <VerdictTag verdict="deny" /> | `g-seal` sits on the folder, a step closer to the document than the project, so it decides. |
+| A document in Zephyr | <VerdictTag verdict="deny" /> | Bruno has no role in Zephyr, so no grant applies. |
+
+Bruno can still read the `legal` folder: `g-view` allows `document.view`, and an editor inherits the viewer role.
 
 <Callout kind="note">
-  A note explains something without raising the stakes.
+  With no grant that applies, the answer is deny. A condition Strig cannot evaluate never opens access.
 </Callout>
 
-<Callout kind="warning">
-  A warning names the problem and the way out.
-</Callout>
+## How it thinks
 
-<Callout kind="breaking" title="Breaking change">
-  A breaking change names what stopped working and what replaces it.
-</Callout>
+Five things make up every decision.
 
-## Verdicts
+**Subject.** Who is asking: an id, roles (optionally limited to a place), and attributes. Bruno holds `editor` in `project:apollo`, so the role does not reach Zephyr.
 
-Every ruling is a word first: <VerdictTag verdict="allow" /> or <VerdictTag verdict="deny" />.
+**Resource.** What is being touched, written as a path from the most specific step to the broadest: `document:spec → folder:legal → project:apollo → org:acme`. The path is how a grant on a project reaches a document inside it.
 
-| Question | Verdict | Grant |
-| --- | --- | --- |
-| Bruno edits a document in Apollo | Allow | `g-edit` |
-| Bruno edits a document in Zephyr | Deny | none |
+**Permission.** A dotted key from the catalog, such as `document.edit`. The catalog is validated when the policy loads. A permission that is not in it is denied, and `depends_on` means `document.edit` only holds where `document.view` does.
+
+**Grant.** An `allow` or a `deny` for a subject, a permission and a target, optionally limited by scope, a condition or a validity window.
+
+**Decision.** The engine collects the grants that apply along the resource path, then picks one. The default strategy, `most_specific`, lets the grant on the closest step decide, and a `deny` beats an `allow` on the same step. That is why `g-seal` overrides `g-edit` above. The other strategies (`deny_overrides`, `permit_overrides`, `first_applicable`) are one line in the policy.
+
+The decision names the grant that settled it, so "why was this denied?" has an answer without reading code.
+
+### One policy, three models
+
+The same grants carry all three access-control models.
+
+- **RBAC.** Roles inherit roles, as `editor` inherits `viewer` above.
+- **ABAC.** A grant can carry a condition over `subject.*`, `resource.*` and `env.*`, for example `when subject.dept == "legal"`.
+- **ReBAC.** A grant can apply to whoever holds a relation, such as `editor` on a document, read from tuples you store.
+
+## Ask it
+
+<Tabs>
+  <Tab label="Rust">
+
+```rust
+use strig::{Context, Reason, Request, Resource};
+
+let policy = strig::dsl::parse("documents.strig", SOURCE)?.policy;
+let engine = policy.engine_spec().builder()?.build()?;
+let bruno = policy.subjects.iter().find(|s| s.id.as_deref() == Some("bruno")).expect("in the policy");
+let ctx = Context::new(&policy.grants);
+
+let legal = Resource::new("document", "spec")
+    .within("folder", "legal")
+    .within("project", "apollo")
+    .within("org", "acme");
+
+let decision = engine.decide(&ctx, &Request::new(bruno, "document.edit", &legal));
+assert!(!decision.is_allowed());
+assert!(matches!(&decision.reason, Reason::Grant { grant_id, .. } if grant_id == "g-seal"));
+```
+
+  </Tab>
+  <Tab label="Node">
+
+```js
+import { load, scopeFromString } from '@the-hades-organization/strig';
+
+const strig = await load();
+const policy = strig.compile(SOURCE, { file: 'documents.strig' });
+
+const { catalog, roles, strategy } = policy;
+const engine = new strig.Engine({ catalog, roles, strategy });
+const ctx = new strig.Context({ grants: policy.grants });
+const bruno = policy.subjects.find((s) => s.id === 'bruno');
+
+const resource = scopeFromString('document:spec/folder:legal/project:apollo/org:acme');
+engine.check(ctx, { subject: bruno, permission: 'document.edit', resource }); // false
+engine.explain(ctx, { subject: bruno, permission: 'document.edit', resource }).decision.reason.grantId; // 'g-seal'
+```
+
+  </Tab>
+</Tabs>
+
+`SOURCE` is the policy above. The same policy compiles to the same canonical JSON whether you write it as Rules, Blocks or Actors; see the [policy language](/docs/policy-language).
+
+## Where it runs
+
+The core does no IO, needs no async runtime and compiles to WebAssembly. Everything else is a separate crate you add only when you need it.
+
+| You want | Use |
+| --- | --- |
+| Decisions inside a Rust service | `strig` |
+| Decisions in Node or Bun, native or WebAssembly | `@the-hades-organization/strig` |
+| Decisions in the browser, from the same engine | the WebAssembly build of the same package |
+| Decisions for services that do not embed the engine | `strig-server`, an HTTP server with a Rust client that denies when it gets no answer |
+| Permission changes pushed to clients as they happen | `strig-sync`, with Redis or Postgres between instances, and `strig-axum` for SSE and WebSocket |
+| A policy checked while your crate compiles | `strig-macros`: `policy!` and `include_policy!` |
+| The trace of a decision, grant simulation and the audit trail | `strig-inspect`, in a window or from the terminal |
+
+Strig also checks changes to the grants themselves. Governance applies a change only if every invariant passes (no escalation, no lockout, your own rules). With the `audit` feature, each change, applied or refused, becomes an audit record, and if the record cannot be written the change is refused.
+
+## When to use it, and when not
+
+Use Strig when permissions depend on where a resource sits (an organization, a project, a folder), when a deny should be a first-class answer, or when you need to explain a decision or audit a change after the fact.
+
+Skip it when the check is a single flag on a user and will stay one. A column is simpler.
+
+Two limits to know before you start:
+
+- **Pre-1.0.** The API can change between minor versions. The [changelog](https://github.com/The-Hades-Organization/Strig/blob/main/CHANGELOG.md) lists every break.
+- **The client does not guard anything.** `PermissionClient` decides locally for the interface. The server still decides on every operation.
 
 ## Where to next
 
 <CardLink href="/docs/getting-started" title="Getting started">
-  Install the engine and ask the first question.
+  Install the crate or the package and ask the first question.
+</CardLink>
+
+<CardLink href="/docs/concepts" title="Concepts">
+  Permissions, roles, grants and how a verdict is reached.
 </CardLink>
 
 <CardLink href="/docs/policy-language" title="Policy language">
-  One policy, three syntaxes.
+  One policy in three syntaxes, with the grammar.
+</CardLink>
+
+<CardLink href="/docs/reference" title="Reference">
+  The engine, its methods and the error codes.
+</CardLink>
+
+<CardLink href="https://github.com/The-Hades-Organization/Strig/tree/main/playground" title="Playground">
+  Edit a policy and watch the engine answer, in the browser. There is no hosted copy yet; build it from the repository.
 </CardLink>
