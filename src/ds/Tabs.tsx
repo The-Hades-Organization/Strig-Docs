@@ -1,13 +1,14 @@
 'use client';
 
+import { Icon, type IconName } from './icons';
 import { Children, isValidElement, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
-export function Tab({ children }: { label: string; children: ReactNode }) {
+export function Tab({ children }: { label: string; icon?: IconName; children: ReactNode }) {
   return <>{children}</>;
 }
 
 export function Tabs({ children }: { children: ReactNode }) {
-  const panels = Children.toArray(children).filter(isValidElement<{ label: string; children: ReactNode }>);
+  const panels = Children.toArray(children).filter(isValidElement<{ label: string; icon?: IconName; children: ReactNode }>);
   const [active, setActive] = useState(0);
   const base = useId();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -41,6 +42,7 @@ export function Tabs({ children }: { children: ReactNode }) {
             className="tab"
             onClick={() => setActive(index)}
           >
+            {panel.props.icon ? <Icon name={panel.props.icon} size={16} /> : null}
             {panel.props.label}
           </button>
         ))}

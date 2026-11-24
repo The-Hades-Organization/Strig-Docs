@@ -16,7 +16,7 @@ import { VersionBadge } from './VersionBadge';
 
 const ICON_NAMES: IconName[] = [
   'check', 'x', 'bang', 'dash', 'search', 'copy', 'chevron-right', 'chevron-left', 'menu', 'info',
-  'warn', 'break', 'arrow-right',
+  'warn', 'break', 'arrow-right', 'external-link', 'book', 'play', 'terminal', 'shield', 'code', 'package', 'route', 'layers', 'scale',
 ];
 
 const SAMPLE_TOC: TocItem[] = [
@@ -49,7 +49,7 @@ fn main() {
     println!("{}", engine.is_empty());
 }`;
 
-const TS_SAMPLE = `import { compile } from 'strig';
+const TS_SAMPLE = `import { compile } from '@the-hades-organization/strig';
 
 const policy = compile(source); // 3 permissions
 console.log(policy.permissions.length);`;

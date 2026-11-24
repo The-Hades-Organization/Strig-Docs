@@ -72,6 +72,7 @@
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --d-fast: 120ms;
   --d-base: 220ms;
+  --d-slow: 720ms;
 
   /* Layers */
   --z-base: 0;
@@ -83,8 +84,10 @@
   /* Layout */
   --w-sidebar: 17rem;
   --w-toc: 14rem;
+  --w-panel: 28rem;
   --w-prose: 44rem;
   --w-wide: 76rem;
+  --w-doc: 90rem;
   --h-header: 3.5rem;
 
   /* Breakpoints, kept as data. CSS media queries cannot read custom
