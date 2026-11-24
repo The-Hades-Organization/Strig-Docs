@@ -1,0 +1,126 @@
+/* Design system page: token tables and component sheets, shown in both themes. */
+
+.ds-section {
+  margin-top: var(--s-8);
+}
+.ds-section > h2 {
+  margin: 0 0 var(--s-2);
+}
+.ds-note {
+  margin: 0 0 var(--s-5);
+  color: var(--c-mute);
+}
+
+.ds-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin: var(--s-4) 0 var(--s-6);
+}
+.ds-panel {
+  min-width: 0;
+  padding: var(--s-5);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-bg);
+  color: var(--c-ink);
+}
+.ds-panel-name {
+  margin: 0 0 var(--s-4);
+  color: var(--c-mute);
+  font: 600 var(--t-xs) / 1.6 var(--f-caps);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+.ds-stack {
+  display: grid;
+  gap: var(--s-4);
+  justify-items: start;
+}
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.ds-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--s-3);
+}
+.ds-swatch {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  background: var(--c-panel);
+  font-size: var(--t-xs);
+}
+.ds-swatch-chip {
+  height: 2.5rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-1);
+}
+.ds-swatch code {
+  color: var(--c-mute);
+}
+
+.ds-scale {
+  display: grid;
+  gap: var(--s-2);
+}
+.ds-scale-row {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-4);
+}
+.ds-scale-row code {
+  color: var(--c-mute);
+  font-size: var(--t-xs);
+}
+.ds-space-bar {
+  height: var(--s-3);
+  border-radius: var(--r-1);
+  background: var(--c-jade);
+}
+.ds-radius-box {
+  width: 4rem;
+  height: 3rem;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-panel);
+}
+.ds-shadow-box {
+  width: 8rem;
+  height: 3rem;
+  border-radius: var(--r-2);
+  background: var(--c-panel);
+}
+.ds-motion-dot {
+  width: 1rem;
+  height: 1rem;
+  border-radius: var(--r-pill);
+  background: var(--c-gold);
+  transition: transform var(--d-base) var(--ease);
+}
+.ds-motion:hover .ds-motion-dot {
+  transform: translateX(8rem);
+}
+
+.ds-type-caps {
+  font: 600 var(--t-lg) / 1 var(--f-caps);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+@media (max-width: 48rem) {
+  .ds-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ds-scale-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-1);
+  }
+}

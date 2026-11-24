@@ -2,7 +2,8 @@
    identity, with contrast measured there (WCAG 2.x). Components read only
    these custom properties. */
 
-:root {
+:root,
+[data-theme='light'] {
   color-scheme: light;
 
   /* Colour: light */
@@ -97,7 +98,7 @@
   --bp-lg: 80rem;
 }
 
-:root[data-theme='dark'] {
+[data-theme='dark'] {
   color-scheme: dark;
 
   --c-bg: #16201d;
