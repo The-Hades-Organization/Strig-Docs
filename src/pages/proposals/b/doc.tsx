@@ -5,6 +5,7 @@ import { Pager } from '../../../ds/Pager';
 import { Seal } from '../../../ds/Seal';
 import { Shell } from '../../../ds/Shell';
 import { ProposalFrame } from '../../../proposals/ProposalFrame';
+import { READING_ORDER } from '../../../proposals/samples';
 import { source } from '@/lib/source';
 
 // Faixa: no sidebar. Sections sit in a tab row, a verdict opens the page,
@@ -14,7 +15,9 @@ export default async function DocB() {
   if (!page) unstable_notFound();
   const tree = source.getPageTree();
   const Body = page.data.body;
-  const sections = source.getPages();
+  const sections = [...source.getPages()].sort(
+    (x, y) => READING_ORDER.indexOf(x.url) - READING_ORDER.indexOf(y.url),
+  );
   return (
     <ProposalFrame direction="b" page="doc">
       <Shell>
