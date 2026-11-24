@@ -1,0 +1,99 @@
+/* Code block and token roles. Colour follows the role of the word in the decision. */
+
+.code-block {
+  margin: var(--s-5) 0;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-sunk);
+  overflow: hidden;
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-panel);
+}
+.code-label {
+  color: var(--c-mute);
+  font: 600 var(--t-xs) / 1.6 var(--f-caps);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+.code-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--c-mute);
+  font: 500 var(--t-xs) / 1.4 var(--f-ui);
+  cursor: pointer;
+  transition: color var(--d-fast) var(--ease), background var(--d-fast) var(--ease);
+}
+.code-copy:hover {
+  background: var(--c-sunk);
+  color: var(--c-ink);
+}
+.code-block pre {
+  margin: 0;
+  padding: var(--s-4);
+  overflow-x: auto;
+  font-size: 0.84375rem;
+  line-height: var(--lh-code);
+  tab-size: 2;
+}
+.code-block code {
+  font-family: var(--f-mono);
+}
+
+.t-kw {
+  color: var(--c-jade);
+  font-weight: 600;
+}
+.t-rel,
+.t-op {
+  color: var(--c-mute);
+}
+.t-ref,
+.t-num {
+  color: var(--c-gold-ink);
+}
+.t-perm {
+  color: var(--c-ink);
+}
+.t-id {
+  color: var(--c-ink);
+  font-weight: 700;
+}
+.t-allow {
+  color: var(--c-jade);
+  font-weight: 700;
+}
+.t-deny {
+  color: var(--c-deny);
+  font-weight: 700;
+}
+.t-str {
+  color: var(--c-mute);
+  font-style: italic;
+}
+.t-com {
+  color: var(--c-comment);
+  font-style: italic;
+}
+.t-type {
+  color: var(--c-gold-ink);
+}
+
+/* Inline code */
+:not(pre) > code {
+  padding: 0.1em var(--s-1);
+  border-radius: var(--r-1);
+  background: var(--c-sunk);
+  font-size: 0.9em;
+}
