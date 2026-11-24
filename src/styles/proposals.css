@@ -227,10 +227,12 @@
   overflow-y: auto;
 }
 
-@media (max-width: 80rem) {
+@media (max-width: 64rem) {
   .home-c-syntaxes {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+@media (max-width: 80rem) {
   .doc-c-grid {
     grid-template-columns: minmax(0, 1fr);
   }
