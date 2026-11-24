@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marca strig</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
+<style>
+/* Layout: folha de marca em seções empilhadas; cada seção tem título em Cinzel e o material à direita, que cai para baixo no celular. */
+@font-face { font-family: 'Strig Cinzel'; src: url('fonts/Cinzel-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+:root {
+  --ground: #F6F4F4; --plate: #FFFFFF; --ink: #141113; --ink-2: #4B4447; --ink-3: #6C6367; --rule: #E3DDDE;
+  --brand: #B01030; --brand-ink: #FFFFFF;
+  --c-primary: #B01030; --c-primary-dark: #FF5E70; --c-support: #996C6C;
+  --c-bg-light: #FFFFFF; --c-bg-dark: #0A0A0A; --c-ink: #111111; --c-ink-dark: #F2F2F2;
+  --display: 'Strig Cinzel', 'Cinzel', Georgia, serif;
+  --body: 'Inter', system-ui, sans-serif;
+  --mono: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0A0A0A; --plate: #141213; --ink: #F2EEEF; --ink-2: #C4BBBE; --ink-3: #9C9296; --rule: #2A2527;
+    --brand: #FF5E70; --brand-ink: #14090B; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0A0A0A; --plate: #141213; --ink: #F2EEEF; --ink-2: #C4BBBE; --ink-3: #9C9296; --rule: #2A2527;
+  --brand: #FF5E70; --brand-ink: #14090B; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 400 15px/1.6 var(--body); font-variant-numeric: tabular-nums; }
+::selection { background: var(--brand); color: var(--brand-ink); }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 56px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 64px; }
+
+.hero { display: grid; gap: 28px; }
+.hero-stage { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--rule); }
+.hero-stage > div { display: grid; place-items: center; padding: 72px 24px; min-width: 0; }
+.hero-stage svg { width: min(100%, 420px); height: auto; }
+.on-light { background: var(--c-bg-light); }
+.on-dark { background: var(--c-bg-dark); }
+.hero-text { display: grid; gap: 10px; max-width: 64ch; }
+.hero-text h1 { margin: 0; font: 500 clamp(1.75rem, 4vw, 2.5rem)/1.1 var(--display); letter-spacing: 0.04em; }
+.hero-text p { margin: 0; color: var(--ink-2); text-wrap: pretty; }
+
+section { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 24px 40px; border-top: 1px solid var(--rule); padding-top: 28px; }
+section > header { display: grid; gap: 8px; align-content: start; }
+section h2 { margin: 0; font: 500 1.25rem/1.25 var(--display); letter-spacing: 0.05em; text-wrap: balance; }
+section > header p { margin: 0; color: var(--ink-2); font-size: 14px; text-wrap: pretty; }
+.body { display: grid; gap: 20px; min-width: 0; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; }
+.tile { border: 1px solid var(--rule); display: grid; place-items: center; padding: 32px 16px; min-width: 0; gap: 12px; }
+.tile svg { max-width: 100%; height: auto; }
+.cap { font: 400 12px/1.4 var(--body); color: var(--ink-3); }
+.on-light .cap { color: #5E5559; } .on-dark .cap { color: #A79DA1; }
+.facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.facts li { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+.facts b { font-weight: 500; }
+.facts span { color: var(--ink-2); }
+
+.construction { background: var(--c-bg-light); border: 1px solid var(--rule); display: grid; place-items: center; padding: 24px; }
+.construction svg { width: min(100%, 440px); height: auto; }
+.sizes { display: flex; flex-wrap: wrap; gap: 28px; align-items: end; padding: 24px; border: 1px solid var(--rule); }
+.sizes figure { margin: 0; display: grid; gap: 8px; justify-items: center; }
+.sizes figcaption { font: 400 12px/1 var(--mono); }
+
+.palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; }
+.chip { border: 1px solid var(--rule); background: var(--plate); display: grid; grid-template-rows: 72px auto; min-width: 0; }
+.chip i { background: var(--c); border-bottom: 1px solid var(--rule); }
+.chip div { padding: 10px 12px; display: grid; gap: 2px; }
+.chip b { font-weight: 500; font-size: 13px; }
+.chip code { font: 400 12px/1.4 var(--mono); color: var(--ink-2); }
+.chip small { font-size: 12px; color: var(--ink-3); }
+
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.rules ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-2); }
+.rules h3 { margin: 0 0 8px; font: 500 13px/1.3 var(--body); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+
+.exports { display: grid; gap: 12px; }
+.export { border: 1px solid var(--rule); background: var(--plate); display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 16px; }
+.export .thumb { height: 56px; display: grid; place-items: center; border: 1px solid var(--rule); padding: 6px; }
+.export .thumb svg { max-height: 44px; max-width: 100%; width: auto; }
+.export b { font-weight: 500; display: block; }
+.export span { color: var(--ink-3); font-size: 13px; }
+.export textarea { grid-column: 1 / -1; width: 100%; height: 90px; font: 400 11px/1.4 var(--mono); color: var(--ink-2); background: var(--ground); border: 1px solid var(--rule); padding: 8px; resize: vertical; }
+.btn { font: 500 13px/1 var(--body); color: var(--ink); background: transparent; border: 1px solid var(--rule); padding: 9px 14px; border-radius: 3px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.status { font-size: 13px; color: var(--ink-3); min-height: 1.4em; }
+
+@media (max-width: 760px) {
+  .hero-stage { grid-template-columns: 1fr; }
+  section { grid-template-columns: 1fr; }
+  .facts li { grid-template-columns: 1fr; gap: 2px; }
+  .export { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) { .btn { transition: border-color 160ms ease-out; } }
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-stage" id="hero">
+      <div class="on-light" data-slot="hero-light"></div>
+      <div class="on-dark" data-slot="hero-dark"></div>
+    </div>
+    <div class="hero-text">
+      <h1>strig · IX Corte</h1>
+      <p>A lua cheia mordida de cima para baixo: as presas são o que falta nela. Símbolo em disco cheio, rubi frio,
+        wordmark em Cinzel Medium. Esta folha é a referência para aplicar a marca no site de docs, no README, no
+        crates.io, no npm e no avatar da organização.</p>
+    </div>
+  </div>
+
+  <section>
+    <header><h2>Símbolo</h2><p>Disco de raio 29 numa caixa de 64, com duas presas recortadas do topo. Nenhum vão ou traço
+      fica abaixo de 4 unidades: a 16 px cada unidade vale um quarto de pixel, então o menor detalhe ainda tem 1 px.</p></header>
+    <div class="body">
+      <div class="construction" data-slot="construction"></div>
+      <ul class="facts">
+        <li><b>Disco</b><span>centro (32, 32), raio 29; sobra 3 unidades de margem na caixa</span></li>
+        <li><b>Presas</b><span>base de 9 unidades em x = 24 e x = 40, altura 33, ponta inclinada 1,5 para o centro</span></li>
+        <li><b>Vão entre presas</b><span>7 unidades no topo, abrindo para 13 entre as pontas</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <header><h2>Tamanhos mínimos</h2><p>O símbolo sozinho vai até 16 px (favicon). O lockup horizontal não desce de
+      24 px de altura; abaixo disso, use só o símbolo.</p></header>
+    <div class="body">
+      <div class="sizes on-light" data-slot="sizes-light"></div>
+      <div class="sizes on-dark" data-slot="sizes-dark"></div>
+    </div>
+  </section>
+
+  <section>
+    <header><h2>Wordmark</h2><p>Cinzel Medium (500), espaçamento de 0,06 em. A Cinzel não tem minúsculas: o nome
+      digitado em minúsculas sai em versalete. O nome técnico (crate, pacote, código) continua sendo <code>strig</code>.</p></header>
+    <div class="body">
+      <div class="row">
+        <div class="tile on-light" data-slot="word-light"></div>
+        <div class="tile on-dark" data-slot="word-dark"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <header><h2>Lockups</h2><p>Horizontal para cabeçalhos e banners; empilhado para capas e cards quadrados. A área de
+      respiro em volta é de meio diâmetro do símbolo (a linha tracejada).</p></header>
+    <div class="body">
+      <div class="row">
+        <div class="tile on-light" data-slot="lockup-h-light"></div>
+        <div class="tile on-dark" data-slot="lockup-h-dark"></div>
+      </div>
+      <div class="row">
+        <div class="tile on-light" data-slot="lockup-v-light"></div>
+        <div class="tile on-dark" data-slot="lockup-v-dark"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <header><h2>Paleta</h2><p>Contraste medido pela fórmula do WCAG 2.x. Texto pede 4,5:1; símbolo e cor de apoio,
+      3:1.</p></header>
+    <div class="body"><div class="palette" id="palette"></div></div>
+  </section>
+
+  <section>
+    <header><h2>Uso</h2><p>O que mantém a marca séria: o vermelho aparece no símbolo e quase nunca no texto.</p></header>
+    <div class="body rules">
+      <div><h3>Faça</h3><ul>
+        <li>Rubi #B01030 no fundo claro, rosa #FF5E70 no escuro.</li>
+        <li>Símbolo em cor e wordmark na tinta neutra do fundo.</li>
+        <li>Versão monocromática em gravura, carimbo e documentos de uma cor.</li>
+        <li>Respiro de meio diâmetro do símbolo em volta do lockup.</li>
+      </ul></div>
+      <div><h3>Evite</h3><ul>
+        <li>Gotas, escorridos ou textura de sangue nas presas.</li>
+        <li>Girar o símbolo ou inverter as presas para baixo.</li>
+        <li>Wordmark em vermelho sobre fundo vermelho, ou sombra e brilho no disco.</li>
+        <li>Trocar a Cinzel por outra fonte de inscrição parecida.</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <section>
+    <header><h2>Arquivos</h2><p>SVG com as letras convertidas em curvas: abre sem a fonte instalada. Copie e salve
+      com o nome sugerido.</p></header>
+    <div class="body">
+      <p class="status" id="status" role="status" aria-live="polite">Convertendo o wordmark em curvas…</p>
+      <div class="exports" id="exports"></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+<script>
+(() => {
+  const C = { primary: '#B01030', primaryDark: '#FF5E70', support: '#996C6C', bgLight: '#FFFFFF', bgDark: '#0A0A0A', ink: '#111111', inkDark: '#F2F2F2' };
+  const TONES = {
+    light: { mark: C.primary, word: C.ink, label: 'claro' },
+    dark: { mark: C.primaryDark, word: C.inkDark, label: 'escuro' },
+    monoInk: { mark: C.ink, word: C.ink, label: 'mono escuro' },
+    monoWhite: { mark: '#FFFFFF', word: '#FFFFFF', label: 'mono branco' },
+  };
+  const FANGS = 'M19.5 -1H28.5C28.5 15.5 27.3 26.72 25.5 32C23.7 26.72 19.5 15.5 19.5 -1Z M35.5 -1H44.5C44.5 15.5 40.3 26.72 38.5 32C36.7 26.72 35.5 15.5 35.5 -1Z';
+  const TRACKING = 0.06;
+  let seq = 0;
+
+  // Símbolo como grupo SVG em coordenadas da caixa de 64, posicionado por translate/scale.
+  function symbolGroup(fill, x, y, size) {
+    const id = `strig-cut-${(seq += 1)}`;
+    const k = size / 64;
+    return `<defs><mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="-2" width="64" height="66"><rect x="0" y="-2" width="64" height="66" fill="#fff"/><path d="${FANGS}" fill="#000"/></mask></defs>` +
+      `<g transform="translate(${r(x)} ${r(y)}) scale(${r(k, 4)})"><circle cx="32" cy="32" r="29" fill="${fill}" mask="url(#${id})"/></g>`;
+  }
+  const r = (n, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
+
+  // Wordmark em curvas: avança glifo a glifo com kerning e o espaçamento da marca.
+  function wordPath(font, size) {
+    const scale = size / font.unitsPerEm;
+    const glyphs = font.stringToGlyphs('strig');
+    let x = 0;
+    const parts = [];
+    glyphs.forEach((g, i) => {
+      parts.push(g.getPath(x, 0, size).toPathData(2));
+      x += g.advanceWidth * scale + TRACKING * size;
+      if (i < glyphs.length - 1) x += font.getKerningValue(g, glyphs[i + 1]) * scale;
+    });
+    return { d: parts.join(' '), width: x - TRACKING * size };
+  }
+
+  function bboxOf(d) {
+    const probe = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    probe.setAttribute('style', 'position:absolute;width:0;height:0;overflow:hidden');
+    probe.innerHTML = `<path d="${d}"/>`;
+    document.body.appendChild(probe);
+    const b = probe.firstChild.getBBox();
+    probe.remove();
+    return b;
+  }
+
+  function svg(w, h, inner, label) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r(w)} ${r(h)}" width="${r(w)}" height="${r(h)}" role="img" aria-label="${label}">${inner}</svg>`;
+  }
+
+  function build(font) {
+    const W = wordPath(font, 100);
+    const wb = bboxOf(W.d);
+    const wordH = wb.height;
+    const word = (fill, x, y) => `<path fill="${fill}" transform="translate(${r(x - wb.x)} ${r(y - wb.y)})" d="${W.d}"/>`;
+
+    const art = {
+      symbol: (t) => svg(64, 64, symbolGroup(t.mark, 0, 0, 64), 'Símbolo da strig'),
+      wordmark: (t) => svg(wb.width, wordH, word(t.word, 0, 0), 'strig'),
+      lockupH: (t, guide = false) => {
+        const D = wordH * 2.1; const gap = D * 0.42; const sym = D * 64 / 58;
+        const pad = guide ? D / 2 : 0;
+        const w = sym + gap + wb.width + pad * 2; const h = sym + pad * 2;
+        const g = guide ? `<rect x="0.5" y="0.5" width="${r(w - 1)}" height="${r(h - 1)}" fill="none" stroke="${t.word}" stroke-opacity="0.35" stroke-dasharray="4 4"/>` : '';
+        return svg(w, h, g + symbolGroup(t.mark, pad, pad, sym) + word(t.word, pad + sym + gap, pad + (sym - wordH) / 2), 'strig');
+      },
+      lockupV: (t, guide = false) => {
+        const D = wordH * 3.2; const sym = D * 64 / 58; const gap = D * 0.28;
+        const pad = guide ? D / 2 : 0;
+        const inner = Math.max(sym, wb.width);
+        const w = inner + pad * 2; const h = sym + gap + wordH + pad * 2;
+        const g = guide ? `<rect x="0.5" y="0.5" width="${r(w - 1)}" height="${r(h - 1)}" fill="none" stroke="${t.word}" stroke-opacity="0.35" stroke-dasharray="4 4"/>` : '';
+        return svg(w, h, g + symbolGroup(t.mark, pad + (inner - sym) / 2, pad, sym) + word(t.word, pad + (inner - wb.width) / 2, pad + sym + gap), 'strig');
+      },
+    };
+
+    const put = (slot, html) => { const el = document.querySelector(`[data-slot="${slot}"]`); if (el) el.innerHTML = html; };
+    put('hero-light', art.lockupH(TONES.light));
+    put('hero-dark', art.lockupH(TONES.dark));
+    put('word-light', art.wordmark(TONES.light) + '<span class="cap">Cinzel Medium · tinta #111111</span>');
+    put('word-dark', art.wordmark(TONES.dark) + '<span class="cap">Cinzel Medium · tinta #F2F2F2</span>');
+    put('lockup-h-light', art.lockupH(TONES.light, true));
+    put('lockup-h-dark', art.lockupH(TONES.dark, true));
+    put('lockup-v-light', art.lockupV(TONES.light, true));
+    put('lockup-v-dark', art.lockupV(TONES.dark, true));
+
+    const exports = [
+      ['strig-simbolo-claro.svg', 'Símbolo, fundo claro', art.symbol(TONES.light), 'on-light'],
+      ['strig-simbolo-escuro.svg', 'Símbolo, fundo escuro', art.symbol(TONES.dark), 'on-dark'],
+      ['strig-simbolo-mono.svg', 'Símbolo, uma cor', art.symbol(TONES.monoInk), 'on-light'],
+      ['strig-wordmark-claro.svg', 'Wordmark, fundo claro', art.wordmark(TONES.light), 'on-light'],
+      ['strig-wordmark-escuro.svg', 'Wordmark, fundo escuro', art.wordmark(TONES.dark), 'on-dark'],
+      ['strig-lockup-horizontal-claro.svg', 'Lockup horizontal, fundo claro', art.lockupH(TONES.light), 'on-light'],
+      ['strig-lockup-horizontal-escuro.svg', 'Lockup horizontal, fundo escuro', art.lockupH(TONES.dark), 'on-dark'],
+      ['strig-lockup-horizontal-mono-branco.svg', 'Lockup horizontal, branco', art.lockupH(TONES.monoWhite), 'on-dark'],
+      ['strig-lockup-empilhado-claro.svg', 'Lockup empilhado, fundo claro', art.lockupV(TONES.light), 'on-light'],
+      ['strig-lockup-empilhado-escuro.svg', 'Lockup empilhado, fundo escuro', art.lockupV(TONES.dark), 'on-dark'],
+    ];
+    const list = document.getElementById('exports');
+    list.innerHTML = exports.map(([file, label, code, bg], i) => `<div class="export">
+        <div class="thumb ${bg}">${code}</div>
+        <div><b>${label}</b><span>${file}</span></div>
+        <button class="btn" type="button" data-copy="${i}">Copiar SVG</button>
+        <textarea id="svg-${i}" readonly aria-label="Código SVG de ${label}"></textarea></div>`).join('');
+    exports.forEach(([, , code], i) => { document.getElementById(`svg-${i}`).value = code; });
+    list.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('[data-copy]');
+      if (!btn) return;
+      const area = document.getElementById(`svg-${btn.dataset.copy}`);
+      try {
+        await navigator.clipboard.writeText(area.value);
+        status.textContent = `${exports[btn.dataset.copy][0]} copiado.`;
+      } catch (err) {
+        area.focus();
+        area.select();
+        status.textContent = 'A cópia automática não foi permitida aqui; o código está selecionado, use Ctrl+C.';
+      }
+    });
+    status.textContent = 'Pronto: dez arquivos, letras em curvas.';
+  }
+
+  function staticParts() {
+    // Construção a 64 com grade de 8 e guias.
+    const grid = [];
+    for (let i = 0; i <= 64; i += 8) grid.push(`<line x1="${i}" y1="0" x2="${i}" y2="64"/><line x1="0" y1="${i}" x2="64" y2="${i}"/>`);
+    document.querySelector('[data-slot="construction"]').innerHTML =
+      `<svg viewBox="-2 -2 68 68" width="440" height="440" role="img" aria-label="Construção do símbolo na grade de 64">
+        ${symbolGroup(C.primary, 0, 0, 64)}
+        <g fill="none" stroke="#111111" stroke-width="0.08" opacity="0.35">${grid.join('')}</g>
+        <g fill="none" stroke="#2F7DD1" stroke-width="0.22"><circle cx="32" cy="32" r="29"/><line x1="24" y1="0" x2="24" y2="64"/><line x1="40" y1="0" x2="40" y2="64"/><line x1="0" y1="32" x2="64" y2="32"/></g>
+      </svg>`;
+    const sizes = (t) => [16, 24, 32, 48, 64].map((s) => `<figure><svg viewBox="0 0 ${s} ${s}" width="${s}" height="${s}" aria-hidden="true">${symbolGroup(t.mark, 0, 0, s)}</svg><figcaption class="cap">${s} px</figcaption></figure>`).join('');
+    document.querySelector('[data-slot="sizes-light"]').innerHTML = sizes(TONES.light);
+    document.querySelector('[data-slot="sizes-dark"]').innerHTML = sizes(TONES.dark);
+
+    const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return [16, 8, 0].map((s) => { const v = ((n >> s) & 255) / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0); };
+    const ratio = (a, b) => { const [h, l] = [lum(a), lum(b)].sort((x, y) => y - x); return ((h + 0.05) / (l + 0.05)).toFixed(2).replace('.', ',') + ':1'; };
+    const chips = [
+      ['Rubi', C.primary, `no fundo claro ${ratio(C.primary, C.bgLight)}`],
+      ['Rosa noturno', C.primaryDark, `no fundo escuro ${ratio(C.primaryDark, C.bgDark)}`],
+      ['Apoio', C.support, `claro ${ratio(C.support, C.bgLight)} · escuro ${ratio(C.support, C.bgDark)}`],
+      ['Tinta', C.ink, `no fundo claro ${ratio(C.ink, C.bgLight)}`],
+      ['Tinta clara', C.inkDark, `no fundo escuro ${ratio(C.inkDark, C.bgDark)}`],
+      ['Fundo claro', C.bgLight, 'branco puro'],
+      ['Fundo escuro', C.bgDark, 'quase preto neutro'],
+    ];
+    document.getElementById('palette').innerHTML = chips.map(([n, h, note]) => `<div class="chip"><i style="--c:${h}"></i><div><b>${n}</b><code>${h}</code><small>${note}</small></div></div>`).join('');
+  }
+
+  const status = document.getElementById('status');
+  staticParts();
+  if (!window.opentype) {
+    status.textContent = 'A biblioteca que converte as letras em curvas não carregou. Recarregue a página para gerar os arquivos.';
+    return;
+  }
+  fetch('fonts/Cinzel-Medium.ttf')
+    .then((res) => { if (!res.ok) throw new Error(`fonte respondeu ${res.status}`); return res.arrayBuffer(); })
+    .then((buf) => build(opentype.parse(buf)))
+    .catch((err) => { status.textContent = `Não foi possível ler a Cinzel Medium (${err.message}). Os arquivos não foram gerados.`; });
+})();
+</script>
+
+</html>
