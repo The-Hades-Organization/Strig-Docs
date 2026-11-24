@@ -12,7 +12,6 @@ export function Header({ nav }: { nav?: ReactNode }) {
       </a>
       <nav className="site-nav" aria-label="Site">
         <a href="/docs">Docs</a>
-        <a href="/design-system">Design system</a>
       </nav>
       <div className="site-tools">
         <Search />
