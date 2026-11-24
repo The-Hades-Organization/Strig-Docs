@@ -1,0 +1,120 @@
+/* Single source of design tokens. Values for colour come from the playground
+   identity, with contrast measured there (WCAG 2.x). Components read only
+   these custom properties. */
+
+:root {
+  color-scheme: light;
+
+  /* Colour: light */
+  --c-bg: #f1f0eb;
+  --c-panel: #f8f7f3;
+  --c-sunk: #eceae2;
+  --c-line: #dad6ca;
+  --c-line-strong: #bdb8a8;
+  --c-ink: #16201d;
+  --c-mute: #4e6b63;
+  --c-jade: #1f5c51;
+  --c-jade-bg: #dae8e1;
+  --c-gold: #b07d1e;
+  --c-gold-ink: #7a5410;
+  --c-gold-bg: #f0e3c2;
+  --c-deny: #8e3226;
+  --c-deny-bg: #f3ded6;
+  --c-err: #b0301f;
+  --c-comment: #496359;
+  --c-selection: #c4dbd0;
+  --c-shadow: 22 32 29;
+
+  /* Typography */
+  --f-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --f-caps: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif;
+
+  --t-xs: 0.78125rem;
+  --t-sm: 0.875rem;
+  --t-md: 1rem;
+  --t-lg: 1.25rem;
+  --t-xl: 1.625rem;
+  --t-2xl: 2.25rem;
+  --t-3xl: 3.25rem;
+  --lh-tight: 1.15;
+  --lh-ui: 1.43;
+  --lh-prose: 1.65;
+  --lh-code: 1.63;
+  --track-caps: 0.16em;
+  --track-verdict: 0.14em;
+
+  /* Spacing */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4.5rem;
+  --s-9: 7rem;
+
+  /* Radius */
+  --r-1: 4px;
+  --r-2: 8px;
+  --r-3: 14px;
+  --r-pill: 999px;
+
+  /* Shadow: always carries a vertical offset */
+  --sh-1: 0 1px 2px rgb(var(--c-shadow) / 0.08), 0 1px 1px rgb(var(--c-shadow) / 0.04);
+  --sh-2: 0 6px 18px rgb(var(--c-shadow) / 0.1), 0 2px 4px rgb(var(--c-shadow) / 0.05);
+  --sh-3: 0 18px 44px rgb(var(--c-shadow) / 0.16), 0 4px 10px rgb(var(--c-shadow) / 0.06);
+
+  /* Motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --d-fast: 120ms;
+  --d-base: 220ms;
+  --d-seal: 720ms;
+
+  /* Layers */
+  --z-base: 0;
+  --z-sticky: 20;
+  --z-overlay: 40;
+  --z-modal: 60;
+  --z-toast: 80;
+
+  /* Layout */
+  --w-sidebar: 17rem;
+  --w-toc: 14rem;
+  --w-prose: 44rem;
+  --w-wide: 76rem;
+  --h-header: 3.5rem;
+
+  /* The band of the icon, used by the seal and behind the verdict only */
+  --band-angle: -9deg;
+
+  /* Breakpoints, kept as data. CSS media queries cannot read custom
+     properties, so @media rules repeat these literal values. */
+  --bp-sm: 40rem;
+  --bp-md: 64rem;
+  --bp-lg: 80rem;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --c-bg: #16201d;
+  --c-panel: #1b2824;
+  --c-sunk: #131b19;
+  --c-line: #26352f;
+  --c-line-strong: #3a5047;
+  --c-ink: #e9e2d0;
+  --c-mute: #9fc0b2;
+  --c-jade: #7cc3ae;
+  --c-jade-bg: #1f3a33;
+  --c-gold: #e3b04b;
+  --c-gold-ink: #e3b04b;
+  --c-gold-bg: #3a3118;
+  --c-deny: #f0a08d;
+  --c-deny-bg: #3c2420;
+  --c-err: #f4906f;
+  --c-comment: #8daa9f;
+  --c-selection: #2a4f44;
+  --c-shadow: 0 0 0;
+}

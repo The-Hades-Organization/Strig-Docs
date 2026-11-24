@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import '../styles/tokens.css';
+import '../styles/base.css';
+import { THEME_INIT_SCRIPT } from '../ds/theme';
 
 export default async function RootElement({ children }: { children: ReactNode }) {
   return (
@@ -6,7 +9,10 @@ export default async function RootElement({ children }: { children: ReactNode })
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
         <title>Themis</title>
+        {/* Constant string, no external input: sets the theme before first paint. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>{children}</body>
     </html>
