@@ -1,0 +1,41 @@
+name: Vercel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_CLI: vercel@66.5.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Pull the project settings
+        run: npx -y $VERCEL_CLI pull --yes --environment=${{ github.event_name == 'push' && 'production' || 'preview' }}
+      - name: Build (prod)
+        if: github.event_name == 'push'
+        run: npx -y $VERCEL_CLI build --prod
+      - name: Build (preview)
+        if: github.event_name == 'pull_request'
+        run: npx -y $VERCEL_CLI build
+      - name: Deploy (prod)
+        if: github.event_name == 'push'
+        run: npx -y $VERCEL_CLI deploy --prebuilt --prod
+      - name: Deploy (preview)
+        if: github.event_name == 'pull_request'
+        run: npx -y $VERCEL_CLI deploy --prebuilt

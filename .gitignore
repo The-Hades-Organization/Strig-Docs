@@ -3,3 +3,5 @@ dist
 .waku
 .source
 *.log
+.vercel
+.env*
