@@ -1,4 +1,5 @@
 import { Clip } from '../ds/Clip';
+import { ThemedImage } from '../ds/ThemedImage';
 import { CodeBlock } from '../ds/CodeBlock';
 import { CopyLine } from '../ds/CopyLine';
 import { Header } from '../ds/Header';
@@ -23,28 +24,28 @@ const PLAYGROUND_SHOTS: Shot[] = [
   {
     label: 'Deny',
     icon: 'circle-x',
-    src: '/media/pg-deny.webp',
+    src: '/media/pg-deny',
     alt: 'The playground answering deny for Bruno in project Zephyr, with the reason beside it.',
     caption: 'Bruno is an editor in Apollo, not in Zephyr. The answer says so.',
   },
   {
     label: 'Actors',
     icon: 'terminal',
-    src: '/media/pg-actors.webp',
+    src: '/media/pg-actors',
     alt: 'The same policy written in the Actors syntax, still compiling.',
     caption: 'Switch syntax. The policy is the same and the answer does not move.',
   },
   {
     label: 'A typo',
     icon: 'circle-alert',
-    src: '/media/pg-typo.webp',
+    src: '/media/pg-typo',
     alt: 'An unknown permission underlined, with its line, column and a did-you-mean hint.',
     caption: 'A mistake comes with its line, its column and a hint.',
   },
   {
     label: 'Order',
     icon: 'arrow-right',
-    src: '/media/pg-order.webp',
+    src: '/media/pg-order',
     alt: 'Two grants swapped in the editor and the ruling changing with them.',
     caption: 'Swap two lines and the ruling changes. The trace shows which one decided.',
   },
@@ -54,21 +55,21 @@ const INSPECTOR_SHOTS: Shot[] = [
   {
     label: 'Decision',
     icon: 'circle-check',
-    src: '/media/inspector-evaluate.webp',
+    src: '/media/inspector-evaluate',
     alt: 'Strig Inspect showing a denied decision, the resource path and every grant with its fate.',
     caption: 'Every grant, and what became of it. The one that decided is marked.',
   },
   {
     label: 'Matrix',
     icon: 'panel-top',
-    src: '/media/inspector-matrix.webp',
+    src: '/media/inspector-matrix',
     alt: 'Strig Inspect showing who can do what on one resource, as a grid.',
     caption: 'Who can do what on a resource, in one grid. Click a cell for its trace.',
   },
   {
     label: 'Audit trail',
     icon: 'shield-check',
-    src: '/media/inspector-audit.webp',
+    src: '/media/inspector-audit',
     alt: 'Strig Inspect listing audit records, a verified hash chain and a re-evaluation.',
     caption: 'The hash chain is checked, then each record is decided again with today’s grants.',
   },
@@ -80,7 +81,7 @@ function ShotTabs({ shots, width, height }: { shots: Shot[]; width: number; heig
       {shots.map((shot) => (
         <Tab key={shot.label} label={shot.label} icon={shot.icon}>
           <figure className="shot">
-            <img src={shot.src} alt={shot.alt} width={width} height={height} loading="lazy" decoding="async" />
+            <ThemedImage name={shot.src} alt={shot.alt} width={width} height={height} />
             <figcaption>{shot.caption}</figcaption>
           </figure>
         </Tab>
@@ -170,8 +171,8 @@ export default function HomePage() {
           </div>
           <div className="home-hero-demo">
             <Clip
-              src="/media/playground-tour.webm"
-              poster="/media/playground-poster.webp"
+              name="/media/playground-tour"
+              posterName="/media/playground-poster"
               title="Playground, the real engine in WebAssembly"
               label="Recording of the playground: choosing a case, reading an allow and a deny, switching syntax, fixing a typo."
             />
