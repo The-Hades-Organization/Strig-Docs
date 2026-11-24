@@ -1,6 +1,6 @@
-# Themis docs
+# Strig docs
 
-Documentation site for [Themis](https://github.com/The-Hades-Organization/themis), a generic Rust
+Documentation site for [Strig](https://github.com/The-Hades-Organization/Strig), a generic Rust
 authorization library with a policy language in three syntaxes (Blocks, Rules and Actors).
 
 The site is static. It is built with [Waku](https://waku.gg) (React Server Components), MDX through

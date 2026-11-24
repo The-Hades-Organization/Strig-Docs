@@ -9,8 +9,8 @@ description: Sample page with tabs and code in several languages.
   <Tab label="Rust">
 
 ```rust
-// Cargo.toml: themis = "0.5"
-use themis::Engine;
+// Cargo.toml: strig = "0.5"
+use strig::Engine;
 
 fn main() {
     let engine = Engine::default();
@@ -22,7 +22,7 @@ fn main() {
   <Tab label="Node">
 
 ```ts
-import { compile } from 'themis';
+import { compile } from 'strig';
 
 const policy = compile(source);
 console.log(policy.permissions.length);

@@ -18,8 +18,8 @@
 }
 .code-label {
   color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-caps);
-  letter-spacing: var(--track-caps);
+  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
 }
 .code-copy {
@@ -52,7 +52,7 @@
 }
 
 .t-kw {
-  color: var(--c-jade);
+  color: var(--c-accent);
   font-weight: 600;
 }
 .t-rel,
@@ -61,7 +61,7 @@
 }
 .t-ref,
 .t-num {
-  color: var(--c-gold-ink);
+  color: var(--c-support-ink);
 }
 .t-perm {
   color: var(--c-ink);
@@ -71,7 +71,7 @@
   font-weight: 700;
 }
 .t-allow {
-  color: var(--c-jade);
+  color: var(--c-allow);
   font-weight: 700;
 }
 .t-deny {
@@ -87,7 +87,7 @@
   font-style: italic;
 }
 .t-type {
-  color: var(--c-gold-ink);
+  color: var(--c-support-ink);
 }
 
 /* Inline code */

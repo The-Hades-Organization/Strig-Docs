@@ -1,4 +1,4 @@
-export const THEME_KEY = 'themis-theme';
+export const THEME_KEY = 'strig-theme';
 
 export type ThemeChoice = 'light' | 'dark';
 

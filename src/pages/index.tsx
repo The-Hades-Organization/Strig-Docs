@@ -1,6 +1,7 @@
 import { CodeBlock } from '../ds/CodeBlock';
 import { Header } from '../ds/Header';
 import { Icon } from '../ds/icons';
+import { Mark } from '../ds/Mark';
 import { Seal, VerdictTag, type Verdict } from '../ds/Seal';
 import { Tab, Tabs } from '../ds/Tabs';
 import { ASK_SAMPLE, HOME_SYNTAXES } from '../ds/syntaxes';
@@ -9,7 +10,7 @@ import { LINKS } from '../ds/links';
 const STEPS = [
   'A permission that is not in the catalog is denied.',
   'Overrides answer first, in order. The first one that answers decides.',
-  'Themis collects the grants that apply: permission, scope, target, subject and condition all match.',
+  'Strig collects the grants that apply: permission, scope, target, subject and condition all match.',
   'The strategy picks the deciding grant. With no candidate, the answer is deny.',
 ];
 
@@ -58,8 +59,8 @@ const ELSEWHERE = [
     text: 'Runs the engine in the browser. There is no hosted copy yet: two commands build it locally.',
   },
   { href: LINKS.github, title: 'GitHub', text: 'Source, issues and the changelog.' },
-  { href: LINKS.crate, title: 'crates.io', text: 'The themis-auth crate, with API docs on docs.rs.' },
-  { href: LINKS.npm, title: 'npm', text: 'The themis-auth package for Node, Bun and the browser.' },
+  { href: LINKS.crate, title: 'crates.io', text: 'The strig crate, with API docs on docs.rs.' },
+  { href: LINKS.npm, title: 'npm', text: 'The strig package for Node, Bun and the browser.' },
 ];
 
 export default function HomePage() {
@@ -71,9 +72,12 @@ export default function HomePage() {
       <Header />
       <main id="content" className="home">
         <section className="home-hero" aria-labelledby="home-title">
+          <div className="home-hero-mark" aria-hidden="true">
+            <Mark size={320} />
+          </div>
           <h1 id="home-title">Authorization that says why.</h1>
           <p className="home-lead">
-            Themis is an authorization library for Rust. It checks a validated permission catalog and
+            Strig is an authorization library for Rust. It checks a validated permission catalog and
             answers who may do what to which resource, with the reason for every answer.
           </p>
           <div className="home-actions">
@@ -87,10 +91,10 @@ export default function HomePage() {
           </div>
           <ul className="home-install-line" aria-label="Install">
             <li>
-              <code>cargo add themis-auth</code>
+              <code>cargo add strig</code>
             </li>
             <li>
-              <code>npm install themis-auth</code>
+              <code>npm install strig</code>
             </li>
           </ul>
           <div className="home-seals">
@@ -109,7 +113,7 @@ export default function HomePage() {
           <div className="home-copy">
             <h2 id="ask-title">One question, asked the same way every time</h2>
             <p>
-              A check names a subject, a permission and a resource. Themis returns a decision: allowed or
+              A check names a subject, a permission and a resource. Strig returns a decision: allowed or
               denied, the reason, the grants that matched and any warnings. The resource is a path from
               the most specific step to the broadest, and by default the most specific step with any grant
               decides.
@@ -177,19 +181,18 @@ export default function HomePage() {
           <div className="home-copy">
             <h2 id="install-title">Install</h2>
             <p>
-              The crate is <code>themis-auth</code> and the library keeps the name <code>themis</code>, so
-              you write <code>use themis::*;</code>. The npm package has the same name and loads the
-              native module on Node and Bun, or WebAssembly in the browser.
+              The crate is <code>strig</code>, so you write <code>use strig::*;</code>. The npm package has
+              the same name and loads the native module on Node and Bun, or WebAssembly in the browser.
             </p>
             <p>
-              Themis is pre-1.0 and the API can still change between minor versions. Release 0.5 renames{' '}
+              Strig is pre-1.0 and the API can still change between minor versions. Release 0.5 renames{' '}
               <code>needs</code> to <code>depends_on</code> in the Rules and Actors syntaxes; the{' '}
               <a href={LINKS.changelog}>changelog</a> has the details.
             </p>
           </div>
           <div className="home-code home-install-code">
-            <CodeBlock code={'cargo add themis-auth\n'} lang="text" title="cargo" />
-            <CodeBlock code={'npm install themis-auth\n'} lang="text" title="npm, for Node, Bun and the browser" />
+            <CodeBlock code={'cargo add strig\n'} lang="text" title="cargo" />
+            <CodeBlock code={'npm install strig\n'} lang="text" title="npm, for Node, Bun and the browser" />
           </div>
         </section>
 
@@ -211,7 +214,7 @@ export default function HomePage() {
         </section>
       </main>
       <footer className="home-footer">
-        <p>Themis is released under the MIT license.</p>
+        <p>Strig is released under the MIT license.</p>
       </footer>
     </div>
   );

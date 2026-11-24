@@ -25,7 +25,7 @@
   color: var(--c-ink);
 }
 .doc-tabs a[aria-current='page'] {
-  border-bottom-color: var(--c-gold-ink);
+  border-bottom-color: var(--c-support-ink);
   color: var(--c-ink);
   font-weight: 600;
 }

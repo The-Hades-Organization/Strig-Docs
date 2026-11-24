@@ -28,8 +28,8 @@
 .ds-panel-name {
   margin: 0 0 var(--s-4);
   color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-caps);
-  letter-spacing: var(--track-caps);
+  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  letter-spacing: var(--track-label);
   text-transform: uppercase;
 }
 .ds-stack {
@@ -84,7 +84,7 @@
 .ds-space-bar {
   height: var(--s-3);
   border-radius: var(--r-1);
-  background: var(--c-jade);
+  background: var(--c-accent);
 }
 .ds-radius-box {
   width: 4rem;
@@ -102,17 +102,11 @@
   width: 1rem;
   height: 1rem;
   border-radius: var(--r-pill);
-  background: var(--c-gold);
+  background: var(--c-support);
   transition: transform var(--d-base) var(--ease);
 }
 .ds-motion:hover .ds-motion-dot {
   transform: translateX(8rem);
-}
-
-.ds-type-caps {
-  font: 600 var(--t-lg) / 1 var(--f-caps);
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
 }
 
 @media (max-width: 48rem) {

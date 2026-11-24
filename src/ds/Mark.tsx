@@ -1,51 +1,30 @@
-import { WORDMARK_PATH, WORDMARK_VIEWBOX } from './wordmark-path';
+import { useId } from 'react';
+import { WORDMARK_PATH, WORDMARK_TRANSFORM, WORDMARK_VIEWBOX } from './wordmark-path';
 
-// The icon of the banner: split disc, band tilted by the band angle, gilt knot.
-// `open` draws the allow state (gap open), `closed` the deny state (gap shut).
-export type MarkState = 'rest' | 'open' | 'closed';
+// Corte: a full moon with a bite taken out, the fangs being the missing piece.
+// The colour is --c-mark, which is the brand primary of the active theme.
+const FANGS =
+  'M19.5 -1H28.5C28.5 15.5 27.3 26.72 25.5 32C23.7 26.72 19.5 15.5 19.5 -1Z M35.5 -1H44.5C44.5 15.5 40.3 26.72 38.5 32C36.7 26.72 35.5 15.5 35.5 -1Z';
 
-const GAP_SCALE: Record<MarkState, number> = { rest: 1, open: 1, closed: 0.1 };
-
-export function Mark({ state = 'rest', size = 32 }: { state?: MarkState; size?: number }) {
-  const scale = GAP_SCALE[state];
+export function Mark({ size = 32 }: { size?: number }) {
+  const maskId = useId();
   return (
-    <svg
-      className="mark"
-      viewBox="70 96 400 320"
-      width={(size * 400) / 320}
-      height={size}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <circle className="mark-disc" cx="236" cy="256" r="150" />
-      <g transform="rotate(-9 256 256)">
-        <rect
-          className="mark-gap"
-          x="70"
-          y="222"
-          width="340"
-          height="64"
-          style={{ transformBox: 'fill-box', transformOrigin: 'center', transform: `scaleY(${scale})` }}
-        />
-        <g className="mark-knot">
-          <circle cx="400" cy="254" r="30" />
-          <path d="M412 270 L456 360 L428 366 Z M396 278 L404 380 L376 372 Z" />
-        </g>
-      </g>
+    <svg className="mark" viewBox="0 0 64 64" width={size} height={size} aria-hidden="true" focusable="false">
+      <defs>
+        <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="-2" width="64" height="66">
+          <rect x="0" y="-2" width="64" height="66" fill="#fff" />
+          <path d={FANGS} fill="#000" />
+        </mask>
+      </defs>
+      <circle className="mark-disc" cx="32" cy="32" r="29" mask={`url(#${maskId})`} />
     </svg>
   );
 }
 
 export function Wordmark({ height = 18 }: { height?: number }) {
   return (
-    <svg
-      className="wordmark"
-      viewBox={WORDMARK_VIEWBOX}
-      height={height}
-      role="img"
-      aria-label="Themis"
-    >
-      <path d={WORDMARK_PATH} />
+    <svg className="wordmark" viewBox={WORDMARK_VIEWBOX} height={height} role="img" aria-label="Strig">
+      <path d={WORDMARK_PATH} transform={WORDMARK_TRANSFORM} />
     </svg>
   );
 }
