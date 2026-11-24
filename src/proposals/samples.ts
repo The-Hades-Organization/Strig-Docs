@@ -44,6 +44,17 @@ role editor
   },
 ];
 
+// Page urls in the order a reader meets them, matching the sidebar tree.
+export const READING_ORDER = [
+  '/docs',
+  '/docs/getting-started',
+  '/docs/concepts',
+  '/docs/policy-language/blocks',
+  '/docs/policy-language/rules',
+  '/docs/policy-language/actors',
+  '/docs/reference',
+];
+
 export const INSTALL_SAMPLE = `cargo add themis-engine
 `;
 

@@ -1,12 +1,14 @@
 import { CodeBlock } from '../../../ds/CodeBlock';
 import { Header } from '../../../ds/Header';
 import { ProposalFrame } from '../../../proposals/ProposalFrame';
-import { INSTALL_SAMPLE } from '../../../proposals/samples';
+import { INSTALL_SAMPLE, READING_ORDER } from '../../../proposals/samples';
 import { source } from '@/lib/source';
 
 // Livro: the home reads like the opening of a reference book.
 export default async function HomeA() {
-  const pages = source.getPages();
+  const pages = [...source.getPages()].sort(
+    (x, y) => READING_ORDER.indexOf(x.url) - READING_ORDER.indexOf(y.url),
+  );
   return (
     <ProposalFrame direction="a" page="home">
       <div className="shell">

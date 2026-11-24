@@ -58,7 +58,7 @@
   display: grid;
   gap: var(--s-1);
 }
-.seal-word {
+.seal .seal-word {
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -68,7 +68,7 @@
   letter-spacing: var(--track-verdict);
   text-transform: uppercase;
 }
-.seal-reason {
+.seal .seal-reason {
   margin: 0;
   color: var(--c-mute);
   font-size: var(--t-sm);
@@ -131,7 +131,7 @@
   --callout-ink: var(--c-deny);
   --callout-bg: var(--c-deny-bg);
 }
-.callout-title {
+.callout .callout-title {
   display: flex;
   align-items: center;
   gap: var(--s-2);
