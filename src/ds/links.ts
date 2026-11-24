@@ -5,5 +5,7 @@ export const LINKS = {
   playground: 'https://github.com/The-Hades-Organization/Strig/tree/main/playground',
   changelog: 'https://github.com/The-Hades-Organization/Strig/blob/main/CHANGELOG.md',
   crate: 'https://crates.io/crates/strig',
-  npm: 'https://www.npmjs.com/package/strig',
+  npm: 'https://www.npmjs.com/package/@the-hades-organization/strig',
 } as const;
+
+export const NPM_PACKAGE = '@the-hades-organization/strig';

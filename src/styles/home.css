@@ -8,7 +8,9 @@
 /* Hero */
 .home-hero {
   position: relative;
-  padding: var(--s-9) var(--home-gutter) var(--s-8);
+  display: grid;
+  gap: var(--s-7) var(--s-7);
+  padding: var(--s-8) var(--home-gutter) var(--s-8);
   overflow: hidden;
   isolation: isolate;
 }
@@ -46,28 +48,202 @@
   margin-top: var(--s-6);
 }
 .home-install-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2) var(--s-5);
+  display: grid;
+  gap: var(--s-2);
+  justify-items: start;
   margin: var(--s-5) 0 0;
-  padding: 0;
-  list-style: none;
-  color: var(--c-mute);
-  font-size: var(--t-sm);
 }
-.home-install-line code {
-  color: var(--c-ink);
-  font-family: var(--f-mono);
+.home-hero-copy,
+.home-hero-demo {
+  min-width: 0;
+}
+.home-hero-demo {
+  align-self: center;
 }
 .home-seals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-5);
-  margin-top: var(--s-7);
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-5) 0 var(--s-2);
 }
 .home-seals .seal {
-  flex: 1 1 20rem;
-  max-width: 28rem;
+  display: flex;
+}
+
+/* Copy line: a command with its own copy button */
+.copy-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 100%;
+  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  background: var(--c-sunk);
+  color: var(--c-support-ink);
+}
+.copy-line code {
+  overflow-x: auto;
+  color: var(--c-ink);
+  font: 500 var(--t-sm) / var(--lh-ui) var(--f-mono);
+  white-space: nowrap;
+}
+.copy-line button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--c-mute);
+  cursor: pointer;
+  transition: background var(--d-fast) var(--ease), color var(--d-fast) var(--ease);
+}
+.copy-line button:hover {
+  background: var(--c-line);
+  color: var(--c-ink);
+}
+
+/* Clip: a recording of the product in a quiet frame */
+.clip {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-3);
+  background: var(--c-panel);
+  box-shadow: var(--sh-2);
+}
+.clip-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+  color: var(--c-mute);
+  font-size: var(--t-xs);
+}
+.clip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 2rem;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--c-ink);
+  font: 600 var(--t-xs) / 1 var(--f-ui);
+  cursor: pointer;
+}
+.clip-toggle:hover {
+  background: var(--c-sunk);
+}
+.clip-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1280 / 760;
+  background: var(--c-sunk);
+}
+
+/* Stage: a tabbed gallery of real captures */
+.home-stage-head {
+  max-width: var(--w-prose);
+}
+.home-stage-head p {
+  margin: 0;
+  color: var(--c-mute);
+  font-size: var(--t-md);
+  line-height: var(--lh-prose);
+  text-wrap: pretty;
+}
+.home-stage-body {
+  min-width: 0;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.shot {
+  margin: 0;
+  display: grid;
+  gap: var(--s-3);
+}
+.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-3);
+  background: var(--c-sunk);
+  box-shadow: var(--sh-2);
+}
+.shot figcaption {
+  color: var(--c-mute);
+  font-size: var(--t-md);
+}
+
+.home-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+}
+.home-inline-link .icon {
+  transition: transform var(--d-fast) var(--ease);
+}
+.home-inline-link:hover .icon {
+  transform: translateX(var(--s-1));
+}
+
+/* Motion: the hero rises in once, blocks fade in on first view. All of it
+   stops under prefers-reduced-motion (base.css drops durations to 1 ms). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--s-4));
+  }
+}
+.home-hero-copy > * {
+  animation: rise var(--d-slow) var(--ease) backwards;
+}
+.home-hero-copy > :nth-child(2) {
+  animation-delay: 80ms;
+}
+.home-hero-copy > :nth-child(3) {
+  animation-delay: 160ms;
+}
+.home-hero-copy > :nth-child(4) {
+  animation-delay: 240ms;
+}
+.home-hero-demo {
+  animation: rise var(--d-slow) var(--ease) 200ms backwards;
+}
+.home-hero-mark {
+  animation: mark-in var(--d-slow) var(--ease) backwards;
+}
+@keyframes mark-in {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(0.92);
+  }
+}
+[data-reveal='armed'] {
+  opacity: 0;
+  transform: translateY(var(--s-5));
+}
+[data-reveal='shown'] {
+  transition: opacity var(--d-slow) var(--ease), transform var(--d-slow) var(--ease);
+}
+.home-strengths li h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.home-strengths li h3 .icon {
+  color: var(--c-accent);
 }
 
 /* Sections: copy on one side, code on the other */
@@ -165,14 +341,6 @@
   color: var(--c-ink);
   font-size: var(--t-lg);
 }
-/* The guarantee auditors read first leads the list. */
-.home-strengths li:first-child h3 {
-  font-size: var(--t-xl);
-}
-.home-strengths li:first-child p {
-  max-width: var(--w-prose);
-  font-size: var(--t-lg);
-}
 .home-strengths .home-strength-example {
   display: flex;
   flex-wrap: wrap;
@@ -250,13 +418,13 @@
     align-items: start;
   }
   .home-strengths {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .home-strengths li:first-child {
-    grid-column: 1 / -1;
+  .home-hero {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   }
-  .home-seals .seal {
-    max-width: 36rem;
+  .home-stage {
+    grid-template-columns: minmax(0, 1fr);
   }
   .home-links a {
     grid-template-columns: 12rem minmax(0, 1fr);
@@ -287,8 +455,5 @@
   }
   .home-section.home-syntax {
     padding-block: var(--s-8) var(--s-7);
-  }
-  .home-seals .seal {
-    flex-basis: 100%;
   }
 }
