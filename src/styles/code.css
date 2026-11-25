@@ -98,6 +98,8 @@
 .code-block[data-wrap] pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* Not break-word: that wraps after the indent and leaves a blank line before a long call. */
+  word-break: break-all;
 }
 .code-block code {
   font-family: var(--f-mono);

@@ -176,6 +176,8 @@
 .doc-panel pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* Not break-word: that wraps after the indent and leaves a blank line before a long call. */
+  word-break: break-all;
 }
 
 /* Headings with a # link (src/ds/mdx.tsx). The targeted one lands under the

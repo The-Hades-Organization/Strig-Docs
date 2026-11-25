@@ -117,6 +117,11 @@
   margin-top: var(--s-2);
 }
 
+/* The box is already the sunk tone, so inline code needs a chip of its own. */
+.callout :not(pre) > code {
+  background: color-mix(in srgb, var(--callout-ink) 10%, transparent);
+}
+
 /* Kbd */
 .kbd {
   display: inline-block;

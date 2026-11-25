@@ -71,7 +71,9 @@
   background: var(--c-sunk);
   color: var(--c-ink);
   font: 400 var(--t-code) / var(--lh-code) var(--f-mono);
-  white-space: pre;
+  /* A declaration can run past 400 characters: it wraps, and its own line breaks stay. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .api-desc {
   font-size: var(--t-sm);

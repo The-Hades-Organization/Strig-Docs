@@ -440,7 +440,7 @@ axum::serve(listener, router).await?;`,
     ],
     returns: (
       <>
-        An axum <code>Router</code> to serve. Every failure on a decision route is a <code>503</code> with a stable error body, never an allow.
+        An axum <code>Router</code> to serve. When the server cannot decide, the answer is a <code>503</code> with a stable error body, never an allow.
       </>
     ),
   },

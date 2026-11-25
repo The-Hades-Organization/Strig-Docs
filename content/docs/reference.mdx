@@ -5,7 +5,7 @@ description: "The public API at 0.6.1: the strig engine, its decisions, requests
 
 Every signature is copied from the source at 0.6.1. Pick a name to see it in the bench with a real example and what it returns. The first part is the `strig` crate: install it with `strig = "0.6"`; the default features are `audit`, and `dsl` and `dsl-fs` add the policy language. After it come `strig-sync` and its transports, `strig-axum`, `strig-server`, `strig-macros`, the npm package and the inspector.
 
-The crate ships no changelog, so no item here carries an "Added in" badge. Strig was called Themis until 0.5.0: the crate `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`, with the same code.
+The repository's `CHANGELOG.md` records what changed between versions; this page describes 0.6.1 only. Strig was called Themis until 0.5.0: the crate `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`, with the same code. The npm package and `strig-server` have no 0.6.0 release, so 0.6.1 is the first version of both.
 
 ## Engine
 
@@ -437,7 +437,7 @@ The body is `{"error": {"code": "...", "message": "..."}}`. `code` is stable; `m
     A client over plain HTTP, or over any `Transport`. Every call has a timeout, 2 s by default, sent to the server as the deadline. A circuit breaker opens after 5 consecutive failures and refuses calls for 30 s before it lets one probe through; `4xx` does not count.
   </ApiItem>
   <ApiItem level={4} id="client-check" name="Client::check" sig={"pub async fn check(&self, request: &CheckRequest) -> ClientDecision\npub async fn check_batch(&self, requests: &[CheckRequest]) -> Vec<ClientDecision>"}>
-    A failed check is `ClientDecision::Denied(Failure)`, never an allow. A batch is one call and keeps the order; if it fails, every check is denied with the same cause.
+    `CheckRequest` and the other request types are in `strig_server::wire`. A failed check is `ClientDecision::Denied(Failure)`, never an allow. A batch is one call and keeps the order; if it fails, every check is denied with the same cause.
   </ApiItem>
   <ApiItem level={4} id="client-list" name="Client::list, who, access" sig={"pub async fn list(&self, request: &ListRequest) -> Result<ListResponse, Failure>\npub async fn who(&self, request: &WhoRequest) -> Result<WhoResponse, Failure>\npub async fn access(&self, request: &AccessRequest) -> Result<AccessResponse, Failure>"}>
     There is no deny to fall back on, so they return `Err(Failure)`: show nothing.
@@ -460,7 +460,7 @@ The body is `{"error": {"code": "...", "message": "..."}}`. `code` is stable; `m
   </ApiItem>
 </ApiGroup>
 
-The expansion embeds the validated policy as JSON and reads it back, so the policy text is never parsed at runtime but the JSON is, on each evaluation. In a hot path, keep it in a `static` with `LazyLock`.
+The expansion embeds the validated policy as JSON and reads that JSON back on each evaluation; the policy text itself is not parsed at runtime. In a hot path, keep it in a `static` with `LazyLock`.
 
 ## JavaScript: the npm package
 

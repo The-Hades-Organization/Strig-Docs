@@ -183,6 +183,10 @@ no invented testimonials, numbers or logos. One icon set.
   fade while more is below; the table question links read as one inline phrase.
 - 2026-11-25 — A doc page with no bench and no syntax panel (Getting started today) is one centred column
   at `w-prose`; no board gives it bench examples, so none are invented and no right column is kept.
+- 2026-11-25 — Reference declarations wrap instead of scrolling, and inline code inside a callout gets a
+  chip tinted by the callout's ink — the box and the old chip were the same tone, so the chip showed only as
+  stray space around the code. Wrapped code in the bench breaks anywhere in a word, so a long indented line
+  no longer leaves a blank line after its indent.
 
 ## Open questions
 
