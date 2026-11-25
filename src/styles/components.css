@@ -317,3 +317,27 @@
     transform: none;
   }
 }
+
+/* Scroll edges: a faint edge on the side that still has content to scroll to,
+   so a clipped line of code, a table or the tab row reads as scrollable. */
+.code-block pre,
+.table-wrap,
+.doc-tabs ul {
+  --edge-bg: var(--c-sunk);
+  background-color: var(--edge-bg);
+  background-image:
+    linear-gradient(to right, var(--edge-bg) 30%, transparent) left center / var(--s-6) 100% no-repeat local,
+    linear-gradient(to left, var(--edge-bg) 30%, transparent) right center / var(--s-6) 100% no-repeat local,
+    linear-gradient(to right, var(--c-line-strong), transparent) left center / var(--s-2) 100% no-repeat scroll,
+    linear-gradient(to left, var(--c-line-strong), transparent) right center / var(--s-2) 100% no-repeat scroll;
+}
+.table-wrap {
+  --edge-bg: var(--c-bg);
+  background-color: var(--c-bg);
+}
+.table-wrap table {
+  background: transparent;
+}
+.doc-tabs ul {
+  --edge-bg: var(--c-bg);
+}

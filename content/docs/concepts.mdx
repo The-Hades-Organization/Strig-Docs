@@ -3,75 +3,11 @@ title: Concepts
 description: Permissions, roles, grants, the resource path and the strategy that picks a verdict, each shown with the question and the answer the engine gives.
 ---
 
-Every answer on this page comes from one program that takes a policy file, a user, a permission and a resource path. Each policy is small and proves one rule. The examples run against Strig 0.6.1.
-
-<Tabs>
-  <Tab label="Rust">
-
-```rust title="src/main.rs"
-use strig::dsl::fs::read_file;
-use strig::{Context, Request, Resource};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
-    let policy = read_file(&args[1])?.policy;
-    let engine = policy.engine_spec().build()?;
-    let context = Context::new(&policy.grants);
-
-    let who = policy.subjects.iter().find(|s| s.id.as_deref() == Some(args[2].as_str())).expect("subject");
-    let (kind, id) = args[4].split_once(':').expect("kind:id");
-    let mut resource = Resource::new(kind, id);
-    for step in &args[5..] {
-        let (kind, id) = step.split_once(':').expect("kind:id");
-        resource = resource.within(kind, id);
-    }
-
-    let decision = engine.decide(&context, &Request::new(who, &args[3], &resource));
-    println!("{}", serde_json::to_string_pretty(&decision)?);
-    Ok(())
-}
-```
-
-```text title="Terminal"
-cargo run -- policy.strig ana document.edit document:spec project:apollo org:acme
-```
-
-  </Tab>
-  <Tab label="Node">
-
-```ts title="ask.mjs"
-import { readFileSync } from 'node:fs';
-import { load } from '@the-hades-organization/strig';
-
-const [file, user, permission, ...steps] = process.argv.slice(2);
-const { compile, Engine, Context } = await load();
-const policy = compile(readFileSync(file, 'utf8'), { file });
-const { catalog, roles, strategy } = policy;
-const engine = new Engine({ catalog, roles, strategy });
-const context = new Context({ grants: policy.grants });
-
-const subject = policy.subjects.find((s) => s.id === user);
-const path = steps.map((step) => {
-  const [kind, id] = step.split(':');
-  return { kind, id };
-});
-
-const decision = engine.decide(context, { subject, permission, resource: { path } });
-console.log(JSON.stringify(decision, null, 2));
-```
-
-```text title="Terminal"
-node ask.mjs policy.strig ana document.edit document:spec project:apollo org:acme
-```
-
-  </Tab>
-</Tabs>
-
-The path goes from the most specific step to the broadest. Node prints the same answers as Rust, with the keys in another order and `grantId` in place of `grant_id`.
+Each policy on this page is small and proves one rule. Every answer under it is real output from [the program at the end](#the-program), run against Strig 0.6.1. It takes a policy file, a user, a permission and a resource path, written from the most specific step to the broadest. For Node, run `node ask.mjs` where the commands say `cargo run --`.
 
 ## Permissions
 
-A permission is a dotted key the catalog declares. The catalog also says where it can be granted, what grants it as a side effect, and what it needs first.
+A permission is a dotted key the catalog declares. The catalog also says where it can be granted (`on`), what grants it as a side effect (`implied by`) and what it needs first (`depends_on`). `kinds` lists the kinds of resource, and `broad org` names the widest step above them.
 
 ```rules title="perms.strig"
 language rules
@@ -200,18 +136,14 @@ cargo run -- roles.strig ana document.edit document:spec project:zephyr org:acme
 
 In Apollo the answer is `allow` only because `editor` inherits `viewer`: `document.edit` needs `document.view`, and `g-view` is written for `viewer`. In Zephyr, Ana holds no role, so no grant applies.
 
-## Where a grant applies
+## Which grant wins
 
-A resource is a path, from the most specific step to the broadest, with an implicit `global` at the end. A grant sits on one step and applies to everything under it.
+A grant sits on one step of the resource path and applies to everything under it. The path ends with an implicit `global`, and `rank` in an answer is the position of the deciding grant's step.
 
 ```text title="Path and rank"
 document:spec   project:apollo   org:acme   global
 rank 0          rank 1           rank 2     rank 3
 ```
-
-`rank` in an answer is the step of the deciding grant. So far it is 1: those grants were written on `project`.
-
-## Which grant wins
 
 When several grants apply, the strategy picks one. The default, `most_specific`, lets the grant on the closest step decide, and a `deny` beats an `allow` on the same step. An `allow` for one document and a `deny` for the whole project:
 
@@ -293,6 +225,8 @@ Add `strategy deny_overrides` after `broad org` and ask about `document:spec` ag
 }
 ```
 
+<Seal verdict="deny" reason="Denied by g-freeze, at any step." />
+
 The same two grants matched, and the verdict flipped. The strategy is one line of the policy:
 
 | Strategy | The deciding grant |
@@ -372,6 +306,78 @@ Three more parts of the model act on the same grants. This page does not cover t
 | Relations | A grant for `relation editor` applies to whoever holds `editor` on a resource, read from stored tuples. |
 | Governance | A change to the grants is applied only if every invariant passes: no escalation, no lockout, your own rules. |
 | Audit | With the `audit` feature, each change, applied or refused, becomes a record. |
+
+## The program
+
+The runner behind every answer above. Save the policy under the name the command uses.
+
+<Tabs>
+  <Tab label="Rust">
+
+```rust title="src/main.rs"
+use strig::dsl::fs::read_file;
+use strig::{Context, Request, Resource};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().collect();
+    let policy = read_file(&args[1])?.policy;
+    let engine = policy.engine_spec().build()?;
+    let context = Context::new(&policy.grants);
+
+    let who = policy
+        .subjects
+        .iter()
+        .find(|s| s.id.as_deref() == Some(args[2].as_str()))
+        .expect("subject");
+    let (kind, id) = args[4].split_once(':').expect("kind:id");
+    let mut resource = Resource::new(kind, id);
+    for step in &args[5..] {
+        let (kind, id) = step.split_once(':').expect("kind:id");
+        resource = resource.within(kind, id);
+    }
+
+    let decision = engine.decide(&context, &Request::new(who, &args[3], &resource));
+    println!("{}", serde_json::to_string_pretty(&decision)?);
+    Ok(())
+}
+```
+
+```text title="Terminal"
+cargo run -- perms.strig bob document.edit document:spec project:apollo org:acme
+```
+
+  </Tab>
+  <Tab label="Node">
+
+```ts title="ask.mjs"
+import { readFileSync } from 'node:fs';
+import { load } from '@the-hades-organization/strig';
+
+const [file, user, permission, ...steps] = process.argv.slice(2);
+const { compile, Engine, Context } = await load();
+const policy = compile(readFileSync(file, 'utf8'), { file });
+const { catalog, roles, strategy } = policy;
+const engine = new Engine({ catalog, roles, strategy });
+const context = new Context({ grants: policy.grants });
+
+const subject = policy.subjects.find((s) => s.id === user);
+const path = steps.map((step) => {
+  const [kind, id] = step.split(':');
+  return { kind, id };
+});
+
+const decision = engine.decide(context, { subject, permission, resource: { path } });
+console.log(JSON.stringify(decision, null, 2));
+```
+
+```text title="Terminal"
+node ask.mjs perms.strig bob document.edit document:spec project:apollo org:acme
+```
+
+  </Tab>
+</Tabs>
+
+Node prints the same answers as Rust, with the keys in another order and `grantId` in place of `grant_id`.
 
 ## Next steps
 
