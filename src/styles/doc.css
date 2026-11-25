@@ -283,8 +283,9 @@
   text-decoration-thickness: 2px;
 }
 
-/* Below 80rem: one column. What sat beside the text follows it, not pinned. */
-@media (max-width: 80rem) {
+/* Below 78rem: one column. What sat beside the text follows it, not pinned.
+   78, not 80: a 1280px window less its scrollbar must still get two columns. */
+@media (max-width: 78rem) {
   .doc-body[data-aside] {
     grid-template-columns: minmax(0, 1fr);
   }

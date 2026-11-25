@@ -39,8 +39,9 @@ export function useDoc(): DocState {
   return useContext(DocContext);
 }
 
-// Two columns from 80rem up (src/styles/doc.css); below, the bench follows the text.
-const WIDE_QUERY = '(min-width: 80.0625rem)';
+// Two columns from 78rem up (src/styles/doc.css), so a 1280px window with a
+// scrollbar still pins the bench; below, the bench follows the text.
+const WIDE_QUERY = '(min-width: 78.0625rem)';
 
 function subscribeWide(onChange: () => void) {
   const media = matchMedia(WIDE_QUERY);
@@ -70,7 +71,7 @@ function sectionInView(targets: HTMLElement[]): string | null {
 }
 
 // Holds the section in view (scroll-spy) and the case the bench shows. From
-// 80rem up the bench follows the section in view; below, it keeps the case
+// 78rem up the bench follows the section in view; below, it keeps the case
 // picked last. Before scripts run, the first case of the first section shows.
 export function DocProvider({
   spy,
