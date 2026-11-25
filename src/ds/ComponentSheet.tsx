@@ -1,17 +1,15 @@
 import type { Root } from 'fumadocs-core/page-tree';
-import { Breadcrumbs } from './Breadcrumbs';
 import { Callout } from './Callout';
 import { CardLink } from './CardLink';
 import { CodeBlock } from './CodeBlock';
 import { Icon, type IconName } from './icons';
 import { Kbd } from './Kbd';
 import { Mark, Wordmark } from './Mark';
-import { Pager } from './Pager';
 import { Seal, VerdictTag } from './Seal';
-import { Sidebar } from './Sidebar';
+import { PageTree } from './PageTree';
 import { Tab, Tabs } from './Tabs';
 import { Table } from './Table';
-import { Toc, type TocItem } from './Toc';
+import { OnPage, type OnPageItem } from './OnPage';
 import { VersionBadge } from './VersionBadge';
 
 const ICON_NAMES: IconName[] = [
@@ -21,10 +19,10 @@ const ICON_NAMES: IconName[] = [
   'play-solid', 'pause-solid', 'triangle-alert-solid', 'info-solid', 'circle-alert-solid', 'circle-check-solid', 'circle-x-solid',
 ];
 
-const SAMPLE_TOC: TocItem[] = [
-  { title: 'Permissions', url: '#permissions', depth: 2 },
-  { title: 'Roles', url: '#roles', depth: 2 },
-  { title: 'Inheritance', url: '#inheritance', depth: 3 },
+const SAMPLE_ON_PAGE: OnPageItem[] = [
+  { id: 'permissions', title: 'Permissions' },
+  { id: 'roles', title: 'Roles' },
+  { id: 'inheritance', title: 'Inheritance' },
 ];
 
 const BLOCKS_SAMPLE = `permission document.edit {
@@ -145,10 +143,8 @@ export function ComponentSheet({ tree, current }: { tree: Root; current: string 
         A link card with a short description.
       </CardLink>
 
-      <Breadcrumbs tree={tree} current={current} />
-      <Toc items={SAMPLE_TOC} />
-      <Sidebar tree={tree} current={current} />
-      <Pager tree={tree} current={current} />
+      <OnPage title="Concepts" items={SAMPLE_ON_PAGE} />
+      <PageTree tree={tree} current={current} />
     </div>
   );
 }

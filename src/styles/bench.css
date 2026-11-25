@@ -1,0 +1,171 @@
+/* The bench (src/ds/Bench.tsx, BenchView.tsx): the example of the section in
+   view, beside the text. Pinning and the one-column fold are in doc.css.
+   Only tokens, except media-query breakpoints. */
+
+.bench {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-panel);
+}
+.bench-section[hidden] {
+  display: none;
+}
+
+.bench-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5) 0;
+  border-bottom: 1px solid var(--c-line);
+}
+.bench-head[data-flat] {
+  padding-bottom: var(--s-4);
+}
+.bench-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  margin: 0;
+  font-weight: 600;
+}
+.bench-file {
+  color: var(--c-mute);
+  font: 400 var(--t-xs) / 1.4 var(--f-mono);
+  overflow-wrap: anywhere;
+}
+.bench-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+.bench-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--hit);
+  margin-bottom: -1px;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--c-mute);
+  font: 500 var(--t-sm) / 1 var(--f-ui);
+  cursor: pointer;
+  transition: color var(--d-base) var(--ease), border-color var(--d-base) var(--ease);
+}
+.bench-tab:hover {
+  color: var(--c-ink);
+}
+.bench-tab[aria-pressed='true'],
+.bench-tab[aria-selected='true'] {
+  border-bottom-color: var(--c-accent);
+  color: var(--c-ink);
+}
+
+/* Layers in one cell: the cases of a section, the Rust and Node panes of a
+   case. The tallest sets the height, so a switch never moves the page. */
+.bench-stack {
+  display: grid;
+}
+.bench-stack > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.bench-stack > :not([data-on]) {
+  visibility: hidden;
+}
+.bench-case {
+  display: flex;
+  flex-direction: column;
+}
+
+.bench-q {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+}
+.bench-question {
+  margin: 0;
+  font-weight: 600;
+  line-height: var(--lh-ui);
+}
+.bench-q > :not(.bench-question) {
+  align-self: flex-start;
+}
+
+.bench-block {
+  border-bottom: 1px solid var(--c-line);
+}
+.bench-block .trail-label {
+  padding: var(--s-4) var(--s-5) var(--s-2);
+}
+.bench-block .trail-list li {
+  padding: var(--s-2) var(--s-5);
+}
+
+/* Code panes sit edge to edge, one rule between them */
+.bench-code {
+  display: flex;
+  flex-direction: column;
+}
+
+.bench-label {
+  color: var(--c-mute);
+  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+.bench-out {
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-sunk);
+}
+.bench-out summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: var(--hit);
+  padding: 0 var(--s-4);
+  background: var(--c-panel);
+  cursor: pointer;
+}
+.bench-out-hint {
+  color: var(--c-mute);
+  font: 400 var(--t-xs) / 1.4 var(--f-mono);
+}
+.bench-out pre {
+  margin: 0;
+  padding: var(--s-4);
+  border-top: 1px solid var(--c-line);
+  font: 400 var(--t-code) / var(--lh-code) var(--f-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bench-note {
+  margin: 0;
+  padding: var(--s-3) var(--s-5);
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+  line-height: var(--lh-ui);
+}
+
+@media (max-width: 48rem) {
+  .bench-head,
+  .bench-q,
+  .bench-note,
+  .bench-block .trail-label,
+  .bench-block .trail-list li {
+    padding-left: var(--s-4);
+    padding-right: var(--s-4);
+  }
+  .bench-block .trail-list li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-1);
+  }
+}

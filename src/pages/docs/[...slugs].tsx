@@ -1,4 +1,5 @@
 import { unstable_notFound } from 'waku/router/server';
+import { benchFor } from '../../content/bench/registry';
 import { DocPage } from '../../ds/DocPage';
 import { source } from '@/lib/source';
 
@@ -13,6 +14,7 @@ export default async function DocRoute({ slugs }: { slugs: string[] }) {
       description={page.data.description}
       toc={page.data.toc.map((item) => ({ title: item.title, url: item.url, depth: item.depth }))}
       Body={page.data.body}
+      bench={benchFor(page.slugs)}
       withSyntaxPanel={page.slugs[0] === 'policy-language'}
     />
   );

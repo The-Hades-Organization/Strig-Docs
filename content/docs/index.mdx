@@ -7,32 +7,15 @@ Strig answers one question: may this subject do this to this resource?
 
 You write a policy. You ask questions. Each answer is a verdict and the grant that produced it. The examples on this page run against Strig 0.6.1.
 
-```rules title="documents.strig"
-language rules
+<BenchRef>The policy, `documents.strig`, is in the bench beside this text.</BenchRef>
 
-kinds document, folder, project
-broad org
-
-permission document.view on project, folder, document
-permission document.edit on project, folder, document depends_on document.view
-
-role viewer
-role editor inherits viewer
-
-user:bruno has role editor in project:apollo
-
-g-view: allow role viewer to document.view on project in org:acme
-g-edit: allow role editor to document.edit on project in org:acme
-g-seal: deny role editor to document.edit on folder:legal in org:acme
-```
-
-Three questions, all about Bruno and `document.edit`:
+<p id="three-questions" className="doc-h">Three questions, all about Bruno and `document.edit`:</p>
 
 | Question | Verdict | Why |
 | --- | --- | --- |
-| A document in Apollo's `plans` folder | <VerdictTag verdict="allow" /> | `g-edit` gives editors the permission on the project. |
-| A document in Apollo's `legal` folder | <VerdictTag verdict="deny" /> | `g-seal` sits on the folder, a step closer to the document than the project, so it decides. |
-| A document in Zephyr | <VerdictTag verdict="deny" /> | Bruno has no role in Zephyr, so no grant applies. |
+| <CellPick case="plans">A document in Apollo's `plans` folder</CellPick> | <VerdictTag verdict="allow" /> | `g-edit` gives editors the permission on the project. |
+| <CellPick case="legal">A document in Apollo's `legal` folder</CellPick> | <VerdictTag verdict="deny" /> | `g-seal` sits on the folder, a step closer to the document than the project, so it decides. |
+| <CellPick case="zephyr">A document in Zephyr</CellPick> | <VerdictTag verdict="deny" /> | Bruno has no role in Zephyr, so no grant applies. |
 
 Bruno can still read the `legal` folder: `g-view` allows `document.view`, and an editor inherits the viewer role.
 

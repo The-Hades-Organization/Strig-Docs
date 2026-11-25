@@ -1,11 +1,27 @@
-/* Documentation layout. The frame (tabs, sidebar, text, toc or panel) lives in
-   shell.css; this file holds what is specific to documentation pages. Only
-   tokens, except media-query breakpoints. */
+/* Doc pages, direction "the bench" (src/ds/DocPage.tsx): the bar under the
+   header (section tabs, page contents), the text on the left and the bench or
+   the syntax panel on the right, heading anchors, and the prose pieces that
+   drive the bench. The bench itself is in bench.css. Only tokens, except
+   media-query breakpoints. */
 
-.doc-tabs {
+/* A page with no contents row has only the tabs in its bar */
+:root:has(.doc-bar[data-rows='1']) {
+  --h-bar: var(--h-bar-one);
+}
+
+/* The bar under the header */
+.doc-bar {
   position: sticky;
   top: var(--h-header);
   z-index: var(--z-sticky);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-bg);
+}
+.doc-bar[data-rows='1'] {
+  border-bottom: 0;
+}
+
+.doc-tabs {
   border-bottom: 1px solid var(--c-line);
   background: var(--c-bg);
 }
@@ -22,7 +38,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  min-height: 2.75rem;
+  min-height: var(--hit);
   padding: var(--s-2) var(--s-4);
   border-bottom: 2px solid transparent;
   color: var(--c-mute);
@@ -43,19 +59,269 @@
   color: var(--c-accent);
 }
 
+/* On this page (src/ds/OnPage.tsx) */
+.on-page {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: var(--w-doc);
+  margin: 0 auto;
+  padding: 0 var(--s-5) 0 calc(var(--s-5) + var(--s-4));
+}
+.on-page p {
+  flex: none;
+  margin: 0;
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.on-page ul {
+  display: flex;
+  gap: var(--s-1);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+.on-page a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  padding: 0 var(--s-3);
+  border-bottom: 2px solid transparent;
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--d-fast) var(--ease), border-color var(--d-fast) var(--ease);
+}
+.on-page a:hover {
+  color: var(--c-ink);
+}
+.on-page a[aria-current='location'] {
+  border-bottom-color: var(--c-accent);
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+/* Text left, bench (or syntax panel) right. A page with neither keeps the
+   text in the same left column. */
+.doc-body {
+  display: grid;
+  grid-template-columns: minmax(0, var(--w-prose));
+  gap: var(--gap-bench);
+  max-width: var(--w-doc);
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-6) var(--s-8);
+}
+.doc-body[data-aside] {
+  grid-template-columns: minmax(0, var(--w-prose)) minmax(0, 1fr);
+}
+.doc-main {
+  min-width: 0;
+}
 .doc-article {
   max-width: var(--w-prose);
 }
 
+/* What sits beside the text stays under the header and the bar, and scrolls
+   on its own when it is taller than the screen. */
+.doc-body > .bench,
+.doc-body > .doc-panel {
+  position: sticky;
+  top: var(--doc-pin);
+  align-self: start;
+  max-height: calc(100vh - var(--doc-pin) - var(--s-4));
+  overflow-y: auto;
+}
+
+/* The syntax panel of the language pages (src/ds/SyntaxPanel.tsx) */
 .doc-panel {
   display: grid;
   gap: var(--s-3);
 }
-.doc-panel .code-block {
+.doc-panel > * {
   margin: 0;
 }
 /* The panel is narrow: long lines wrap instead of scrolling sideways. */
-.doc-panel .code-block pre {
+.doc-panel pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Headings with a # link (src/ds/mdx.tsx). The targeted one lands under the
+   header and the bar, on a tint, with the # in accent. */
+.doc-h {
+  position: relative;
+  scroll-margin-top: var(--doc-pin);
+}
+.doc-anchor {
+  display: inline-grid;
+  place-items: center;
+  width: var(--hit);
+  height: var(--hit);
+  margin-left: var(--s-1);
+  vertical-align: middle;
+  border-radius: var(--r-2);
+  color: var(--c-mute);
+  font: 500 var(--t-md) / 1 var(--f-mono);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity var(--d-fast) var(--ease), color var(--d-fast) var(--ease);
+}
+.prose .doc-anchor {
+  color: var(--c-mute);
+  text-decoration: none;
+}
+.doc-h:hover .doc-anchor,
+.doc-anchor:focus-visible,
+.doc-h:target .doc-anchor {
+  opacity: 1;
+}
+.prose .doc-anchor:hover,
+.prose .doc-h:target .doc-anchor {
+  color: var(--c-accent);
+}
+.doc-h:target {
+  margin-left: calc(-1 * var(--s-3));
+  padding-left: var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--c-accent-bg);
+}
+
+/* A line in the text that points at the bench */
+.bench-ref {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+}
+.bench-ref .icon {
+  flex: none;
+  color: var(--c-accent);
+}
+
+/* Run (src/ds/Run.tsx): a command in the text that switches the bench */
+.run {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--hit);
+  margin: var(--s-2) 0;
+  padding: var(--s-2) var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font: 400 var(--t-sm) / var(--lh-ui) var(--f-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--d-fast) var(--ease), background var(--d-fast) var(--ease);
+}
+.run:hover {
+  border-color: var(--c-line-strong);
+  background: var(--c-panel);
+}
+.run[aria-pressed='true'] {
+  border-color: var(--c-accent);
+  background: var(--c-panel);
+}
+.run-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--c-sunk);
+  color: var(--c-ink);
+  font: 700 var(--t-xs) / 1.6 var(--f-ui);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+.run-cmd {
+  overflow: hidden;
+  color: var(--c-mute);
+  font: 400 var(--t-xs) / 1.5 var(--f-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-where {
+  color: var(--c-mute);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+.run[aria-pressed='true'] .run-where {
+  color: var(--c-accent);
+}
+
+/* A question in a table cell that switches the bench */
+.cell-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--hit);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-ink);
+  font: 500 var(--t-sm) / var(--lh-ui) var(--f-ui);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--c-line-strong);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+  transition: text-decoration-color var(--d-fast) var(--ease);
+}
+.cell-pick:hover {
+  text-decoration-color: var(--c-accent);
+}
+.cell-pick[aria-pressed='true'] {
+  text-decoration-color: var(--c-accent);
+  text-decoration-thickness: 2px;
+}
+
+/* Below 80rem: one column. What sat beside the text follows it, not pinned. */
+@media (max-width: 80rem) {
+  .doc-body[data-aside] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .doc-body > .bench,
+  .doc-body > .doc-panel {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/* Phone: the bar keeps only the page contents; the section tabs move to
+   the Pages menu. */
+@media (max-width: 48rem) {
+  :root {
+    --h-bar: var(--h-bar-one);
+  }
+  .doc-bar .doc-tabs {
+    display: none;
+  }
+  .doc-bar[data-rows='1'] {
+    display: none;
+  }
+  .on-page {
+    padding: 0 var(--s-4);
+  }
+  .on-page p {
+    display: none;
+  }
+  .doc-body {
+    gap: var(--s-6);
+    padding: var(--s-5) var(--s-4) var(--s-7);
+  }
+  .run {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .run-where {
+    display: none;
+  }
 }

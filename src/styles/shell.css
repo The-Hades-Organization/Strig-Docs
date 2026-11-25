@@ -1,9 +1,11 @@
-/* Layout: header, three-column shell, navigation, prose. */
+/* Frame: skip link, header with the Pages menu, the one-column body of
+   non-doc pages, and prose. Doc pages (the bar, the bench layout) are in
+   doc.css. Only tokens, except media-query breakpoints. */
 
 .skip-link {
   position: absolute;
   left: var(--s-4);
-  top: -4rem;
+  top: calc(-1 * var(--s-8));
   z-index: var(--z-toast);
   padding: var(--s-2) var(--s-4);
   border-radius: var(--r-2);
@@ -18,7 +20,7 @@
 .site-header {
   position: sticky;
   top: 0;
-  z-index: var(--z-sticky);
+  z-index: var(--z-overlay);
   display: flex;
   align-items: center;
   gap: var(--s-5);
@@ -31,6 +33,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-3);
+  min-height: var(--hit);
   color: var(--c-ink);
   text-decoration: none;
 }
@@ -39,6 +42,9 @@
   gap: var(--s-4);
 }
 .site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
   color: var(--c-mute);
   font-weight: 500;
   text-decoration: none;
@@ -53,195 +59,17 @@
   gap: var(--s-3);
   margin-left: auto;
 }
-.mobile-nav {
-  display: none;
+.site-header .theme-toggle {
+  width: var(--hit);
+  height: var(--hit);
 }
 
-.shell-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  max-width: var(--w-wide);
-  margin: 0 auto;
-  padding: 0 var(--s-5);
-}
-.shell-body[data-has-sidebar='true'] {
-  grid-template-columns: var(--w-sidebar) minmax(0, 1fr);
-  max-width: var(--w-doc);
-}
-.shell-body[data-has-sidebar='true'][data-has-toc='true'] {
-  grid-template-columns: var(--w-sidebar) minmax(0, 1fr) var(--w-toc);
-}
-.shell-sidebar,
-.shell-toc {
-  position: sticky;
-  top: var(--h-header);
-  align-self: start;
-  max-height: calc(100vh - var(--h-header));
-  padding: var(--s-5) 0;
-  overflow-y: auto;
-}
-.shell-sidebar {
-  padding-right: var(--s-4);
-}
-.shell-toc {
-  padding-left: var(--s-4);
-}
-.shell-main {
-  min-width: 0;
-  padding: var(--s-6) var(--s-6) var(--s-8);
-}
-
-/* Sidebar */
-.sidebar ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.sidebar .side-folder ul {
-  margin-left: var(--s-3);
-  padding-left: var(--s-3);
-  border-left: 1px solid var(--c-line);
-}
-.side-heading {
-  margin: var(--s-5) 0 var(--s-2);
-  color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-ui);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-}
-.side-link,
-.side-folder summary {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-2);
-  color: var(--c-mute);
-  text-decoration: none;
-  cursor: pointer;
-  transition: background var(--d-fast) var(--ease), color var(--d-fast) var(--ease);
-}
-.side-link:hover,
-.side-folder summary:hover {
-  background: var(--c-sunk);
-  color: var(--c-ink);
-}
-.side-link[aria-current='page'] {
-  background: var(--c-accent-bg);
-  color: var(--c-accent);
-  font-weight: 600;
-}
-.side-folder summary {
-  color: var(--c-ink);
-  font-weight: 600;
-}
-
-/* Table of contents */
-.toc-title {
-  margin: 0 0 var(--s-3);
-  color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-ui);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-}
-.toc ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.toc a {
-  display: block;
-  padding: var(--s-1) 0 var(--s-1) var(--s-3);
-  border-left: 1px solid var(--c-line);
-  color: var(--c-mute);
-  font-size: var(--t-xs);
-  text-decoration: none;
-  transition: color var(--d-fast) var(--ease), border-color var(--d-fast) var(--ease);
-}
-.toc a:hover {
-  color: var(--c-ink);
-}
-.toc a[aria-current='location'] {
-  border-left-color: var(--c-accent);
-  color: var(--c-ink);
-  font-weight: 600;
-}
-.toc li[data-depth='3'] a {
-  padding-left: var(--s-5);
-}
-.toc li[data-depth='4'] a {
-  padding-left: var(--s-6);
-}
-
-/* Breadcrumbs */
-.breadcrumbs ol {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-1);
-  margin: 0 0 var(--s-4);
-  padding: 0;
-  list-style: none;
-  color: var(--c-mute);
-  font-size: var(--t-xs);
-}
-.breadcrumbs li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-}
-.breadcrumbs a {
-  color: var(--c-mute);
-}
-.breadcrumbs [aria-current='page'] {
-  color: var(--c-ink);
-}
-
-/* Pager */
-.pager {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-4);
-  margin-top: var(--s-7);
-}
-.pager-link {
-  display: grid;
-  gap: var(--s-1);
-  padding: var(--s-4);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-3);
-  background: var(--c-panel);
-  color: var(--c-ink);
-  text-decoration: none;
-  transition: border-color var(--d-fast) var(--ease);
-}
-.pager-link[data-dir='next'] {
-  grid-column: 2;
-  text-align: right;
-}
-.pager-link:hover {
-  border-color: var(--c-accent);
-}
-.pager-dir {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  color: var(--c-mute);
-  font-size: var(--t-xs);
-}
-.pager-link[data-dir='next'] .pager-dir {
-  justify-content: flex-end;
-}
-.pager-title {
-  font-weight: 600;
-}
-
-/* Search */
+/* Search trigger (src/ds/Search.tsx); the dialog is in components.css */
 .search-trigger {
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  min-width: 15rem;
+  min-width: var(--w-search-trigger);
   padding: var(--s-2) var(--s-3);
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
@@ -258,75 +86,104 @@
   flex: 1;
   text-align: left;
 }
-.search-dialog {
-  width: min(36rem, calc(100vw - var(--s-5)));
-  max-height: 70vh;
-  margin: 12vh auto 0;
-  padding: 0;
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-3);
+
+/* Pages menu (src/ds/PageMenu.tsx): the button, and the page tree panel
+   that opens under the header */
+.menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--hit);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
   background: var(--c-panel);
   color: var(--c-ink);
-  box-shadow: var(--sh-3);
+  font: 500 var(--t-sm) / 1 var(--f-ui);
+  cursor: pointer;
+  transition: border-color var(--d-fast) var(--ease);
 }
-.search-dialog::backdrop {
-  background: rgb(var(--c-shadow) / 0.45);
+.menu-button:hover {
+  border-color: var(--c-line-strong);
 }
-.search-field {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-3) var(--s-4);
-  border-bottom: 1px solid var(--c-line);
-  color: var(--c-mute);
+.menu-button[aria-expanded='true'] {
+  border-color: var(--c-accent);
 }
-.search-field input {
-  flex: 1;
-  border: 0;
-  background: transparent;
-  color: var(--c-ink);
-  font: inherit;
-  font-size: var(--t-md);
-}
-.search-field input:focus-visible {
-  outline: none;
-}
-.search-field:focus-within {
-  box-shadow: inset 0 -2px 0 var(--c-accent);
-}
-.search-results {
-  max-height: 50vh;
-  padding: var(--s-2);
+.page-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: calc(100vh - var(--h-header));
   overflow-y: auto;
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-bg);
+  box-shadow: var(--sh-2);
 }
-.search-results ul {
+.page-menu[hidden] {
+  display: none;
+}
+.page-menu-in {
+  max-width: var(--w-doc);
+  margin: 0 auto;
+  padding: var(--s-4) var(--s-5) var(--s-5);
+}
+
+/* Page tree (src/ds/PageTree.tsx) */
+.page-tree,
+.page-tree ul {
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.search-results a {
+.page-tree ul {
+  margin: 0 0 var(--s-2) var(--s-4);
+  padding-left: var(--s-3);
+  border-left: 1px solid var(--c-line);
+}
+.page-tree a {
   display: flex;
-  gap: var(--s-3);
-  padding: var(--s-2) var(--s-3);
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--hit);
+  padding: 0 var(--s-3);
   border-radius: var(--r-2);
-  color: var(--c-ink);
+  color: var(--c-mute);
+  font-weight: 500;
   text-decoration: none;
+  transition: color var(--d-fast) var(--ease), background var(--d-fast) var(--ease);
 }
-.search-results a:hover,
-.search-results a:focus-visible {
-  background: var(--c-sunk);
+.page-tree a:hover {
+  background: var(--c-panel);
+  color: var(--c-ink);
 }
-.search-kind {
-  min-width: 4.5rem;
+.page-tree a[aria-current='page'] {
+  background: var(--c-accent-bg);
+  color: var(--c-ink);
+  font-weight: 600;
+}
+.page-tree a[aria-current='page'] .icon {
+  color: var(--c-accent);
+}
+.page-tree-sep {
+  display: block;
+  margin: var(--s-4) 0 var(--s-1);
+  padding: 0 var(--s-3);
   color: var(--c-mute);
   font: 600 var(--t-xs) / 1.6 var(--f-ui);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
 }
-.search-note {
-  margin: 0;
-  padding: var(--s-3);
-  color: var(--c-mute);
+
+/* One centred column: the design system page, the 404 */
+.shell-body {
+  max-width: var(--w-wide);
+  margin: 0 auto;
+  padding: 0 var(--s-5);
+}
+.shell-main {
+  min-width: 0;
+  padding: var(--s-6) var(--s-6) var(--s-8);
 }
 
 /* Prose */
@@ -369,89 +226,30 @@
   font-size: var(--t-lg);
 }
 
-/* Narrow screens: sidebar folds into the header menu, toc is dropped */
-@media (max-width: 64rem) {
-  .shell-body[data-has-sidebar='true'][data-has-toc='true'] {
-    grid-template-columns: var(--w-sidebar) minmax(0, 1fr);
-  }
-  .shell-toc {
-    display: none;
-  }
-}
 @media (max-width: 48rem) {
-  .shell-body[data-has-sidebar='true'],
-  .shell-body[data-has-sidebar='true'][data-has-toc='true'] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .shell-sidebar {
-    display: none;
-  }
-  .shell-main {
-    padding: var(--s-5) var(--s-2) var(--s-7);
-  }
   .site-header {
-    gap: var(--s-3);
-    padding: 0 var(--s-3);
+    gap: var(--s-2);
+    padding: 0 var(--s-4);
   }
   .site-nav,
   .search-trigger-text,
-  .search-trigger-keys {
+  .search-trigger-keys,
+  .menu-button-label {
     display: none;
   }
   .search-trigger {
+    justify-content: center;
+    width: var(--hit);
     min-width: 0;
+    padding: 0;
   }
-  .mobile-nav {
-    display: block;
-    order: 3;
+  .page-menu-in {
+    padding: var(--s-3) var(--s-4) var(--s-5);
   }
-  .mobile-nav summary {
-    padding: var(--s-2) var(--s-3);
-    border: 1px solid var(--c-line);
-    border-radius: var(--r-2);
-    background: var(--c-panel);
-    cursor: pointer;
+  .shell-body {
+    padding: 0 var(--s-4);
   }
-  .mobile-nav-body {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: var(--h-header);
-    max-height: calc(100vh - var(--h-header));
-    padding: var(--s-4);
-    overflow-y: auto;
-    border-bottom: 1px solid var(--c-line);
-    background: var(--c-bg);
-  }
-  .pager {
-    grid-template-columns: 1fr;
-  }
-  .pager-link[data-dir='next'] {
-    grid-column: 1;
-  }
-}
-
-/* Language pages: the syntax panel takes the right column. Narrower than
-   80rem it follows the text instead of sitting beside it. */
-.shell-body[data-aside='panel'] .shell-toc {
-  display: block;
-}
-@media (min-width: 80rem) {
-  .shell-body[data-aside='panel'][data-has-sidebar='true'][data-has-toc='true'] {
-    grid-template-columns: var(--w-sidebar) minmax(0, 1fr) var(--w-panel);
-  }
-}
-@media (max-width: 80rem) {
-  .shell-body[data-aside='panel'] .shell-toc {
-    position: static;
-    grid-column: 2;
-    max-height: none;
-    padding: 0 var(--s-6) var(--s-8);
-  }
-}
-@media (max-width: 48rem) {
-  .shell-body[data-aside='panel'] .shell-toc {
-    grid-column: 1;
-    padding: 0 var(--s-2) var(--s-7);
+  .shell-main {
+    padding: var(--s-5) 0 var(--s-7);
   }
 }
