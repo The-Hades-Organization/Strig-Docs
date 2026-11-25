@@ -398,7 +398,13 @@ export const bench: PageBench = {
           terminal('node ask.mjs question.strig ana document.view document:spec project:apollo org:acme'),
         ],
       },
-      note: 'The policy file is the first argument. Save each policy of this page under the name its command uses.',
+      note: (
+        <>
+          The policy file is the first argument. Save each policy of this page under the name its command uses. The
+          outputs are the Rust program&apos;s: Node prints the same decision with the keys in alphabetical order and{' '}
+          <code>grantId</code> for <code>grant_id</code>.
+        </>
+      ),
       run: { command: 'src/main.rs, then cargo run -- question.strig ana document.view …' },
     },
     {

@@ -162,7 +162,7 @@ The engine reaches a verdict in four steps:
 
 | `reason.kind` | It means |
 | --- | --- |
-| `grant` | A grant decided: `grant_id`, its `permission`, its `rank` and the `strategy` that picked it. |
+| `grant` | A grant decided: `grant_id` (`grantId` in Node), its `permission`, its `rank` and the `strategy` that picked it. |
 | `no_applicable_grant` | Nothing applied. The answer is `deny`. |
 | `unknown_permission` | The permission is not in the catalog. The answer is `deny`. |
 | `missing_prerequisite` | The permission would be allowed, but one it `depends_on` is not. |
