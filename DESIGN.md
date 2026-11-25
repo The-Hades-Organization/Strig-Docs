@@ -174,8 +174,18 @@ no invented testimonials, numbers or logos. One icon set.
   code block, CopyLine and the boards.
 - 2026-11-25 — `pause` and `pause-solid` join the sharp set (`brand/icons/generate.mjs`), two square bars
   like `play`/`play-solid`; the clip toggle uses the set's path.
+- 2026-11-25 — Site built from the boards, with these departures: the bench pins from 78rem, not 80, so a
+  1280px window less its scrollbar keeps two columns; the landing header uses the outlined wordmark, not
+  the board's Inter stand-in, and carries the theme toggle; the landing follows the site theme (judged
+  in dark first, as decided); Reference has no version badges, because the 0.6.1 crate ships no
+  changelog to source them from; wide reference tables wrap signatures instead of pushing the last
+  column out of view; bench case tabs scroll in one row instead of wrapping; the pinned bench shows a
+  fade while more is below; the table question links read as one inline phrase.
 
 ## Open questions
+
+- Without JavaScript, a phone reader cannot open the Pages menu and the section tabs are hidden there;
+  only the Docs link moves between pages.
 
 - Tabs on the boards have no arrow-key navigation or roving tabindex drawn (the site's Tabs component has it).
 
