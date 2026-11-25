@@ -1,31 +1,76 @@
 ---
 title: Concepts
-description: Permissions, roles, grants, the resource path and the strategy that picks a verdict, each shown with the question and the answer the engine gives.
+description: The model behind a Strig decision: the question, permissions, targets, roles, conditions, prerequisites and the grant that decides.
 ---
 
-Each policy on this page is small and proves one rule. Every answer under it is real output from [the program at the end](#the-program), run against Strig 0.6.1. It takes a policy file, a user, a permission and a resource path, written from the most specific step to the broadest. For Node, run `node ask.mjs` where the commands say `cargo run --`.
+A Strig decision answers one question: may this subject do this permission to this resource? This page takes the question apart, so you can write your first policy. Every answer on it is real output from Strig 0.6.1. Pick a command, and the bench shows the case.
+
+## The question
+
+A request has three parts.
+
+- **Subject.** Who asks: an id, roles (each one optionally limited to a place), principals and attributes. You build it from what you know about the caller. Strig does not look anyone up.
+- **Permission.** A dotted key from the catalog, such as `document.view`.
+- **Resource.** What is touched, written as a path of steps from the most specific to the broadest: `document:spec`, `project:apollo`, `org:acme`. A `global` step ends every path without being written.
+
+The answer is a `Decision`: `effect` (`allow` or `deny`), `reason`, `matched` (every grant that applied) and `warnings`. When nothing applies, the answer is `deny`.
+
+<BenchRef>The policy, `question.strig`, is in the bench beside this text.</BenchRef>
+
+Ana has a grant for `document.view`. Bob has none.
+
+<Run case="q1" />
+
+<Run case="q2" />
+
+The same program asks every question on this page. It reads the policy file, finds the subject and builds the resource path from its arguments.
+
+<Run case="g1" />
 
 ## Permissions
 
-A permission is a dotted key the catalog declares. The catalog also says where it can be granted (`on`), what grants it as a side effect (`implied by`) and what it needs first (`depends_on`). `kinds` lists the kinds of resource, and `broad org` names the widest step above them.
+A permission is a dotted key that the catalog declares. The line that declares it also says where a grant of it can sit: `permission document.view on project, document`. A permission the catalog does not declare is denied, with the reason `unknown_permission`.
 
 <BenchRef>The policy, `perms.strig`, is in the bench beside this text.</BenchRef>
 
-Bob has a grant for `document.edit` and none for `document.view`.
+`implied by` lets a broader permission carry a narrower one. `document.invoice.export` is implied by `document.export`, so a grant of `document.export` holds for it. Ana has that grant and asks for the narrower permission:
 
 <Run case="p1" />
 
-`g-edit` applied and was not enough: `depends_on` means the prerequisite has to be allowed on the same resource too.
-
-Ana was granted `document.export`. She asks for `document.invoice.export`, which that permission implies.
+`reason.permission` names the permission the grant was written for, not the one asked. The implication does not run the other way:
 
 <Run case="p2" />
 
-`reason.permission` names the permission the grant was written for, not the one asked. A permission the catalog does not declare is denied; [Getting started](/docs/getting-started) shows it.
+<Run case="p3" />
+
+## Targets and broad targets
+
+A grant has a target: the step of the path it sits on. `on project` matches whichever project is on the path, and `on document:spec` matches that one document. The position of the matching step is the rank, counted from the resource itself.
+
+```text title="Path and rank"
+document:spec   project:apollo   org:acme   global
+rank 0          rank 1           rank 2     rank 3
+```
+
+`kinds` lists the kinds of step a grant can sit on. `broad org` adds a kind that any permission accepts, such as an organization or a tenant. `global` is always broad. A grant on any other kind is refused when the file loads.
+
+`in org:acme` is the scope, not the target. It says the resource path must pass through `org:acme` for the grant to apply.
+
+<BenchRef>The policy, `targets.strig`, is in the bench beside this text.</BenchRef>
+
+`g-view` sits on `org`, a broad target, so it reaches `document.view` even though that permission lists only `document`. Dan asks about a document in Acme, then in another organization:
+
+<Run case="t1" />
+
+<Run case="t2" />
+
+<Run case="t3" />
 
 ## Roles
 
-A role is a name that grants can address and that other roles can inherit. A user holds a role everywhere, or only inside a scope.
+A role is a name that grants can address. `role editor inherits viewer` gives editors whatever viewers hold. A subject holds a role everywhere or only inside a scope: `user:ana has role editor in project:apollo` holds for resources whose path goes through `project:apollo`.
+
+A grant names who it is for with one of five matchers: `anyone`, `role <name>`, `user <id>`, `principal <id>` and `relation <name>`. A relation grant applies to whoever holds that relation on the step the target matched, read from stored tuples. This page does not follow relations further.
 
 <BenchRef>The policy, `roles.strig`, is in the bench beside this text.</BenchRef>
 
@@ -37,18 +82,49 @@ Ana is an editor in Apollo. The same question, asked about Apollo and about Zeph
 
 In Apollo the answer is `allow` only because `editor` inherits `viewer`: `document.edit` needs `document.view`, and `g-view` is written for `viewer`. In Zephyr, Ana holds no role, so no grant applies.
 
-## Which grant wins
+The Actors syntax writes the same policy grouped by who acts. The three syntaxes, Blocks, Rules and Actors, describe one policy, and the [policy language](/docs/policy-language) shows them side by side.
 
-A grant sits on one step of the resource path and applies to everything under it. The path ends with an implicit `global`, and `rank` in an answer is the position of the deciding grant's step.
+<Run case="r3" />
 
-```text title="Path and rank"
-document:spec   project:apollo   org:acme   global
-rank 0          rank 1           rank 2     rank 3
-```
+## Conditions
 
-When several grants apply, the strategy picks one. The default, `most_specific`, lets the grant on the closest step decide, and a `deny` beats an `allow` on the same step. An `allow` for one document and a `deny` for the whole project:
+A grant can end with `when`, followed by a condition over `subject.*`, `resource.*` and `env.*` attributes. The grant applies only when the condition holds. Conditions compare values, test membership, combine with `and`, `or` and `not`, and can test text, lists, addresses and the time of day. The [policy language](/docs/policy-language) lists them.
 
-<BenchRef>The policy, `prec.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `conditions.strig`, is in the bench beside this text.</BenchRef>
+
+| User | `subject.dept` | Verdict | `reason.kind` |
+| --- | --- | --- | --- |
+| <CellPick case="c1">`ana`</CellPick> | `"legal"` | <VerdictTag verdict="allow" /> | `grant`, by `g-legal` |
+| <CellPick case="c2">`bob`</CellPick> | `"sales"` | <VerdictTag verdict="deny" /> | `no_applicable_grant` |
+| <CellPick case="c3">`eve`</CellPick> | none | <VerdictTag verdict="deny" /> | `no_applicable_grant`, with a warning |
+
+Bob's condition is false, so `g-legal` does not apply. Eve has no `dept` at all, and the engine cannot tell:
+
+<Run case="c3" />
+
+A condition that cannot be evaluated never opens access. An `allow` that depends on it does not apply, a `deny` that depends on it still does, and the cause goes to `warnings`.
+
+## Prerequisites
+
+`depends_on` makes one permission require others: holding it means holding each listed permission on the same resource. `implied by` widens what a grant reaches. `depends_on` narrows what a grant is worth.
+
+<BenchRef>The policy, `prereq.strig`, is in the bench beside this text.</BenchRef>
+
+`document.edit` depends on `document.view`. Bob has a grant for `document.edit` and none for `document.view`:
+
+<Run case="d1" />
+
+`g-edit-bob` applied, and it is not enough. Ana holds both:
+
+<Run case="d2" />
+
+The catalog refuses a prerequisite that cannot be granted wherever the permission that needs it can, and it refuses a cycle.
+
+## Which grant decides
+
+Several grants can apply to one question. The strategy picks the one that decides. The default, `most_specific`, lets the grant on the closest step decide, and a `deny` beats an `allow` on the same step. An `allow` for one document and a `deny` for the whole project:
+
+<BenchRef>The policy, `strategy.strig`, is in the bench beside this text.</BenchRef>
 
 <Run case="w1" />
 
@@ -69,27 +145,16 @@ The same two grants matched, and the verdict flipped. The strategy is one line o
 | `permit_overrides` | An `allow` at any step. |
 | `first_applicable` | The first applicable grant in source order. |
 
-## Conditions
+## Reading the answer
 
-A grant can carry a condition over `subject.*`, `resource.*` and `env.*`. It applies only when the condition holds.
+The engine reaches a verdict in four steps:
 
-<BenchRef>The policy, `cond.strig`, is in the bench beside this text.</BenchRef>
+1. An unknown permission is denied.
+2. Overrides run in order, and the first one that answers decides.
+3. A grant is a candidate when its permission is the one asked or one that implies it, the resource path passes through its scope, its target matches a step of the path, its subject matches and its condition is true.
+4. The strategy picks the deciding grant. With no candidate, the answer is `deny`. Then `depends_on` is checked, and a missing prerequisite turns an `allow` into a `deny`.
 
-| User | `subject.dept` | Verdict | `reason.kind` |
-| --- | --- | --- | --- |
-| <CellPick case="c1">`ana`</CellPick> | `"legal"` | <VerdictTag verdict="allow" /> | `grant`, by `g-legal` |
-| <CellPick case="c2">`bob`</CellPick> | `"sales"` | <VerdictTag verdict="deny" /> | `no_applicable_grant` |
-| <CellPick case="c3">`eve`</CellPick> | none | <VerdictTag verdict="deny" /> | `no_applicable_grant`, with a warning |
-
-Bob's condition is false, so `g-legal` does not apply. Eve has no `dept` at all, and the engine cannot tell:
-
-<Run case="c3" />
-
-A condition that cannot be evaluated never opens access. The text of a warning is in Portuguese in 0.6.1.
-
-## Why an answer came out that way
-
-`reason.kind` gives the cause. Its values:
+`reason.kind` says which step decided:
 
 | `reason.kind` | It means |
 | --- | --- |
@@ -101,25 +166,23 @@ A condition that cannot be evaluated never opens access. The text of a warning i
 
 <Run case="y1" />
 
-## Beyond the grant
+`matched` lists every grant that applied, in source order, not only the one that decided.
 
-Three more parts of the model act on the same grants. This page does not cover them.
+## What Strig leaves to you
+
+- **Who the subject is.** Strig reads the subject you pass and decides for it. In a browser, `PermissionClient` decides locally to shape the interface, and the server still decides on every operation.
+- **Where grants live.** The engine holds configuration, and the grants arrive with each call. Governance returns the new grant set when a change passes its invariants, and you persist it. Removing expired grants from storage is a job of yours.
+- **The clock.** You supply the instant of the decision. Without it, a grant with a validity window or a time condition never allows.
+- **Anything it has no condition for.** There is no regular-expression condition. Custom condition functions and custom overrides exist only in Rust, not in the Node binding.
+- **IO.** The core does no IO and needs no async runtime. Real time, transports and the HTTP server are separate crates.
+
+Three more parts of the model act on the same grants, and this page does not cover them.
 
 | Part | What it does |
 | --- | --- |
-| Relations | A grant for `relation editor` applies to whoever holds `editor` on a resource, read from stored tuples. |
+| Overrides | Decide before the grants: an owner, a suspended account, a maintenance window. |
 | Governance | A change to the grants is applied only if every invariant passes: no escalation, no lockout, your own rules. |
 | Audit | With the `audit` feature, each change, applied or refused, becomes a record. |
-
-## The program
-
-The runner behind every answer above. Save the policy under the name the command uses.
-
-<BenchRef>The program, in Rust and in Node, is in the bench beside this text.</BenchRef>
-
-<Run case="g1" />
-
-Node prints the same answers as Rust, with the keys in another order and `grantId` in place of `grant_id`.
 
 ## Next steps
 
