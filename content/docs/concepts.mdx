@@ -9,71 +9,17 @@ Each policy on this page is small and proves one rule. Every answer under it is 
 
 A permission is a dotted key the catalog declares. The catalog also says where it can be granted (`on`), what grants it as a side effect (`implied by`) and what it needs first (`depends_on`). `kinds` lists the kinds of resource, and `broad org` names the widest step above them.
 
-```rules title="perms.strig"
-language rules
-
-kinds project, document
-broad org
-
-permission document.view on project, document
-permission document.edit on project, document depends_on document.view
-permission document.export on project, document
-permission document.invoice.export on document implied by document.export
-
-user:ana
-user:bob
-
-g-edit: allow user bob to document.edit on project in org:acme
-g-export: allow user ana to document.export on project in org:acme
-```
+<BenchRef>The policy, `perms.strig`, is in the bench beside this text.</BenchRef>
 
 Bob has a grant for `document.edit` and none for `document.view`.
 
-```text title="Terminal"
-cargo run -- perms.strig bob document.edit document:spec project:apollo org:acme
-```
-
-```json title="Output"
-{
-  "effect": "deny",
-  "reason": {
-    "kind": "missing_prerequisite",
-    "permission": "document.edit",
-    "prerequisite": "document.view"
-  },
-  "matched": [
-    "g-edit"
-  ]
-}
-```
-
-<Seal verdict="deny" reason="document.edit needs document.view on the same resource." />
+<Run case="p1" />
 
 `g-edit` applied and was not enough: `depends_on` means the prerequisite has to be allowed on the same resource too.
 
 Ana was granted `document.export`. She asks for `document.invoice.export`, which that permission implies.
 
-```text title="Terminal"
-cargo run -- perms.strig ana document.invoice.export document:spec project:apollo org:acme
-```
-
-```json title="Output"
-{
-  "effect": "allow",
-  "reason": {
-    "kind": "grant",
-    "grant_id": "g-export",
-    "permission": "document.export",
-    "rank": 1,
-    "strategy": "most_specific"
-  },
-  "matched": [
-    "g-export"
-  ]
-}
-```
-
-<Seal verdict="allow" reason="Granted by g-export, through document.export." />
+<Run case="p2" />
 
 `reason.permission` names the permission the grant was written for, not the one asked. A permission the catalog does not declare is denied; [Getting started](/docs/getting-started) shows it.
 
@@ -81,58 +27,13 @@ cargo run -- perms.strig ana document.invoice.export document:spec project:apoll
 
 A role is a name that grants can address and that other roles can inherit. A user holds a role everywhere, or only inside a scope.
 
-```rules title="roles.strig"
-language rules
-
-kinds project, document
-broad org
-
-permission document.view on project, document
-permission document.edit on project, document depends_on document.view
-
-role viewer
-role editor inherits viewer
-
-user:ana has role editor in project:apollo
-
-g-view: allow role viewer to document.view on project in org:acme
-g-edit: allow role editor to document.edit on project in org:acme
-```
+<BenchRef>The policy, `roles.strig`, is in the bench beside this text.</BenchRef>
 
 Ana is an editor in Apollo. The same question, asked about Apollo and about Zephyr:
 
-```text title="Terminal"
-cargo run -- roles.strig ana document.edit document:spec project:apollo org:acme
-```
+<Run case="r1" />
 
-```json title="Output: Apollo"
-{
-  "effect": "allow",
-  "reason": {
-    "kind": "grant",
-    "grant_id": "g-edit",
-    "permission": "document.edit",
-    "rank": 1,
-    "strategy": "most_specific"
-  },
-  "matched": [
-    "g-edit"
-  ]
-}
-```
-
-```text title="Terminal"
-cargo run -- roles.strig ana document.edit document:spec project:zephyr org:acme
-```
-
-```json title="Output: Zephyr"
-{
-  "effect": "deny",
-  "reason": {
-    "kind": "no_applicable_grant"
-  }
-}
-```
+<Run case="r2" />
 
 In Apollo the answer is `allow` only because `editor` inherits `viewer`: `document.edit` needs `document.view`, and `g-view` is written for `viewer`. In Zephyr, Ana holds no role, so no grant applies.
 
@@ -147,85 +48,17 @@ rank 0          rank 1           rank 2     rank 3
 
 When several grants apply, the strategy picks one. The default, `most_specific`, lets the grant on the closest step decide, and a `deny` beats an `allow` on the same step. An `allow` for one document and a `deny` for the whole project:
 
-```rules title="prec.strig"
-language rules
+<BenchRef>The policy, `prec.strig`, is in the bench beside this text.</BenchRef>
 
-kinds project, document
-broad org
+<Run case="w1" />
 
-permission document.edit on project, document
-
-role editor
-
-user:ana has role editor in org:acme
-
-g-edit: allow role editor to document.edit on document:spec in org:acme
-g-freeze: deny anyone to document.edit on project in org:acme
-```
-
-```text title="Terminal"
-cargo run -- prec.strig ana document.edit document:spec project:apollo org:acme
-```
-
-```json title="Output: document:spec"
-{
-  "effect": "allow",
-  "reason": {
-    "kind": "grant",
-    "grant_id": "g-edit",
-    "permission": "document.edit",
-    "rank": 0,
-    "strategy": "most_specific"
-  },
-  "matched": [
-    "g-edit",
-    "g-freeze"
-  ]
-}
-```
-
-```text title="Terminal"
-cargo run -- prec.strig ana document.edit document:notes project:apollo org:acme
-```
-
-```json title="Output: document:notes"
-{
-  "effect": "deny",
-  "reason": {
-    "kind": "grant",
-    "grant_id": "g-freeze",
-    "permission": "document.edit",
-    "rank": 1,
-    "strategy": "most_specific"
-  },
-  "matched": [
-    "g-freeze"
-  ]
-}
-```
+<Run case="w2" />
 
 `g-edit` is on `document:spec`, at rank 0, so it beats the freeze for that one document. For `document:notes` only `g-freeze` applies.
 
 Add `strategy deny_overrides` after `broad org` and ask about `document:spec` again.
 
-```json title="Output: deny_overrides"
-{
-  "effect": "deny",
-  "reason": {
-    "kind": "grant",
-    "grant_id": "g-freeze",
-    "permission": "document.edit",
-    "rank": 1,
-    "strategy": "deny_overrides"
-  },
-  "matched": [
-    "g-edit",
-    "g-freeze"
-  ]
-}
-```
-
-<Seal verdict="deny" reason="Denied by g-freeze, at any step." />
+<Run case="w3" />
 
 The same two grants matched, and the verdict flipped. The strategy is one line of the policy:
 
@@ -240,48 +73,17 @@ The same two grants matched, and the verdict flipped. The strategy is one line o
 
 A grant can carry a condition over `subject.*`, `resource.*` and `env.*`. It applies only when the condition holds.
 
-```rules title="cond.strig"
-language rules
-
-kinds project, document
-broad org
-
-permission document.edit on project, document
-
-role editor
-
-user:ana has role editor in org:acme
-user:ana has attr dept = "legal"
-user:bob has role editor in org:acme
-user:bob has attr dept = "sales"
-user:eve has role editor in org:acme
-
-g-legal: allow role editor to document.edit on project in org:acme when subject.dept == "legal"
-```
+<BenchRef>The policy, `cond.strig`, is in the bench beside this text.</BenchRef>
 
 | User | `subject.dept` | Verdict | `reason.kind` |
 | --- | --- | --- | --- |
-| `ana` | `"legal"` | <VerdictTag verdict="allow" /> | `grant`, by `g-legal` |
-| `bob` | `"sales"` | <VerdictTag verdict="deny" /> | `no_applicable_grant` |
-| `eve` | none | <VerdictTag verdict="deny" /> | `no_applicable_grant`, with a warning |
+| <CellPick case="c1">`ana`</CellPick> | `"legal"` | <VerdictTag verdict="allow" /> | `grant`, by `g-legal` |
+| <CellPick case="c2">`bob`</CellPick> | `"sales"` | <VerdictTag verdict="deny" /> | `no_applicable_grant` |
+| <CellPick case="c3">`eve`</CellPick> | none | <VerdictTag verdict="deny" /> | `no_applicable_grant`, with a warning |
 
 Bob's condition is false, so `g-legal` does not apply. Eve has no `dept` at all, and the engine cannot tell:
 
-```text title="Terminal"
-cargo run -- cond.strig eve document.edit document:spec project:apollo org:acme
-```
-
-```json title="Output"
-{
-  "effect": "deny",
-  "reason": {
-    "kind": "no_applicable_grant"
-  },
-  "warnings": [
-    "grant g-legal: atributo ausente: subject.dept"
-  ]
-}
-```
+<Run case="c3" />
 
 A condition that cannot be evaluated never opens access. The text of a warning is in Portuguese in 0.6.1.
 
@@ -297,6 +99,8 @@ A condition that cannot be evaluated never opens access. The text of a warning i
 | `missing_prerequisite` | The permission would be allowed, but one it `depends_on` is not. |
 | `override` | An override answered before the grants, with its `name`. |
 
+<Run case="y1" />
+
 ## Beyond the grant
 
 Three more parts of the model act on the same grants. This page does not cover them.
@@ -311,71 +115,9 @@ Three more parts of the model act on the same grants. This page does not cover t
 
 The runner behind every answer above. Save the policy under the name the command uses.
 
-<Tabs>
-  <Tab label="Rust">
+<BenchRef>The program, in Rust and in Node, is in the bench beside this text.</BenchRef>
 
-```rust title="src/main.rs"
-use strig::dsl::fs::read_file;
-use strig::{Context, Request, Resource};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
-    let policy = read_file(&args[1])?.policy;
-    let engine = policy.engine_spec().build()?;
-    let context = Context::new(&policy.grants);
-
-    let who = policy
-        .subjects
-        .iter()
-        .find(|s| s.id.as_deref() == Some(args[2].as_str()))
-        .expect("subject");
-    let (kind, id) = args[4].split_once(':').expect("kind:id");
-    let mut resource = Resource::new(kind, id);
-    for step in &args[5..] {
-        let (kind, id) = step.split_once(':').expect("kind:id");
-        resource = resource.within(kind, id);
-    }
-
-    let decision = engine.decide(&context, &Request::new(who, &args[3], &resource));
-    println!("{}", serde_json::to_string_pretty(&decision)?);
-    Ok(())
-}
-```
-
-```text title="Terminal"
-cargo run -- perms.strig bob document.edit document:spec project:apollo org:acme
-```
-
-  </Tab>
-  <Tab label="Node">
-
-```ts title="ask.mjs"
-import { readFileSync } from 'node:fs';
-import { load } from '@the-hades-organization/strig';
-
-const [file, user, permission, ...steps] = process.argv.slice(2);
-const { compile, Engine, Context } = await load();
-const policy = compile(readFileSync(file, 'utf8'), { file });
-const { catalog, roles, strategy } = policy;
-const engine = new Engine({ catalog, roles, strategy });
-const context = new Context({ grants: policy.grants });
-
-const subject = policy.subjects.find((s) => s.id === user);
-const path = steps.map((step) => {
-  const [kind, id] = step.split(':');
-  return { kind, id };
-});
-
-const decision = engine.decide(context, { subject, permission, resource: { path } });
-console.log(JSON.stringify(decision, null, 2));
-```
-
-```text title="Terminal"
-node ask.mjs perms.strig bob document.edit document:spec project:apollo org:acme
-```
-
-  </Tab>
-</Tabs>
+<Run case="g1" />
 
 Node prints the same answers as Rust, with the keys in another order and `grantId` in place of `grant_id`.
 

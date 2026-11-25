@@ -41,9 +41,9 @@ function withPortuguese(text: string, portuguese: string[] = []): ReactNode[] {
 function Output({ output }: { output: NonNullable<BenchCase['output']> }) {
   const lines = output.text.split('\n').length;
   return (
-    <details className="bench-out" open>
+    <details className="bench-out" open={output.open ?? true}>
       <summary>
-        <span className="bench-label">Output</span>
+        <span className="bench-label">{output.label ?? 'Output'}</span>
         <span className="bench-out-hint">{output.hint ?? `JSON, ${lines} lines`}</span>
       </summary>
       <pre tabIndex={0}>{withPortuguese(output.text, output.portuguese)}</pre>

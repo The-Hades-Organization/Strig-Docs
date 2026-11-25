@@ -38,7 +38,7 @@ export type BenchCase = {
   code?: { rust: BenchCode[]; node?: BenchCode[] };
   // What the program prints, exactly as printed. Engine text in Portuguese
   // stays as printed; list those strings in `portuguese` so they carry lang="pt".
-  output?: { text: string; hint?: string; portuguese?: string[] };
+  output?: { text: string; label?: string; hint?: string; open?: boolean; portuguese?: string[] };
   // A short line after the case.
   note?: ReactNode;
   // What a <Run case="..."> button shows: the command, and the tag when the
