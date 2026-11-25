@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { BenchLang } from '../content/bench/types';
 import { useDoc } from './DocState';
 import { Icon } from './icons';
@@ -85,6 +85,34 @@ export function BenchView({ sections }: { sections: BenchViewSection[] }) {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   const sheet = ready && !wide;
+  const toggle = useRef<HTMLButtonElement | null>(null);
+  // The control that opened the sheet, so closing it gives focus back there.
+  const opener = useRef<HTMLElement | null>(null);
+
+  const close = useCallback(() => {
+    setSheetOpen(false);
+    const back = opener.current;
+    (back?.isConnected ? back : toggle.current)?.focus();
+    opener.current = null;
+  }, [setSheetOpen]);
+
+  // A Run or a chip opens the sheet from the text: focus moves to the sheet's
+  // handle, so the keyboard lands on the example instead of staying a page
+  // away from it. Escape closes the sheet and returns focus to the opener.
+  useEffect(() => {
+    if (!sheet || !sheetOpen) return;
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active !== toggle.current && active !== document.body) opener.current = active;
+    if (opener.current) toggle.current?.focus();
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      // The search dialog handles its own Escape.
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+      event.preventDefault();
+      close();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [sheet, sheetOpen, close]);
   const now = shown ? cases[shown] : undefined;
   const shownSection = (shown ? cases[shown]?.section : undefined) ?? sections[0]?.id;
 
@@ -96,11 +124,15 @@ export function BenchView({ sections }: { sections: BenchViewSection[] }) {
     >
       {sheet ? (
         <button
+          ref={toggle}
           type="button"
           className="bench-toggle"
           aria-expanded={sheetOpen}
           aria-controls={bodyId}
-          onClick={() => setSheetOpen(!sheetOpen)}
+          onClick={() => {
+            opener.current = null;
+            setSheetOpen(!sheetOpen);
+          }}
         >
           <span className="bench-label">Bench</span>
           {now?.verdict ? <VerdictTag verdict={now.verdict} /> : null}

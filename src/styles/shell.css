@@ -59,11 +59,6 @@
   gap: var(--s-3);
   margin-left: auto;
 }
-.site-header .theme-toggle {
-  width: var(--hit);
-  height: var(--hit);
-}
-
 /* Search trigger (src/ds/Search.tsx); the dialog is in components.css */
 .search-trigger {
   display: inline-flex;
@@ -89,8 +84,12 @@
 
 /* Pages menu (src/ds/PageMenu.tsx): the button, and the page tree panel
    that opens under the header */
+.menu {
+  display: block;
+}
 .menu-button {
   display: inline-flex;
+  list-style: none;
   align-items: center;
   gap: var(--s-2);
   min-height: var(--hit);
@@ -106,7 +105,10 @@
 .menu-button:hover {
   border-color: var(--c-line-strong);
 }
-.menu-button[aria-expanded='true'] {
+.menu-button::-webkit-details-marker {
+  display: none;
+}
+.menu[open] > .menu-button {
   border-color: var(--c-accent);
 }
 .page-menu {
@@ -119,9 +121,6 @@
   border-bottom: 1px solid var(--c-line);
   background: var(--c-bg);
   box-shadow: var(--sh-2);
-}
-.page-menu[hidden] {
-  display: none;
 }
 .page-menu-in {
   max-width: var(--w-doc);

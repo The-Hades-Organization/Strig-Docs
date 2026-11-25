@@ -195,11 +195,13 @@ no invented testimonials, numbers or logos. One icon set.
   all of them with whole labels, replacing the row of tabs that cut the last labels; below 78rem the bench is a
   sheet at the foot of the screen whose handle shows the case and which a Run or a chip opens (without scripts it
   stays a block after the text); a table of two columns stacks its rows below 40rem, as the wide API tables do.
+- 2026-11-25 — Audit of the Concepts fixes: the page contents control and the Pages menu are native
+  disclosures (`details`/`summary`), so both open without scripts, and the section list and the page tree are
+  reachable on a phone with scripts off; with scripts, Escape and a click outside still close them. The bottom
+  sheet moves focus to its handle when a Run or chip opens it, and Escape closes it and returns focus to that
+  Run or chip. The theme toggle is 44px everywhere, landing header included (it was 36px there).
 
 ## Open questions
-
-- Without JavaScript, a phone reader cannot open the Pages menu and the section tabs are hidden there;
-  only the Docs link moves between pages.
 
 - Tabs on the boards have no arrow-key navigation or roving tabindex drawn (the site's Tabs component has it).
 
