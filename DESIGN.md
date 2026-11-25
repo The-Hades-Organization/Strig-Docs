@@ -187,6 +187,7 @@ no invented testimonials, numbers or logos. One icon set.
   chip tinted by the callout's ink — the box and the old chip were the same tone, so the chip showed only as
   stray space around the code. Wrapped code in the bench breaks anywhere in a word, so a long indented line
   no longer leaves a blank line after its indent.
+- 2026-11-25 — Prose wraps with `text-wrap: pretty`, h3 balances, and inline code in tables of up to three columns does not break mid-expression — the policy-language tables read as code, and a broken `[a,` / `b]` does not.
 
 ## Open questions
 

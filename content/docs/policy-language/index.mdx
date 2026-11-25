@@ -62,15 +62,17 @@ The choice is per file, so it is cheap to change. `convert` moves a policy to an
 
 | Construct | Blocks | Rules | Actors |
 | --- | --- | --- | --- |
-| Kinds of resource | `target_kinds = [a, b]` | `kinds a, b` | `kinds a, b` under `catalog` |
-| Broadest kind | `broad_targets = [org]` | `broad org` | `broad org` under `catalog` |
-| Strategy | `strategy = deny_overrides` | `strategy deny_overrides` | `strategy deny_overrides` under `engine` |
-| Depth limit | `max_depth = 4` | `depth 4` | `depth 4` under `engine` |
-| Permission | `permission doc.read { }` with `targets` | `permission doc.read on doc` | `doc.read on doc` under `catalog` |
-| Role inheritance | `inherits = [viewer]` in `role` | `role editor inherits viewer` | `role editor inherits viewer` |
-| Role assignment | `assign editor { scope = ... }` in `subject` | `user:ana has role editor in project:apollo` | `role editor in project:apollo` under `subject user:ana` |
-| Grant | `grant g-edit { }` | `g-edit: allow ... to ... on ...` | `allow ... on ... as g-edit` under who it applies to |
-| Invariant | `invariant forbid { }` | `always forbid ...` | `forbid ...` under `governance` |
+| Kinds of resource | `target_kinds = [doc]` | `kinds doc` | `kinds doc` |
+| Broadest kind | `broad_targets = [org]` | `broad org` | `broad org` |
+| Strategy | `strategy = deny_overrides` | `strategy deny_overrides` | `strategy deny_overrides` |
+| Depth limit | `max_depth = 4` | `depth 4` | `depth 4` |
+| Permission | `permission doc.read { }` | `permission doc.read on doc` | `doc.read on doc` |
+| Role inheritance | `inherits = [viewer]` | `role editor inherits viewer` | `role editor inherits viewer` |
+| Role assignment | `assign editor { }` | `user:ana has role editor` | `role editor` |
+| Grant | `grant g-edit { }` | `g-edit: allow ...` | `allow ... as g-edit` |
+| Invariant | `invariant no_lockout { }` | `always no-lockout` | `no-lockout` |
+
+The cells show the shape of each construct and elide the rest, which the page of each syntax gives in full. In Actors, a line sits under a heading: kinds, broad kinds and permissions under `catalog`, strategy and depth under `engine`, a role assignment under `subject user:ana`, a grant under who it applies to, and an invariant under `governance`.
 
 Names change with the syntax in two places. A flag written `non_delegable` in Blocks is `non-delegable` in Rules and Actors, and the same goes for `management_only` and `override_only`. An invariant such as `no_lockout` is `no-lockout` outside Blocks.
 

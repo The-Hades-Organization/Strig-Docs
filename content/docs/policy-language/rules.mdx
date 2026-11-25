@@ -140,6 +140,8 @@ always forbid subject anyone permissions [doc.edit]
 
 ## Common mistakes
 
+### Missing language line
+
 The `language` line left out:
 
 ```text title="policy.strig"
@@ -150,6 +152,8 @@ role viewer
 policy.strig:1:1: a source starts by declaring its language
   hint: write on the first line: language blocks
 ```
+
+### Second language line
 
 A second `language` line, even for the same syntax:
 
@@ -168,6 +172,8 @@ policy.strig:7:1: a source declares its language once, on its first line (also a
   hint: one file holds one syntax: split the other into its own file
 ```
 
+### Grant without a colon
+
 A grant with no colon after its id. The parser reads the id as a statement:
 
 ```text title="policy.strig"
@@ -184,6 +190,8 @@ policy.strig:6:1: unknown statement `g1`
   hint: expected one of: kinds, broad, strategy, depth, permission, role, subject, tuple, relation, relations, override, always
 ```
 
+### The old needs word
+
 The old `needs` word. It is now `depends_on`, in the same place on the line:
 
 ```text title="policy.strig"
@@ -198,6 +206,8 @@ permission doc.edit on doc needs doc.read
 policy.strig:5:28: `needs` is now `depends_on`
   hint: write: depends_on <ids>
 ```
+
+### Undeclared role
 
 A role that is not declared. The hint names the nearest one and the way to declare it:
 
@@ -215,6 +225,8 @@ policy.strig:6:19: role `edtor` is not declared
   hint: did you mean `editor`? or declare it with: role edtor { }
 ```
 
+### Kind not in kinds
+
 A kind that is not in `kinds`:
 
 ```text title="policy.strig"
@@ -228,6 +240,8 @@ permission doc.read on dcc
 policy.strig:4:24: `doc.read` targets `dcc`, which is not in target_kinds or broad_targets
   hint: did you mean `doc`? or add it to target_kinds
 ```
+
+### Time without two digits
 
 A time of day without two digits in the hour:
 
@@ -244,6 +258,8 @@ g1: allow role editor to doc.read on doc when time_between "9:00" "17:00"
 policy.strig:6:60: `9:00` is not a time of day
   hint: write hours and minutes with two digits each, 00:00 to 23:59, like "09:30"
 ```
+
+### Grant id used twice
 
 A grant id used twice:
 

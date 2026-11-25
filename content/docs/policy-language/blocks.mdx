@@ -269,6 +269,8 @@ invariant forbid {
 
 ## Common mistakes
 
+### Misspelled field
+
 A field misspelled, here `target` for `targets`:
 
 ```text title="policy.strig"
@@ -290,6 +292,8 @@ policy.strig:6:3: unknown field `target` in permission
 
 The parser reports the missing required field and the unknown one. The hint on the second names the field you meant.
 
+### Extra closing brace
+
 A closing brace left over:
 
 ```text title="policy.strig"
@@ -307,6 +311,8 @@ permission doc.read {
 policy.strig:8:1: expected a declaration, found `}`
 ```
 
+### Block never closed
+
 A block that is never closed:
 
 ```text title="policy.strig"
@@ -322,6 +328,8 @@ permission doc.read {
 policy.strig:5:12: the permission block is not closed
   hint: add a closing `}` at the start of a line
 ```
+
+### Unknown permission in a grant
 
 A permission with a typo in a grant. The hint names the nearest declared one:
 
@@ -350,6 +358,8 @@ policy.strig:15:3: unknown permission `doc.raed`
   hint: did you mean `doc.read`? or declare it as a permission block
 ```
 
+### Value not allowed
+
 A value outside the allowed ones:
 
 ```text title="policy.strig"
@@ -376,6 +386,8 @@ grant g1 {
 policy.strig:13:12: effect must be allow or deny, found `permit`
 ```
 
+### Required field missing
+
 A required field left out:
 
 ```text title="policy.strig"
@@ -401,6 +413,8 @@ grant g1 {
 policy.strig:12:7: grant `g1` needs `target`
   hint: add a line: target = ...
 ```
+
+### Name declared twice
 
 A name declared twice. The first declaration is the one the second error points back to:
 

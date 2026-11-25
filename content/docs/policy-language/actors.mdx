@@ -154,6 +154,8 @@ governance
 
 ## Common mistakes
 
+### Grant line in the first column
+
 A grant line that starts in the first column, so it reads as a heading:
 
 ```text title="policy.strig"
@@ -172,6 +174,8 @@ policy.strig:8:1: unknown heading `allow`
   hint: expected one of: catalog, relations, tuples, engine, governance, role, user, subject, principal, relation, anyone
 ```
 
+### Grant without an id
+
 A grant with no `as <id>`:
 
 ```text title="policy.strig"
@@ -188,6 +192,8 @@ role editor
 ```text title="Error"
 policy.strig:8:24: a rule needs an id: end the line with `as <id>`
 ```
+
+### Undeclared permission
 
 A permission the catalog does not declare:
 
@@ -207,6 +213,8 @@ policy.strig:8:9: unknown permission `doc.write`
   hint: declare it as a permission block
 ```
 
+### Unknown heading
+
 A heading that is not one of the valid ones. The hint lists them:
 
 ```text title="policy.strig"
@@ -225,6 +233,8 @@ policy.strig:7:1: unknown heading `team`
   hint: expected one of: catalog, relations, tuples, engine, governance, role, user, subject, principal, relation, anyone
 ```
 
+### No catalog
+
 A source with no `catalog`, so no permission is declared:
 
 ```text title="policy.strig"
@@ -238,6 +248,8 @@ role editor
 policy.strig:4:9: unknown permission `doc.read`
   hint: declare it as a permission block
 ```
+
+### Undeclared role
 
 A role that no heading declares:
 

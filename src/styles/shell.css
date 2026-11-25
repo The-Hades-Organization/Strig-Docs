@@ -253,3 +253,17 @@
     padding: var(--s-5) 0 var(--s-7);
   }
 }
+
+/* Reading rhythm: no one-word last lines in prose, balanced short headings,
+   and a piece of inline code in a table of up to three columns stays on one
+   line (the cell wraps between pieces; four columns have no room for that).
+   Wide API tables wrap their signatures instead. */
+.prose :is(p, li) {
+  text-wrap: pretty;
+}
+.prose h3 {
+  text-wrap: balance;
+}
+.prose .table-wrap:not(.api-wide .table-wrap) tr:not(:has(> :nth-child(4))) td code {
+  white-space: nowrap;
+}
