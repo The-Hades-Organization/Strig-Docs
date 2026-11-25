@@ -28,7 +28,7 @@ type DocPageProps = {
 // The layout of every documentation page (direction "the bench"): the header
 // with the Pages menu, a bar with the section tabs and the page contents, then
 // the text on the left and, beside it, the bench (or the syntax panel). A page
-// with neither keeps the text alone in the same column.
+// with neither is one reading column, centred, with no room kept for a bench.
 export function DocPage({ tree, url, title, description, toc, Body, bench, withSyntaxPanel }: DocPageProps) {
   const headings: OnPageItem[] = toc
     .filter((item) => item.depth === 2)

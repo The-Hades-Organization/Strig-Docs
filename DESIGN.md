@@ -181,6 +181,8 @@ no invented testimonials, numbers or logos. One icon set.
   changelog to source them from; wide reference tables wrap signatures instead of pushing the last
   column out of view; bench case tabs scroll in one row instead of wrapping; the pinned bench shows a
   fade while more is below; the table question links read as one inline phrase.
+- 2026-11-25 — A doc page with no bench and no syntax panel (Getting started today) is one centred column
+  at `w-prose`; no board gives it bench examples, so none are invented and no right column is kept.
 
 ## Open questions
 

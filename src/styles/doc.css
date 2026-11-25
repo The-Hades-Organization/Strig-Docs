@@ -114,6 +114,11 @@
   margin: 0 auto;
   padding: var(--s-6) var(--s-6) var(--s-8);
 }
+/* A page with nothing beside the text is one reading column, centred in the
+   page: no empty room is kept where a bench would go. */
+.doc-body:not([data-aside]) {
+  justify-content: center;
+}
 .doc-body[data-aside] {
   grid-template-columns: minmax(0, var(--w-prose)) minmax(0, 1fr);
 }
