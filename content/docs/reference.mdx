@@ -1,9 +1,9 @@
 ---
 title: Reference
-description: "The Rust API of the strig crate, 0.6.1: the engine, what a decision carries, the request types, grants, strategies and errors."
+description: "The public API at 0.6.1: the strig engine, its decisions, requests, grants and errors, then the real-time, server, macro and JavaScript packages."
 ---
 
-Every signature is copied from the published crate. Pick a name to see it in the bench with a real example and what it returns. Install it with `strig = "0.6"`; the default features are `audit`, and `dsl` and `dsl-fs` add the policy language.
+Every signature is copied from the source at 0.6.1. Pick a name to see it in the bench with a real example and what it returns. The first part is the `strig` crate: install it with `strig = "0.6"`; the default features are `audit`, and `dsl` and `dsl-fs` add the policy language. After it come `strig-sync` and its transports, `strig-axum`, `strig-server`, `strig-macros`, the npm package and the inspector.
 
 The crate ships no changelog, so no item here carries an "Added in" badge. Strig was called Themis until 0.5.0: the crate `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`, with the same code.
 
@@ -242,3 +242,278 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 </ApiWide>
 
 Nothing in 0.6.1 is deprecated. The Rust core has no string error codes.
+
+## Real time: strig-sync
+
+`strig-sync = "0.6"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
+
+<ApiGroup>
+  <ApiItem id="hub-builder" name="Hub::builder" sig={"pub fn builder() -> HubBuilder\npub fn new() -> Self"}>
+    A hub with a transport, or a local-only hub with `Hub::new`. The builder takes `capacity(usize)`, `origin(impl Into<String>)`, `transport(impl Transport)` and `shared_transport(Arc<dyn Transport>)`, then `build() -> Hub`. The channel capacity is 1024 and the origin is random until you set one.
+  </ApiItem>
+  <ApiItem id="hub-publish" name="Hub::publish" pick="hub" sig={"pub async fn publish(&self, mut change: Change) -> Result<Change, TransportError>"}>
+    Stamps origin, sequence and time, delivers locally and publishes on the transport. Local delivery happens even when the transport fails; the error comes back to the caller.
+  </ApiItem>
+  <ApiItem id="hub-spawn-relay" name="Hub::spawn_relay" sig={"pub fn spawn_relay(&self) -> RelayHandle"}>
+    Listens to the transport in the background and delivers what the other instances publish. It reconnects with backoff from 100 ms to 5 s and emits `Resync` on each reconnection. It stops when the `RelayHandle` is dropped.
+  </ApiItem>
+  <ApiItem id="hub-on-change" name="Hub::on_change, Hub::subscribe" sig={"pub fn on_change(&self, sink: Arc<dyn ChangeSink>)\npub fn subscribe(&self) -> broadcast::Receiver<Change>"}>
+    A synchronous sink for every change, or a broadcast receiver. A closure `Fn(&Change)` is a `ChangeSink`, and so is `CapabilityCache`.
+  </ApiItem>
+  <ApiItem id="hub-schedule-expiry" name="Hub::schedule_expiry" sig={"pub fn schedule_expiry(&self, boundary_ms: u64, now_ms: u64, change: Change) -> bool"}>
+    Delivers `change` on this instance when the clock reaches `boundary_ms`, so a grant that starts or stops recomputes without a write. It never goes through the transport. Returns `false` outside a Tokio runtime.
+  </ApiItem>
+</ApiGroup>
+
+### Change
+
+<ApiGroup>
+  <ApiItem level={4} id="change-struct" name="Change" sig={"pub struct Change { pub kind: ChangeKind, pub scope: Anchor, pub subject: Option<String>, pub id: Option<String>, pub origin: String, pub seq: u64, pub at: u64 }"}>
+    What changed and on which step of the path. `origin`, `seq` and `at` are filled in by the hub. Serialized as JSON, which is also the wire format of the transports.
+  </ApiItem>
+  <ApiItem level={4} id="change-kind" name="ChangeKind" sig={"pub enum ChangeKind { Grants, Tuples, Roles, Catalog, Custom, Resync }"}>
+    `Custom` is an application change that also invalidates permissions, such as a customer plan. `Resync` means the node lost changes and must reload everything.
+  </ApiItem>
+</ApiGroup>
+
+<ApiWide>
+
+| Constructor | Signature |
+| --- | --- |
+| `Change::new` | `pub fn new(kind: ChangeKind, scope: Anchor) -> Self` |
+| `Change::grants`, `Change::tuples` | `pub fn grants(scope: Anchor) -> Self` |
+| `Change::roles` | `pub fn roles(subject: impl Into<String>, scope: Anchor) -> Self` |
+| `Change::catalog`, `Change::resync` | `pub fn catalog() -> Self` |
+| `Change::expiry` | `pub fn expiry(subject: impl Into<String>) -> Self` |
+| `Change::expiry_for_everyone` | `pub fn expiry_for_everyone() -> Self` |
+| `for_subject`, `with_id` | `pub fn for_subject(mut self, subject: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+### Transport
+
+<ApiGroup>
+  <ApiItem level={4} id="transport-trait" name="Transport" sig={"pub trait Transport: Send + Sync + 'static { fn name(&self) -> &str; async fn publish(&self, change: &Change) -> Result<(), TransportError>; async fn subscribe(&self) -> Result<ChangeStream, TransportError>; }"}>
+    The medium between instances. Delivery is at most once: the hub covers a gap with `Resync`. `strig-redis` and `strig-postgres` implement it; another broker plugs in the same way. `MemoryTransport::new(capacity: usize)` is for tests and shares one channel between clones.
+  </ApiItem>
+  <ApiItem level={4} id="transport-error" name="TransportError" sig={"pub enum TransportError { Connection(String), Decode(String), Closed }"}>
+    Match on the variant: in 0.6.1 the text is Portuguese.
+  </ApiItem>
+</ApiGroup>
+
+### Sessions
+
+<ApiGroup>
+  <ApiItem level={4} id="session-open" name="Session::open" sig={"pub fn open(hub: &Hub, subject: Subject, scopes: Vec<Resource>, provider: Option<Arc<dyn CapabilityProvider>>, options: SessionOptions) -> (SessionControl, SessionStream)"}>
+    A client's session, independent of the web framework. The stream yields the `ServerMessage`s to write to SSE or WebSocket; the control passes on what the client sends.
+  </ApiItem>
+  <ApiItem level={4} id="session-options" name="SessionOptions" sig={"pub struct SessionOptions { pub heartbeat: Option<Duration>, pub buffer: usize }"}>
+    The `ping` interval, 25 s by default, and the messages queued for a slow client, 64 by default.
+  </ApiItem>
+  <ApiItem level={4} id="session-control" name="SessionControl" sig={"pub async fn send(&self, message: ClientMessage) -> bool\npub async fn handle_text(&self, text: &str) -> Result<bool, serde_json::Error>"}>
+    `send` returns `false` once the session ended. `handle_text` takes a WebSocket text frame; invalid JSON is an error and the session goes on.
+  </ApiItem>
+</ApiGroup>
+
+<ApiWide>
+
+| Message | Direction | Fields |
+| --- | --- | --- |
+| `ServerMessage::Hello` | server to client | `origin`, `subject` |
+| `ServerMessage::Capabilities` | server to client | `scope`, `set`: replaces the previous set |
+| `ServerMessage::Change` | server to client | `change` |
+| `ServerMessage::Resync` | server to client | none: discard what you have and wait for new `capabilities` |
+| `ServerMessage::Error`, `Ping` | server to client | `message`; none |
+| `ClientMessage::Watch`, `Unwatch` | client to server | `scopes`; WebSocket only |
+| `ClientMessage::Refresh` | client to server | none: ask again for every watched scope |
+
+</ApiWide>
+
+`ServerMessage` has `event_name`, `to_json` and `to_sse`; `ClientMessage::from_json` reads a frame. `scope_to_string(&Resource) -> String` and `scope_from_str(&str) -> Resource` convert the `kind:id/kind:id` form.
+
+### Capabilities and the cache
+
+<ApiGroup>
+  <ApiItem level={4} id="capability-provider" name="CapabilityProvider" sig={"pub trait CapabilityProvider: Send + Sync + 'static { async fn capabilities(&self, subject: &Subject, scope: &Resource) -> Result<CapabilitySet, BoxError>; }"}>
+    Computes what a session sends to its client. `evaluate` and `now_ms` have defaults; override `evaluate` when you know the candidate grants, so the expiry notice sees grants that start later.
+  </ApiItem>
+  <ApiItem level={4} id="grant-loader" name="GrantLoader" sig={"pub trait GrantLoader: Send + Sync + 'static { async fn load(&self, subject: &Subject, scope: &Resource) -> Result<Vec<Grant>, BoxError>; }"}>
+    Fetches the candidate grants of a subject in a scope. Return the grants that start later too. A `Vec<Grant>` is a loader.
+  </ApiItem>
+  <ApiItem level={4} id="engine-provider" name="EngineProvider" sig={"pub fn new(engine: Arc<Engine>, loader: L) -> Self\npub fn with_clock(mut self, clock: impl Fn() -> u64 + Send + Sync + 'static) -> Self\npub fn with_cache(mut self, cache: Arc<CapabilityCache>) -> Self"}>
+    The default provider: loads through the loader, filters with `Engine::capabilities`, stores in the cache. Register the same cache on the hub with `hub.on_change(cache.clone())`.
+  </ApiItem>
+  <ApiItem level={4} id="capability-cache" name="CapabilityCache" sig={"pub fn new(ttl: Duration, capacity: usize) -> Self\npub fn get(&self, subject: &Subject, scope: &Resource) -> Option<CapabilitySet>\npub fn insert(&self, subject: &Subject, scope: &Resource, set: CapabilitySet)"}>
+    A cache of `CapabilitySet`, invalidated by the hub. `TtlCache<K, V>` is the generic one underneath.
+  </ApiItem>
+</ApiGroup>
+
+## axum routes: strig-axum
+
+`strig-axum = "0.6"`. Authentication stays with your application: your handler identifies the subject and calls the route.
+
+<ApiGroup>
+  <ApiItem id="realtime-new" name="Realtime::new" sig={"pub fn new(hub: Hub) -> Self\npub fn with_provider(mut self, provider: Arc<dyn CapabilityProvider>) -> Self\npub fn with_options(mut self, options: SessionOptions) -> Self\npub fn hub(&self) -> &Hub"}>
+    The hub, an optional provider and the session options, shared by the routes. With a provider, a session sends the capabilities of each scope and again on every change. `Realtime` is `Clone`, so it fits axum state.
+  </ApiItem>
+  <ApiItem id="realtime-sse" name="Realtime::sse" pick="sse" sig={"pub fn sse(&self, subject: Subject, scopes: Vec<Resource>) -> Sse<impl Stream<Item = Result<Event, Infallible>> + use<>>"}>
+    A `text/event-stream` response. SSE is one-way, so the scopes are fixed when the connection opens.
+  </ApiItem>
+  <ApiItem id="realtime-websocket" name="Realtime::websocket" sig={"pub fn websocket(&self, upgrade: WebSocketUpgrade, subject: Subject, scopes: Vec<Resource>) -> Response"}>
+    Performs the upgrade and binds the socket to a session. The client can then send `watch`, `unwatch` and `refresh`; invalid JSON gets an `error` message and the socket stays open.
+  </ApiItem>
+</ApiGroup>
+
+## Transports
+
+Both are a `Transport` for `Hub::builder().transport(..)`.
+
+<ApiGroup>
+  <ApiItem id="redis-transport" name="RedisTransport::new" pick="redis" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn from_client(client: Client, channel: impl Into<String>) -> Self\npub fn channel(&self) -> &str"}>
+    `strig-redis = "0.6"`. Redis pub/sub. Publishing reconnects on its own; each `subscribe` opens a dedicated connection, and when it drops the hub reopens it and emits `Resync`.
+  </ApiItem>
+  <ApiItem id="pg-transport" name="PgTransport::new" pick="pg" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn with_tls<T>(url: &str, channel: impl Into<String>, tls: T) -> Result<Self, TransportError>"}>
+    `strig-postgres = "0.6"`. Postgres `LISTEN/NOTIFY`, without TLS or with any `tokio-postgres` connector.
+  </ApiItem>
+  <ApiItem id="pg-notify" name="strig_postgres::notify" sig={"pub async fn notify<C: GenericClient + Sync>(client: &C, channel: &str, change: &Change) -> Result<(), TransportError>"}>
+    Sends a change through a client or a transaction. `NOTIFY` goes out on commit, so a notice sent in the transaction that writes the grant goes out only if the write does. It arrives without an origin, so every instance delivers it, the writer included. `MAX_PAYLOAD` is 7999 bytes.
+  </ApiItem>
+</ApiGroup>
+
+### Postgres queries
+
+The `strig_postgres::query` module stores grants and tuples and turns a listing into a `WHERE`. Values reach the database as bound parameters; only table and column names are spliced into SQL, after they are checked as plain identifiers.
+
+<ApiWide>
+
+| Item | Signature | What it does |
+| --- | --- | --- |
+| `PgTables::new` | `pub fn new(grants: impl Into<String>, tuples: impl Into<String>) -> Result<Self, PgQueryError>` | Names the two tables; the default is `strig_grants` and `strig_tuples`. |
+| `PgTables::schema_sql` | `pub fn schema_sql(&self) -> String` | The DDL of both tables and their indexes. Safe to run twice. |
+| `PgTables::put_grant` | `pub async fn put_grant<C: GenericClient>(&self, client: &C, grant: &Grant) -> Result<(), PgQueryError>` | Stores a grant. |
+| `PgTables::grants_by_permission` | `pub async fn grants_by_permission<C: GenericClient>(&self, client: &C, permissions: &[&str], now: Option<u64>) -> Result<Vec<Grant>, PgQueryError>` | Loads the rows a listing reads. `grants_by_target_kind` and `grants_by_subject` are the siblings. |
+| `PgTable::new` | `pub fn new(kind: impl Into<String>, id_column: impl Into<String>) -> Result<Self, PgQueryError>` | The table of the resources; add `path_column` and `attr_column`. |
+| `filter_where` | `pub fn filter_where(filter: &AccessFilter, layout: &PathLayout, table: &PgTable, first_param: usize) -> Result<PgFilter, PgQueryError>` | An `AccessFilter` as a parameterized `WHERE`, with the residue to check row by row. |
+| `window_predicate` | `pub fn window_predicate(columns: &WindowColumns, param_index: usize, now: Option<u64>) -> Result<WindowPredicate, InstantOutOfRange>` | The validity-window filter. Do not feed `EngineProvider` with it. |
+| `candidate_predicate` | `pub fn candidate_predicate(columns: &WindowColumns, param_index: usize, now: u64) -> Result<WindowPredicate, InstantOutOfRange>` | Every grant that has not expired, so a grant that starts later still triggers its recompute. |
+
+</ApiWide>
+
+`PgQueryError` is `#[non_exhaustive]` and prints English: `InvalidIdentifier`, `UnmappedAttribute`, `UnmappedKind`, `UnsupportedExpr`, `EmptyUsersetRelation`, `Residual`, `InstantOutOfRange`, `Database`, `Decode`. A listing that reads an attribute or a path kind with no column fails loudly, because reading it as "no row" would open access under a deny.
+
+## Decision server: strig-server
+
+`strig-server = "0.6"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
+
+<ApiGroup>
+  <ApiItem id="decision-server" name="DecisionServer::router" pick="server" sig={"pub fn new(source: Arc<dyn DecisionSource>) -> Self\npub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self\npub fn with_config(mut self, config: ServerConfig) -> Self\npub fn router(self) -> Router"}>
+    Builds the axum router. Routes: `POST /v1/check`, `/v1/check/batch`, `/v1/list`, `/v1/who`, `/v1/access`, and `GET /health/live`, `/health/ready`.
+  </ApiItem>
+  <ApiItem id="decision-source" name="DecisionSource" sig={"pub trait DecisionSource: Send + Sync + 'static { async fn snapshot(&self) -> Result<Arc<Snapshot>, SourceError>; }"}>
+    Loads the data of one answer. When it fails, the server answers 503 and denies. `Snapshot::new(engine: Arc<Engine>, grants: Vec<Grant>)` holds the engine and the grants; `MemorySource::new(snapshot)` keeps one in memory, and `replace` swaps it without a restart.
+  </ApiItem>
+  <ApiItem id="server-config" name="ServerConfig" sig={"pub fn with_max_body_bytes(mut self, bytes: usize) -> Self\npub fn with_max_batch(mut self, items: usize) -> Self\npub fn with_max_resources(mut self, items: usize) -> Self\npub fn with_default_timeout(mut self, timeout: Duration) -> Self\npub fn with_max_timeout(mut self, timeout: Duration) -> Self\npub fn with_query_limits(mut self, limits: QueryLimits) -> Self\npub fn with_max_work(mut self, work: usize) -> Self\npub fn with_max_concurrent_work(mut self, slots: usize) -> Self"}>
+    The limits. Defaults: body 1 MiB, batch 256 checks, 1000 resources, work 1 000 000 (checks times grants), deadline 2 s with a ceiling of 10 s. A request sets its deadline with the `x-strig-timeout-ms` header.
+  </ApiItem>
+</ApiGroup>
+
+<ApiWide>
+
+| Status | `error.code` | Meaning |
+| --- | --- | --- |
+| 400 | `malformed_json`, `invalid_request`, `batch_too_large`, `too_many_resources` | The request is wrong; retrying it unchanged fails again. |
+| 404, 405 | `not_found`, `method_not_allowed` | No such route, or the wrong method. |
+| 413, 415 | `body_too_large`, `unsupported_media_type` | The body is over the limit, or is not `application/json`. |
+| 503 | `source_unavailable`, `query_limit_exceeded`, `overloaded`, `relation_depth_exceeded`, `deadline_exceeded`, `clock_unavailable`, `internal` | The server could not decide: deny, and retry later. |
+
+</ApiWide>
+
+The body is `{"error": {"code": "...", "message": "..."}}`. `code` is stable; `message` is fixed per code and never carries table names or driver text.
+
+### The Rust client
+
+<ApiGroup>
+  <ApiItem level={4} id="client-http" name="Client::http" pick="client" sig={"pub fn http(base_url: impl Into<String>, config: ClientConfig) -> Self\npub fn new(transport: Arc<dyn Transport>, config: ClientConfig) -> Self"}>
+    A client over plain HTTP, or over any `Transport`. Every call has a timeout, 2 s by default, sent to the server as the deadline. A circuit breaker opens after 5 consecutive failures and refuses calls for 30 s before it lets one probe through; `4xx` does not count.
+  </ApiItem>
+  <ApiItem level={4} id="client-check" name="Client::check" sig={"pub async fn check(&self, request: &CheckRequest) -> ClientDecision\npub async fn check_batch(&self, requests: &[CheckRequest]) -> Vec<ClientDecision>"}>
+    A failed check is `ClientDecision::Denied(Failure)`, never an allow. A batch is one call and keeps the order; if it fails, every check is denied with the same cause.
+  </ApiItem>
+  <ApiItem level={4} id="client-list" name="Client::list, who, access" sig={"pub async fn list(&self, request: &ListRequest) -> Result<ListResponse, Failure>\npub async fn who(&self, request: &WhoRequest) -> Result<WhoResponse, Failure>\npub async fn access(&self, request: &AccessRequest) -> Result<AccessResponse, Failure>"}>
+    There is no deny to fall back on, so they return `Err(Failure)`: show nothing.
+  </ApiItem>
+  <ApiItem level={4} id="client-decision" name="ClientDecision, Failure" sig={"pub enum ClientDecision { Remote(CheckResponse), Denied(Failure) }"}>
+    `is_allowed`, `effect`, `decision` and `failure` read it. `Failure` is `#[non_exhaustive]`: `CircuitOpen`, `Timeout`, `Unreachable`, `Server`, `Rejected`, `UnexpectedStatus` and `InvalidResponse`. A code the client does not know is `ErrorCode::Unknown(String)`.
+  </ApiItem>
+</ApiGroup>
+
+## Policies at compile time: strig-macros
+
+`strig-macros = "0.6"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
+
+<ApiGroup>
+  <ApiItem id="policy-macro" name="policy!" pick="policy" sig={"policy!(\"<policy text>\")"}>
+    Compiles and validates a policy written as a text literal. The result is a `strig::dsl::Policy`. An error stops the build and points at the literal, with `policy:line:column` counted inside the text. Prefer a raw string for anything with several lines.
+  </ApiItem>
+  <ApiItem id="include-policy-macro" name="include_policy!" sig={"include_policy!(\"<path>\")"}>
+    The same, from a file relative to the `CARGO_MANIFEST_DIR` of the caller. The file must be inside the crate, and paths through `target/` or a hidden component are refused, as are files over 4 MiB. An error reads `path:line:column: message`.
+  </ApiItem>
+</ApiGroup>
+
+The expansion embeds the validated policy as JSON and reads it back, so the policy text is never parsed at runtime but the JSON is, on each evaluation. In a hot path, keep it in a `static` with `LazyLock`.
+
+## JavaScript: the npm package
+
+`npm install @the-hades-organization/strig`, version 0.6.1, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
+
+Custom condition functions (`call`) and custom overrides exist only in Rust. The JSON spec covers the built-in `resource_owner` and `permission_holder`.
+
+<ApiGroup>
+  <ApiItem id="js-load" name="load" pick="jsload" sig={"export function load(options: { backend: 'native' }): Promise<NativeStrig>\nexport function load(options?: { backend?: 'auto' | 'native' | 'wasm'; wasm?: unknown }): Promise<Strig>"}>
+    Loads a backend and returns `Engine`, `Context`, `Exclusive`, `auditEstimate`, `backend` and the policy-language functions (`compile`, `print`, `convert`, `format`, `isFormatted`, `loadProject`). `loadProjectDir` exists only on the native module.
+  </ApiItem>
+  <ApiItem id="js-engine" name="Engine" sig={"constructor(spec: unknown)\ndecide(context: Context, request: DecisionRequest, now?: number | bigint): Decision\ncheck(context: Context, request: DecisionRequest, now?: number | bigint): boolean\nexplain(context: Context, request: DecisionRequest, now?: number | bigint): Explanation"}>
+    Takes the same `EngineSpec` JSON as Rust. `decide` returns the effect and a `reason` tagged by `kind`: `override`, `grant`, `no_applicable_grant`, `unknown_permission` or `missing_prerequisite`. The system clock is never used: pass `now`, or set it on the `Context`.
+  </ApiItem>
+  <ApiItem id="js-engine-more" name="Engine, the rest" sig={"capabilities(context: Context, subject: Subject, scope: Resource, now?: number | bigint): CapabilitySet\nvalidateGrant(grant: Grant): void\nlist(context: Context, subject: Subject, permission: string, kind: string, options?: ListOptions, now?: number | bigint): ListResult\nwhoCanOn(context: Context, permission: string, resource: Resource, now?: number | bigint): WhoCanOnResult\napply(input: ApplyInput): ApplyResult"}>
+    Also `whoCan`, `accessOf`, `checkFor`, `catalog`, `materialize` and `applyTemplate`. `apply` checks the invariants of a grant or role change and returns the violations and an audit record.
+  </ApiItem>
+  <ApiItem id="js-context" name="Context" sig={"constructor(init?: { grants?: Grant[]; tuples?: unknown[]; env?: Record<string, unknown>; now?: number | bigint | null; limits?: QueryLimits })"}>
+    The grants of a decision. Change it with `setGrants`, `addGrant`, `removeGrant`, `addTuple`, `setEnv`, `setNow` and `setLimits`. The instant persists, so a long-lived `Context` needs `setNow` on every request.
+  </ApiItem>
+</ApiGroup>
+
+Every error the binding throws has a stable `error.code`, the same on both backends: `INVALID_ARGUMENT`, `INVALID_INPUT`, `INVALID_SPEC`, `INVALID_GRANT`, `UNKNOWN_SUBJECT`, `QUERY_LIMIT_EXCEEDED`, `RELATION_DEPTH_EXCEEDED`, `QUERY_ERROR`, the `EXCLUSIVE_*` and `DSL_*` codes, and `INTERNAL`. A scalar argument that is not accepted, such as `NaN` or a negative instant, is `INVALID_ARGUMENT`; it is never coerced.
+
+<ApiWide>
+
+| Import | What it gives you |
+| --- | --- |
+| `@the-hades-organization/strig` | `load`, the types and `scopeFromString(text: string): Resource`. |
+| `.../client` | `PermissionClient`: connects over SSE or WebSocket, keeps the capabilities of each scope and decides locally. Use it to shape the interface; the server still decides. |
+| `.../server` | `Hub`, `openSession`, `sseResponse`, `pipeSse`, `engineProvider` and the transports `redisTransport`, `ioredisTransport`, `pgTransport`. Notices use the `strig-sync` format, so Rust and JS instances can share a channel. |
+| `.../remote` | `RemoteClient`, `CircuitBreaker`: the client of a decision server. |
+| `.../express`, `.../fastify`, `.../nestjs` | `authorize`, `createCan`; the Fastify `plugin`; `Can` and `StrigGuard`. Their framework is an optional peer dependency. |
+
+</ApiWide>
+
+<ApiGroup>
+  <ApiItem id="js-authorize" name="authorize" pick="jsauthorize" sig={"export function authorize<Req = any>(options: AuthorizerOptions<Req>): Handler<Req>"}>
+    Express middleware that calls `next()` only on an allow. A caller with no subject gets 401, a deny 403, a decision that could not be made 503 and an extractor error 500; change them with `unauthenticatedStatus`, `denyStatus`, `failureStatus` and `errorStatus`. Pass exactly one of `local: { engine, context, now }` and `remote: RemoteClient`.
+  </ApiItem>
+  <ApiItem id="js-remote-client" name="RemoteClient" sig={"constructor(options: RemoteOptions)\ncheck(request: CheckInput): Promise<RemoteResult>\ncheckBatch(requests: CheckInput[]): Promise<RemoteResult[]>"}>
+    `RemoteOptions` is `{ url, timeoutMs?, fetch?, headers?, breaker? }`. The timeout is 2000 ms by default; the breaker opens after 5 failures for 30 000 ms. `allowed` is true only for a `200` whose effect is `allow`; a failure carries `failure`.
+  </ApiItem>
+</ApiGroup>
+
+## Inspector: strig-inspect
+
+Not published on crates.io and outside the workspace default members: install it from a clone with `cargo install --path crates/strig-inspect`, or add `--no-default-features` for the terminal commands only. It explains decisions, simulates grants, builds the access matrix and reads an audit trail. Its library API is small and not a stable contract, so only the commands are listed.
+
+<ApiGroup>
+  <ApiItem id="inspect-explain" name="strig-inspect explain" pick="inspect" sig={"strig-inspect explain --scenario F --subject S --permission P --resource R\nstrig-inspect matrix  --scenario F --resource R [--disable ID]... [--add GRANT.json]...\nstrig-inspect audit   --audit F [--scenario F]\nstrig-inspect fmt [--check] FILE|DIR"}>
+    `explain` prints the trace of one decision. `matrix` shows who can do what on a resource, and which cells change when you disable or add a grant. `audit` lists a trail, checks the hash chain and re-evaluates the decisions. `fmt` formats `.strig` files; `--check` only lists them and exits with 1 if any would change. With no command, it opens a window.
+  </ApiItem>
+</ApiGroup>
+
+A scenario is a JSON file with `spec`, `grants`, `tuples`, `env`, `subjects` and `resources`.

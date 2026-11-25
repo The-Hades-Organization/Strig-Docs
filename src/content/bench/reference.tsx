@@ -320,6 +320,259 @@ let decision = engine.decide(&Context::new(&grants), &Request::new(&dave, "docum
       </>
     ),
   },
+  {
+    id: 'hub',
+    name: 'Hub::publish',
+    at: 'src/hub.rs:171',
+    sig: "pub async fn publish(&self, mut change: Change) -> Result<Change, TransportError>",
+    examples: [
+      example(
+        'README.md:356-365',
+        `let hub = Hub::builder()
+    .transport(RedisTransport::new("redis://127.0.0.1/", "strig:changes")?)
+    .build();
+let _relay = hub.spawn_relay();
+
+let cache = Arc::new(CapabilityCache::new(Duration::from_secs(30), 10_000));
+hub.on_change(cache.clone());
+let provider = EngineProvider::new(engine, my_grant_loader).with_cache(cache);
+let realtime = strig_axum::Realtime::new(hub).with_provider(Arc::new(provider));
+// in the routes: realtime.sse(subject, scopes) or realtime.websocket(upgrade, subject, scopes)`,
+      ),
+    ],
+    returns: (
+      <>
+        <code>Result&lt;Change, TransportError&gt;</code>: the change as stamped, with its origin, sequence and time. Local sessions and caches already got it, even when the error says the transport did not.
+      </>
+    ),
+  },
+  {
+    id: 'sse',
+    name: 'Realtime::sse',
+    at: 'src/lib.rs:74',
+    sig: "pub fn sse(&self, subject: Subject, scopes: Vec<Resource>) -> Sse<impl Stream<Item = Result<Event, Infallible>> + use<>>",
+    examples: [
+      example(
+        'src/lib.rs:9-24, doc example',
+        `use axum::{Router, extract::{Query, State, WebSocketUpgrade}, routing::get, response::IntoResponse};
+use strig::Subject;
+use strig_axum::Realtime;
+use strig_sync::scope_from_str;
+
+#[derive(serde::Deserialize)]
+struct Params { scope: String }
+
+async fn sse(State(rt): State<Realtime>, Query(p): Query<Params>) -> impl IntoResponse {
+    let subject = Subject::user("alice"); // comes from your authentication middleware
+    rt.sse(subject, vec![scope_from_str(&p.scope)])
+}
+
+async fn ws(State(rt): State<Realtime>, upgrade: WebSocketUpgrade) -> impl IntoResponse {
+    rt.websocket(upgrade, Subject::user("alice"), Vec::new())
+}`,
+      ),
+    ],
+    returns: (
+      <>
+        An axum <code>Sse</code> response. The first event is <code>hello</code>; with a provider, one <code>capabilities</code> event follows for each scope, and again after each change that affects it.
+      </>
+    ),
+  },
+  {
+    id: 'redis',
+    name: 'RedisTransport::new',
+    at: 'src/lib.rs:39',
+    sig: "pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>",
+    examples: [
+      example(
+        'src/lib.rs:7-13, doc example',
+        `use strig_sync::Hub;
+use strig_redis::RedisTransport;
+
+let hub = Hub::builder()
+    .transport(RedisTransport::new("redis://127.0.0.1/", "strig:changes")?)
+    .build();
+let _relay = hub.spawn_relay();`,
+      ),
+    ],
+    returns: (
+      <>
+        <code>Result&lt;RedisTransport, TransportError&gt;</code>. A bad URL is <code>TransportError::Connection</code>; nothing connects until the first publish or subscribe.
+      </>
+    ),
+  },
+  {
+    id: 'pg',
+    name: 'PgTransport::new',
+    at: 'src/lib.rs:64',
+    sig: "pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>",
+    examples: [
+      example(
+        'src/lib.rs:7-13, doc example',
+        `use strig_sync::Hub;
+use strig_postgres::PgTransport;
+
+let hub = Hub::builder()
+    .transport(PgTransport::new("postgres://app@localhost/app", "strig_changes")?)
+    .build();
+let _relay = hub.spawn_relay();`,
+      ),
+    ],
+    returns: (
+      <>
+        <code>Result&lt;PgTransport, TransportError&gt;</code>. A URL that does not parse is <code>TransportError::Connection</code>.
+      </>
+    ),
+  },
+  {
+    id: 'server',
+    name: 'DecisionServer::router',
+    at: 'src/server.rs:72',
+    sig: "pub fn router(self) -> Router",
+    examples: [
+      example(
+        'README.md:385-388',
+        `let source = Arc::new(MemorySource::new(Snapshot::new(Arc::new(engine), grants)));
+let router = DecisionServer::new(source).router();
+let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;
+axum::serve(listener, router).await?;`,
+      ),
+    ],
+    returns: (
+      <>
+        An axum <code>Router</code> to serve. Every failure on a decision route is a <code>503</code> with a stable error body, never an allow.
+      </>
+    ),
+  },
+  {
+    id: 'client',
+    name: 'Client::http',
+    at: 'src/client/mod.rs:134',
+    sig: "pub fn http(base_url: impl Into<String>, config: ClientConfig) -> Self",
+    examples: [
+      example(
+        'README.md:396-404',
+        `let config = ClientConfig::default()
+    .with_timeout(Duration::from_millis(250))
+    .with_breaker(BreakerConfig::default().with_failure_threshold(5).with_open_for(Duration::from_secs(10)));
+let client = Client::http("http://127.0.0.1:8080", config);
+
+let request = CheckRequest::new(Subject::user("alice"), "document.view", Resource::new("document", "d1"));
+if client.check(&request).await.is_allowed() {
+    // serve the document
+}`,
+      ),
+    ],
+    returns: (
+      <>
+        A <code>Client</code>. <code>check</code> returns <code>ClientDecision</code>: <code>Remote</code> with the server&apos;s answer, or <code>Denied</code> with the <code>Failure</code> that caused it.
+      </>
+    ),
+  },
+  {
+    id: 'policy',
+    name: 'policy!',
+    at: 'src/lib.rs:59',
+    sig: "policy!(\"<policy text>\")",
+    examples: [
+      example(
+        'README.md:12-24',
+        `use strig_macros::{include_policy, policy};
+
+let inline: strig::dsl::Policy = policy!(r#"
+language blocks
+
+target_kinds = [org]
+
+permission org.read {
+  targets = [org]
+}
+"#);
+
+let from_file: strig::dsl::Policy = include_policy!("policies/main.strig");`,
+      ),
+    ],
+    returns: (
+      <>
+        An expression of type <code>strig::dsl::Policy</code>. A policy with an error stops the build, with the diagnostic as the message.
+      </>
+    ),
+  },
+  {
+    id: 'jsload',
+    name: 'load',
+    at: 'src/index.d.ts:625',
+    sig: "export function load(options: { backend: 'native' }): Promise<NativeStrig>\nexport function load(options?: { backend?: 'auto' | 'native' | 'wasm'; wasm?: unknown }): Promise<Strig>",
+    examples: [
+      { title: 'Example · README.md:414-420', code: `import { load } from '@the-hades-organization/strig';
+const { Engine, Context } = await load(); // native on Node/Bun, wasm in the browser
+
+const engine = new Engine(spec); // the same EngineSpec JSON as in Rust
+const ctx = new Context({ grants });
+engine.check(ctx, { subject, permission: 'document.view', resource });
+engine.apply({ actor, current, mutation: { add: grant }, invariants, audit: { level: 'standard' } });`, lang: 'ts' },
+    ],
+    returns: (
+      <>
+        A promise of the loaded backend: <code>Engine</code>, <code>Context</code> and the rest. <code>backend</code> says which one answered, <code>&apos;native&apos;</code> or <code>&apos;wasm&apos;</code>.
+      </>
+    ),
+  },
+  {
+    id: 'jsauthorize',
+    name: 'authorize',
+    at: 'src/express.ts:21',
+    sig: "export function authorize<Req = any>(options: AuthorizerOptions<Req>): Handler<Req>",
+    examples: [
+      { title: 'Example · README.md:447-457', code: `import { load, scopeFromString } from '@the-hades-organization/strig';
+import { authorize } from '@the-hades-organization/strig/express';
+
+const { Engine, Context } = await load();
+const options = {
+  subject: (req) => (req.headers['x-user'] ? { kind: 'user', id: req.headers['x-user'] } : undefined),
+  resource: (req) => scopeFromString(\`document:\${req.params.id}/org:o1\`),
+  local: { engine: new Engine(spec), context: new Context({ grants }), now: () => Date.now() },
+};
+
+app.get('/doc/:id', authorize({ ...options, permission: 'document.view' }), handler);`, lang: 'ts' },
+    ],
+    returns: (
+      <>
+        An Express handler. It calls <code>next()</code> only on an allow; otherwise it answers 401, 403, 503 or 500 with <code>{'{ error: { code, message } }'}</code>.
+      </>
+    ),
+  },
+  {
+    id: 'inspect',
+    name: 'strig-inspect explain',
+    at: 'src/main.rs:6',
+    sig: "strig-inspect explain --scenario F --subject S --permission P --resource R",
+    examples: [
+      { title: 'Example · README.md:604-605', code: `strig-inspect explain --scenario crates/strig-inspect/examples/scenario.json \\
+    --subject ben --permission document.view --resource secret`, lang: 'text' },
+      { title: 'Example · README.md:609-624, output', code: `DENIED — ben asks document.view on document:secret → project:roadmap → org:acme → global
+reason: grant no-secret (document.view, step 0) chosen by strategy most_specific
+permissions that grant: document.view, project.view
+effective roles: member
+override resource_owner: abstained
+grants (5):
+  + members-view allow project.view → role member on org [step 2]
+      candidate
+  - editors-edit allow project.edit → relation editor on project
+      permission not related
+  ★ no-secret deny document.view → any subject on document:secret [step 0]
+      candidate
+  - pro-export allow document.export → role member on org
+      permission not related
+  - no-invoice-export deny document.invoice.export → role member on doc_type:invoice
+      permission not related`, lang: 'text' },
+    ],
+    returns: (
+      <>
+        The trace of one decision: the resource path, the reason, the roles in force, each override and each grant with its fate. A star marks the grant that decided.
+      </>
+    ),
+  },
 ];
 
 const sectionId = (id: string) => `bench-${id}`;
