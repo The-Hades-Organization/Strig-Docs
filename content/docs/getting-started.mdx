@@ -1,50 +1,269 @@
 ---
 title: Getting started
-description: Sample page with tabs and code in several languages.
+description: Install Strig, write a policy, ask the first question and read the answer. Then deny something and watch the engine fail closed.
 ---
 
 ## Install
 
 <Tabs>
-  <Tab label="Rust">
+  <Tab label="Node">
 
-```rust
-// Cargo.toml: strig = "0.5"
-use strig::Engine;
-
-fn main() {
-    let engine = Engine::default();
-    println!("{}", engine.is_empty());
-}
+```text title="Terminal"
+npm install @the-hades-organization/strig
 ```
 
   </Tab>
-  <Tab label="Node">
+  <Tab label="Rust">
 
-```ts
-import { compile } from 'strig';
-
-const policy = compile(source);
-console.log(policy.permissions.length);
+```text title="Terminal"
+cargo add strig --features dsl,dsl-fs
+cargo add serde_json
 ```
 
   </Tab>
 </Tabs>
 
-## First question
+Node, Bun and the browser share one npm package. Rust needs 1.88 or later. The examples on this page run against Strig 0.6.1.
 
-```json
+## Write the smallest useful policy
+
+Save this as `policy.strig`. One file holds the catalog, the roles, who has them and the grants.
+
+```rules title="policy.strig"
+language rules
+
+kinds project, document
+broad org
+
+permission document.view on project, document
+permission document.edit on project, document depends_on document.view
+
+role viewer
+role editor inherits viewer
+
+user:ana has role editor in project:apollo
+
+g-view: allow role viewer to document.view on project in org:acme
+g-edit: allow role editor to document.edit on project in org:acme
+```
+
+Ana edits in Apollo. An editor is also a viewer, and `document.edit` needs `document.view` on the same resource. Both grants sit on `project` inside `org:acme`.
+
+## Ask the first question
+
+Can Ana edit the document `spec`, in Apollo, in Acme? The script compiles the file, builds the engine, finds Ana and asks.
+
+<Tabs>
+  <Tab label="Node">
+
+```ts title="ask.mjs"
+import { readFileSync } from 'node:fs';
+import { load } from '@the-hades-organization/strig';
+
+const { compile, Engine, Context } = await load();
+const policy = compile(readFileSync('policy.strig', 'utf8'), { file: 'policy.strig' });
+const { catalog, roles, strategy } = policy;
+const engine = new Engine({ catalog, roles, strategy });
+const context = new Context({ grants: policy.grants });
+
+const subject = policy.subjects.find((s) => s.id === 'ana');
+const resource = {
+  path: [
+    { kind: 'document', id: 'spec' },
+    { kind: 'project', id: 'apollo' },
+    { kind: 'org', id: 'acme' },
+  ],
+};
+
+const decision = engine.decide(context, { subject, permission: process.argv[2], resource });
+console.log(JSON.stringify(decision, null, 2));
+```
+
+```text title="Terminal"
+node ask.mjs document.edit
+```
+
+```json title="Output"
 {
-  "subject": "user:bruno",
-  "permission": "document.edit",
-  "path": [["org", "acme"], ["project", "apollo"]]
+  "effect": "allow",
+  "matched": [
+    "g-edit"
+  ],
+  "reason": {
+    "grantId": "g-edit",
+    "kind": "grant",
+    "permission": "document.edit",
+    "rank": 1,
+    "strategy": "most_specific"
+  }
 }
 ```
 
+  </Tab>
+  <Tab label="Rust">
+
+```rust title="src/main.rs"
+use strig::dsl::fs::read_file;
+use strig::{Context, Request, Resource};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let permission = std::env::args().nth(1).expect("permission");
+    let policy = read_file("policy.strig")?.policy;
+    let engine = policy.engine_spec().build()?;
+    let context = Context::new(&policy.grants);
+
+    let ana = policy.subjects.iter().find(|s| s.id.as_deref() == Some("ana")).expect("ana");
+    let document = Resource::new("document", "spec").within("project", "apollo").within("org", "acme");
+
+    let decision = engine.decide(&context, &Request::new(ana, &permission, &document));
+    println!("{}", serde_json::to_string_pretty(&decision)?);
+    Ok(())
+}
+```
+
+```text title="Terminal"
+cargo run -- document.edit
+```
+
+```json title="Output"
+{
+  "effect": "allow",
+  "reason": {
+    "kind": "grant",
+    "grant_id": "g-edit",
+    "permission": "document.edit",
+    "rank": 1,
+    "strategy": "most_specific"
+  },
+  "matched": [
+    "g-edit"
+  ]
+}
+```
+
+  </Tab>
+</Tabs>
+
+<Seal verdict="allow" reason="Granted by g-edit." />
+
+## Read the answer
+
+| Field | What it says |
+| --- | --- |
+| `effect` | The verdict: `allow` or `deny`. |
+| `reason.kind` | Why: `grant` here. Other values appear below. |
+| `reason.grantId` | The grant that decided. Rust spells it `grant_id`. |
+| `reason.strategy` | The rule that picked it: `most_specific`, the default. |
+| `matched` | Every grant that applied to the question, in source order. |
+
+`document.view` was not asked, but `document.edit` depends on it, and Ana holds it through `g-view`: she is an editor, and an editor is a viewer.
+
+## Deny something
+
+Add one line to `policy.strig`. It freezes editing for everyone in Acme.
+
+```rules title="policy.strig"
+g-freeze: deny anyone to document.edit on project in org:acme
+```
+
+Run the same question again.
+
+<Tabs>
+  <Tab label="Node">
+
+```json title="Output"
+{
+  "effect": "deny",
+  "matched": [
+    "g-edit",
+    "g-freeze"
+  ],
+  "reason": {
+    "grantId": "g-freeze",
+    "kind": "grant",
+    "permission": "document.edit",
+    "rank": 1,
+    "strategy": "most_specific"
+  }
+}
+```
+
+  </Tab>
+  <Tab label="Rust">
+
+```json title="Output"
+{
+  "effect": "deny",
+  "reason": {
+    "kind": "grant",
+    "grant_id": "g-freeze",
+    "permission": "document.edit",
+    "rank": 1,
+    "strategy": "most_specific"
+  },
+  "matched": [
+    "g-edit",
+    "g-freeze"
+  ]
+}
+```
+
+  </Tab>
+</Tabs>
+
+<Seal verdict="deny" reason="Denied by g-freeze." />
+
+Both grants applied, on the same step of the path. With `most_specific`, a `deny` wins there. Viewing is untouched: `node ask.mjs document.view` still answers `allow`, by `g-view`.
+
+## See it fail closed
+
+Ask for a permission the catalog does not declare. Remove `g-freeze` first, so the question stands on its own.
+
+```text title="Terminal"
+node ask.mjs document.delete
+```
+
+```json title="Output"
+{
+  "effect": "deny",
+  "reason": {
+    "kind": "unknown_permission"
+  }
+}
+```
+
+Now make `g-edit` depend on something the engine cannot see. Replace its line with this one, and ask for `document.edit` again. Ana has no `mfa` attribute.
+
+```rules title="policy.strig"
+g-edit: allow role editor to document.edit on project in org:acme when subject.mfa == true
+```
+
+```json title="Output"
+{
+  "effect": "deny",
+  "reason": {
+    "kind": "no_applicable_grant"
+  },
+  "warnings": [
+    "grant g-edit: atributo ausente: subject.mfa"
+  ]
+}
+```
+
+A condition the engine cannot evaluate never opens access. The `allow` is dropped, nothing else applies, and the answer is `deny` with the cause in `warnings`.
+
 <Callout kind="note">
-  Sample text. The answer carries the verdict and the grant that decided it.
+  The text of a warning is in Portuguese in 0.6.1.
 </Callout>
 
-### Next steps
+Both outputs are identical in Node and in Rust.
 
-Sample paragraph under a third-level heading, so the table of contents shows depth.
+## Next steps
+
+<CardLink href="/docs/concepts" title="Concepts">
+  Catalog, grants, scope and the strategies that combine them.
+</CardLink>
+
+<CardLink href="/docs/policy-language" title="Policy language">
+  The same policy in Blocks, Rules and Actors.
+</CardLink>
