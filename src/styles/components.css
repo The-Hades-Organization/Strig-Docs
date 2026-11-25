@@ -156,6 +156,9 @@
     box-shadow var(--d-fast) var(--ease),
     transform var(--d-fast) var(--ease);
 }
+.card-link + .card-link {
+  margin-top: var(--s-4);
+}
 .card-link:hover {
   border-color: var(--c-accent);
   box-shadow: var(--sh-2);
