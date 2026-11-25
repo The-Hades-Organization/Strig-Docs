@@ -1,41 +1,551 @@
-/* Home: the ruling, then the question, the three syntaxes,
-   what the library gives, how to install it and where to go next. */
+/* Landing (src/pages/index.tsx), direction A, "the ruling", and the pieces only it uses:
+   LandingHeader, HeadingTwoTone, CourtPanel, SwapTabs, CodeLines, CopyLine, Clip, Facts, Exits.
+   Only custom properties from tokens.css. Breakpoints repeat --bp-md (64rem) and --bp-sm (40rem). */
 
-.home {
-  --home-gutter: max(var(--s-5), calc((100% - var(--w-wide)) / 2 + var(--s-5)));
+/* Page */
+.landing {
+  font-size: var(--t-md);
+  line-height: var(--lh-prose);
 }
-
-/* Hero */
-.home-hero {
-  position: relative;
-  display: grid;
-  gap: var(--s-7) var(--s-7);
-  padding: var(--s-8) var(--home-gutter) var(--s-8);
-  overflow: hidden;
-  isolation: isolate;
+:where(.landing) :is(h1, h2, h3, p, ol, ul, pre, figure) {
+  margin: 0;
 }
-.home-hero-mark {
+:where(.landing) a {
+  color: var(--c-accent);
+}
+.visually-hidden {
   position: absolute;
-  top: var(--s-7);
-  right: var(--home-gutter);
-  z-index: -1;
-  color: var(--c-mark);
-  opacity: 0.1;
-  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-@media (max-width: 64rem) {
-  .home-hero-mark {
-    display: none;
-  }
+.mute {
+  color: var(--c-mute);
+}
+
+/* Header: the brand, quiet links and one outlined button, Install. Every link is a 44px target. */
+.landing-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  height: var(--h-header);
+  padding: 0 var(--s-6);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-bg);
+}
+.landing-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--hit);
+  color: var(--c-ink);
+  text-decoration: none;
+}
+.landing-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-5);
+  margin-left: auto;
+}
+.landing-nav a:not(.button) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+  text-decoration: none;
+  transition: color var(--d-fast) var(--ease);
+}
+.landing-nav a:not(.button):hover {
+  color: var(--c-ink);
+}
+.landing-nav .button {
+  padding-block: 0;
+  padding-inline: var(--s-4);
+}
+
+/* Column, sections and two-column rows */
+.landing-wrap {
+  width: 100%;
+  max-width: var(--w-wide);
+  margin: 0 auto;
+  padding: 0 var(--s-6);
+}
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  padding: var(--s-8) 0 var(--s-7);
+}
+.landing-sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  padding: var(--s-8) 0;
+  border-top: 1px solid var(--c-line);
+}
+.landing-two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--fr-two-code));
+  gap: var(--s-7);
+  align-items: start;
+}
+.landing-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.landing-stack[data-gap='tight'] {
+  gap: var(--s-3);
+}
+.landing-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-6);
+}
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  margin-left: auto;
+}
+.landing-copylines {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+.landing-note {
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+}
+.lead {
+  max-width: var(--w-lead);
+  font-size: var(--t-lead);
+}
+
+/* Two-tone heading: the claim in ink, the second clause muted at 500. */
+.heading-two-tone {
+  font: 600 var(--t-xl) / var(--lh-tight) var(--f-ui);
+  text-wrap: balance;
+}
+.heading-two-tone[data-level='1'] {
+  max-width: var(--w-hero-heading);
+  font-size: var(--t-2xl);
+}
+.heading-quiet {
+  color: var(--c-mute);
+  font-weight: 500;
+}
+
+/* Code frame: a sunk well with a caption, the text highlighted by CodeLines. */
+.code-frame {
+  overflow: hidden;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-sunk);
+}
+.code-frame-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-panel);
+  color: var(--c-mute);
+  font: 600 var(--t-xs) / var(--lh-label) var(--f-ui);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+.code-frame-file {
+  color: var(--c-mute);
+  font: 400 var(--t-xs) / 1 var(--f-mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.code-lines {
+  padding: var(--s-4) var(--s-5);
+  overflow-x: auto;
+  color: var(--c-ink);
+  font: 400 var(--t-code) / var(--lh-code) var(--f-mono);
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+}
+.code-lines code {
+  font: inherit;
+}
+/* A focused code box sits inside a clipped frame, so its ring goes inside. */
+.code-lines:focus-visible {
+  outline-offset: var(--ring-inset);
+}
+
+/* Swap tabs: real buttons, the selected one in ink with a 2px accent underline. The panels share
+   one grid cell, so switching never changes the height. */
+.swap-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+}
+.swap-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  /* The tabs carry their own inline padding so an inset focus ring clears the text;
+     the negative margin keeps the first label on the column edge. */
+  margin-inline: calc(-1 * var(--s-2));
+  overflow-x: auto;
+}
+.swap-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--hit);
+  padding: 0 var(--s-2);
+  border: 0;
+  background: none;
+  color: var(--c-mute);
+  font: 500 var(--t-sm) / 1 var(--f-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 -2px transparent;
+  transition:
+    color var(--d-fast) var(--ease),
+    box-shadow var(--d-base) var(--ease);
+}
+.swap-tab:hover {
+  color: var(--c-ink);
+}
+.swap-tab[aria-selected='true'] {
+  color: var(--c-ink);
+  box-shadow: inset 0 -2px var(--c-accent);
+}
+/* The tab row scrolls sideways and clips its edges, so the ring goes inside. */
+.swap-tab:focus-visible {
+  outline-offset: var(--ring-inset);
+}
+.swap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.swap > .swap-panel {
+  display: flex;
+  flex-direction: column;
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.swap > .swap-panel[data-off] {
+  visibility: hidden;
+}
+.swap-bar-ruled {
+  border-bottom: 1px solid var(--c-line);
+}
+.code-tabs {
+  justify-content: space-between;
+  min-height: var(--hit);
+  padding: 0 var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-panel);
+}
+/* Syntax tabs: one fixed height, the longest short syntax; Blocks scrolls inside. */
+.syntax .code-lines {
+  block-size: calc(var(--syntax-lines) * 1lh + 2 * var(--s-4));
+  overflow-y: auto;
+}
+
+/* Court panel: request on the left, ruling on the right, a question switcher on top. */
+.court {
+  overflow: hidden;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-panel);
+}
+.court-bar {
+  gap: var(--s-5);
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-panel);
+}
+.court-note {
+  margin-left: auto;
+  color: var(--c-mute);
+  font: 400 var(--t-xs) / 1 var(--f-mono);
+}
+.court-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, var(--fr-court-request)) minmax(0, 1fr);
+}
+.court-body > * + * {
+  border-left: 1px solid var(--c-line);
+}
+.court-request {
+  min-width: 0;
+  background: var(--c-sunk);
+}
+.court-ruling {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.court-seal {
+  padding: var(--s-5);
+  border-bottom: 1px solid var(--c-line);
+}
+.court-ruling > .trail {
+  flex: 1;
+}
+.court-ruling .trail-foot {
+  margin-top: auto;
+}
+
+/* Copy line: a command and a Copy button of fixed width, so "Copied" never moves the line. */
+.copy-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 100%;
+  min-height: var(--hit);
+  padding-left: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-2);
+  background: var(--c-sunk);
+  color: var(--c-mute);
+}
+.copy-line code {
+  padding: 0;
+  background: none;
+  color: var(--c-ink);
+  font-size: var(--t-code);
+  overflow-wrap: anywhere;
+}
+.copy-line button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  align-self: stretch;
+  min-width: var(--w-copy-button);
+  min-height: var(--hit);
+  margin-left: auto;
+  padding: 0 var(--s-3);
+  border: 0;
+  border-left: 1px solid var(--c-line);
+  border-radius: 0 var(--r-2) var(--r-2) 0;
+  background: none;
+  color: var(--c-mute);
+  font: 500 var(--t-copy-button) / 1 var(--f-ui);
+  cursor: pointer;
+  transition:
+    background var(--d-fast) var(--ease),
+    color var(--d-fast) var(--ease);
+}
+.copy-line button:hover {
+  background: var(--c-line);
+  color: var(--c-ink);
+}
+.copy-line button[data-copied] {
+  color: var(--c-ink);
+}
+/* The button is flush with the line's rounded edge, so its ring goes inside. */
+.copy-line button:focus-visible {
+  outline-offset: var(--ring-inset);
+}
+
+/* Clip: the playground recording in a labelled frame, with one Play/Pause button. */
+.clip {
+  overflow: hidden;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-sunk);
+}
+.clip-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  min-height: calc(var(--hit) + var(--s-2));
+  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-panel);
+}
+.clip-title {
+  color: var(--c-mute);
+  font: 500 var(--t-sm) / var(--lh-ui) var(--f-ui);
+}
+.clip-toggle {
+  min-width: var(--w-copy-button);
+  padding-block: 0;
+  padding-inline: var(--s-4);
+}
+.clip-frame {
+  aspect-ratio: var(--ratio-clip);
+  background: var(--c-sunk);
+}
+.clip-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.clip-wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  height: 100%;
+  padding: var(--s-5);
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+  text-align: center;
+}
+.clip-wait[data-state='failed'] {
+  color: var(--c-ink);
+}
+.clip-wait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Shots of Strig Inspect, one per tab, each with its caption. */
+.shots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.shot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.shot-frame {
+  overflow: hidden;
+  aspect-ratio: var(--ratio-shot);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-sunk);
+}
+.shot-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.shot figcaption {
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+}
+
+/* Facts: verified claims in a grid with 1px hairlines. */
+.facts,
+.exits {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-3);
+  background: var(--c-line);
+  list-style: none;
+}
+.facts {
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--w-fact-min), 100%), 1fr));
+}
+.facts li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-5);
+  background: var(--c-bg);
+}
+.facts h3 {
+  font: 600 var(--t-md) / var(--lh-ui) var(--f-ui);
+}
+.facts p {
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+}
+
+/* Exits: where to go next, one hairline grid of links. */
+.exits {
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--w-exit-min), 100%), 1fr));
+}
+.exits li {
+  display: flex;
+}
+.exits a {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-5);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: background var(--d-fast) var(--ease);
+}
+.exits a:hover {
+  background: var(--c-panel);
+}
+/* The grid clips its edges, so the ring goes inside. */
+.exits a:focus-visible {
+  outline-offset: var(--ring-inset);
+}
+.exits strong {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+}
+.exits strong .icon {
+  color: var(--c-accent);
+}
+.exits span {
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+}
+
+/* Footer */
+.landing-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-5);
+  padding: var(--s-6);
+  border-top: 1px solid var(--c-line);
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+}
+.landing-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+}
+.landing-footer span {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Not-found page (src/pages/404.tsx): a headline, two actions and a deny seal, in the docs shell. */
+.home-hero {
+  display: grid;
+  padding: var(--s-8) var(--s-5);
 }
 .home-hero h1 {
-  max-width: 16ch;
+  max-width: var(--w-hero-heading);
   margin: 0 0 var(--s-5);
   font: 600 var(--t-3xl) / var(--lh-tight) var(--f-ui);
   text-wrap: balance;
 }
 .home-lead {
-  max-width: 36rem;
+  max-width: var(--w-lead);
   margin: 0;
   font-size: var(--t-lg);
   line-height: var(--lh-prose);
@@ -47,19 +557,6 @@
   gap: var(--s-3);
   margin-top: var(--s-6);
 }
-.home-install-line {
-  display: grid;
-  gap: var(--s-2);
-  justify-items: start;
-  margin: var(--s-5) 0 0;
-}
-.home-hero-copy,
-.home-hero-demo {
-  min-width: 0;
-}
-.home-hero-demo {
-  align-self: center;
-}
 .home-seals {
   display: grid;
   gap: var(--s-3);
@@ -69,396 +566,76 @@
   display: flex;
 }
 
-/* Copy line: a command with its own copy button */
-.copy-line {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-3);
-  max-width: 100%;
-  /* No padding on the button side: its 44px hit box sets the line height. */
-  padding: 0 0 0 var(--s-4);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-2);
-  background: var(--c-sunk);
-  color: var(--c-support-ink);
-}
-.copy-line code {
-  overflow-x: auto;
-  color: var(--c-ink);
-  font: 500 var(--t-sm) / var(--lh-ui) var(--f-mono);
-  white-space: nowrap;
-}
-.copy-line button {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 2.75rem;
-  height: 2.75rem;
-  border: 0;
-  border-radius: var(--r-1);
-  background: transparent;
-  color: var(--c-mute);
-  cursor: pointer;
-  transition: background var(--d-fast) var(--ease), color var(--d-fast) var(--ease);
-}
-.copy-line button:hover {
-  background: var(--c-line);
-  color: var(--c-ink);
-}
-.copy-line button:focus-visible {
-  outline-offset: -2px;
-}
-
-/* Clip: a recording of the product in a quiet frame */
-.clip {
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-3);
-  background: var(--c-panel);
-  box-shadow: var(--sh-2);
-}
-.clip-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-4);
-  border-bottom: 1px solid var(--c-line);
-  color: var(--c-mute);
-  font-size: var(--t-xs);
-}
-.clip-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: 2rem;
-  padding: 0 var(--s-3);
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--c-ink);
-  font: 600 var(--t-xs) / 1 var(--f-ui);
-  cursor: pointer;
-}
-.clip-toggle:hover {
-  background: var(--c-sunk);
-}
-.clip-video {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1280 / 760;
-  background: var(--c-sunk);
-}
-
-/* Stage: a tabbed gallery of real captures */
-.home-stage-head {
-  max-width: var(--w-prose);
-}
-.home-stage-head p {
-  margin: 0;
-  color: var(--c-mute);
-  font-size: var(--t-md);
-  line-height: var(--lh-prose);
-  text-wrap: pretty;
-}
-.home-stage-body {
-  min-width: 0;
-}
-.tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-.shot {
-  margin: 0;
-  display: grid;
-  gap: var(--s-3);
-}
-.shot img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-3);
-  background: var(--c-sunk);
-  box-shadow: var(--sh-2);
-}
-.shot figcaption {
-  color: var(--c-mute);
-  font-size: var(--t-md);
-}
-
-.home-inline-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-weight: 600;
-}
-.home-inline-link .icon {
-  transition: transform var(--d-fast) var(--ease);
-}
-.home-inline-link:hover .icon {
-  transform: translateX(var(--s-1));
-}
-
-/* Motion: the hero rises in once, blocks fade in on first view. All of it
-   stops under prefers-reduced-motion (base.css drops durations to 1 ms). */
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(var(--s-4));
+/* Without JavaScript the switches cannot switch: the tab rows and the court's question bar are
+   hidden, the first panel stays, and the copy buttons go, since they cannot copy. */
+@media (scripting: none) {
+  .swap-tabs,
+  .court-bar,
+  .copy-line button,
+  .clip-wait-text {
+    display: none;
+  }
+  .copy-line {
+    padding-right: var(--s-4);
+  }
+  .clip-wait[data-state='loading'] {
+    padding: 0;
   }
 }
-.home-hero-copy > * {
-  animation: rise var(--d-slow) var(--ease) backwards;
-}
-.home-hero-copy > :nth-child(2) {
-  animation-delay: 80ms;
-}
-.home-hero-copy > :nth-child(3) {
-  animation-delay: 160ms;
-}
-.home-hero-copy > :nth-child(4) {
-  animation-delay: 240ms;
-}
-.home-hero-demo {
-  animation: rise var(--d-slow) var(--ease) 200ms backwards;
-}
-.home-hero-mark {
-  animation: mark-in var(--d-slow) var(--ease) backwards;
-}
-@keyframes mark-in {
-  from {
-    opacity: 0;
-    transform: rotate(-9deg) scale(0.92);
-  }
-}
-[data-reveal='armed'] {
-  opacity: 0;
-  transform: translateY(var(--s-5));
-}
-[data-reveal='shown'] {
-  transition: opacity var(--d-slow) var(--ease), transform var(--d-slow) var(--ease);
-}
-.home-strengths li h3 {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-.home-strengths li h3 .icon {
-  color: var(--c-accent);
-}
 
-/* Sections: copy on one side, code on the other */
-.home-section {
-  display: grid;
-  gap: var(--s-6) var(--s-7);
-  max-width: var(--w-wide);
-  margin: 0 auto;
-  padding: var(--s-8) var(--s-5);
-  border-top: 1px solid var(--c-line);
-}
-/* Vertical rhythm: the question sits close under the hero, the syntaxes and
-   the strengths get room, install and exits are quick stops. */
-.home-section.home-ask {
-  padding-block: var(--s-7);
-}
-.home-section.home-syntax {
-  padding-block: var(--s-9) var(--s-8);
-}
-.home-section.home-install,
-.home-section.home-exits {
-  padding-block: var(--s-7);
-}
-.home-section h2 {
-  margin: 0 0 var(--s-4);
-  font: 600 var(--t-xl) / var(--lh-tight) var(--f-ui);
-  text-wrap: balance;
-}
-.home-section h3 {
-  margin: var(--s-6) 0 var(--s-3);
-  font-size: var(--t-md);
-  font-weight: 600;
-}
-.home-copy {
-  max-width: var(--w-prose);
-}
-.home-copy p,
-.home-steps {
-  margin: 0 0 var(--s-4);
-  font-size: var(--t-md);
-  line-height: var(--lh-prose);
-  text-wrap: pretty;
-}
-.home-copy code,
-.home-strengths code {
-  padding: 0 var(--s-1);
-  border-radius: var(--r-1);
-  background: var(--c-sunk);
-  font-size: 0.9em;
-}
-.home-copy a,
-.home-links a {
-  text-underline-offset: 0.2em;
-}
-.home-copy a {
-  color: var(--c-accent);
-}
-.home-code {
-  min-width: 0;
-}
-.home-code .code-block {
-  margin: 0;
-}
-.home-install-code {
-  display: grid;
-  gap: var(--s-4);
-  align-content: start;
-}
-.home-steps {
-  padding-left: var(--s-5);
-}
-.home-steps li {
-  margin-bottom: var(--s-2);
-  padding-left: var(--s-1);
-}
-.home-steps li::marker {
-  color: var(--c-support-ink);
-  font-weight: 700;
-}
-
-/* Strengths: a ruled list, not a grid of cards */
-.home-strengths {
-  display: grid;
-  gap: 0 var(--s-7);
-  margin: var(--s-5) 0 0;
-  padding: 0;
-  list-style: none;
-}
-.home-strengths li {
-  padding: var(--s-5) 0;
-  border-top: 1px solid var(--c-line);
-}
-.home-strengths h3 {
-  margin: 0 0 var(--s-2);
-  color: var(--c-ink);
-  font-size: var(--t-lg);
-}
-.home-strengths .home-strength-example {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--s-2) var(--s-3);
-  margin-top: var(--s-3);
-  color: var(--c-mute);
-  font-size: var(--t-sm);
-}
-.home-strengths p {
-  max-width: 36rem;
-  margin: 0;
-  font-size: var(--t-md);
-  line-height: var(--lh-prose);
-  text-wrap: pretty;
-}
-
-/* Exits */
-.home-links {
-  display: grid;
-  margin: var(--s-4) 0 0;
-  padding: 0;
-  list-style: none;
-}
-.home-links li {
-  border-top: 1px solid var(--c-line);
-}
-.home-links a {
-  display: grid;
-  gap: var(--s-1) var(--s-6);
-  padding: var(--s-4) 0;
-  color: var(--c-ink);
-  text-decoration: none;
-}
-.home-link-title {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-weight: 600;
-  font-size: var(--t-md);
-}
-.home-link-title .icon {
-  color: var(--c-accent);
-  transition: transform var(--d-fast) var(--ease);
-}
-.home-links a:hover .home-link-title,
-.home-links a:focus-visible .home-link-title {
-  color: var(--c-accent);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-.home-links a:hover .icon {
-  transform: translateX(var(--s-1));
-}
-.home-link-text {
-  color: var(--c-mute);
-  font-size: var(--t-md);
-}
-
-.home-footer {
-  padding: var(--s-6) var(--s-5) var(--s-7);
-  border-top: 1px solid var(--c-line);
-  color: var(--c-mute);
-  text-align: center;
-}
-.home-footer p {
-  margin: 0;
-}
-
-@media (min-width: 64rem) {
-  .home-ask,
-  .home-syntax,
-  .home-install {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-  .home-strengths {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .home-hero {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  }
-  .home-stage {
+@media (max-width: 64rem) {
+  .landing-two,
+  .court-body {
     grid-template-columns: minmax(0, 1fr);
   }
-  .home-links a {
-    grid-template-columns: 12rem minmax(0, 1fr);
-    align-items: baseline;
-  }
-  .home-section > h2 {
-    margin-bottom: 0;
+  .court-body > * + * {
+    border-top: 1px solid var(--c-line);
+    border-left: 0;
   }
 }
 
 @media (max-width: 40rem) {
-  .home-hero {
-    padding: var(--s-7) var(--s-4) var(--s-6);
+  .landing-header {
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-4);
+    height: auto;
+    padding: var(--s-3) var(--s-4);
   }
-  .home-hero h1 {
-    font-size: var(--t-2xl);
+  .landing-nav {
+    order: 1;
+    gap: var(--s-4);
+    width: 100%;
+    margin-left: 0;
   }
-  .home-lead {
-    font-size: var(--t-md);
+  .landing-header .theme-toggle {
+    margin-left: auto;
   }
-  .home-section {
-    padding: var(--s-7) var(--s-4);
+  .landing-wrap {
+    padding: 0 var(--s-4);
   }
-  .home-section.home-ask,
-  .home-section.home-install,
-  .home-section.home-exits {
-    padding-block: var(--s-6);
+  .heading-two-tone {
+    font-size: var(--t-heading-2-sm);
   }
-  .home-section.home-syntax {
-    padding-block: var(--s-8) var(--s-7);
+  .heading-two-tone[data-level='1'] {
+    font-size: var(--t-heading-1-sm);
+  }
+  .landing-sec {
+    padding: var(--s-7) 0;
+  }
+  .court-bar,
+  .court-seal {
+    padding-right: var(--s-4);
+    padding-left: var(--s-4);
+  }
+  .court-bar {
+    row-gap: 0;
+    padding-bottom: var(--s-3);
+  }
+  .code-lines {
+    padding: var(--s-4);
+    font-size: var(--t-xs);
+  }
+  .copy-line {
+    width: 100%;
   }
 }
