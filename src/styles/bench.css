@@ -37,28 +37,36 @@
   font: 400 var(--t-xs) / 1.4 var(--f-mono);
   overflow-wrap: anywhere;
 }
+/* One row that scrolls sideways when the tabs outgrow the bench; the scroll
+   edges in components.css show there is more. */
 .bench-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--s-1);
+  overflow-x: auto;
 }
 .bench-tab {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: var(--s-2);
   min-height: var(--hit);
-  margin-bottom: -1px;
   padding: 0 var(--s-3);
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--c-mute);
   font: 500 var(--t-sm) / 1 var(--f-ui);
+  white-space: nowrap;
   cursor: pointer;
   transition: color var(--d-base) var(--ease), border-color var(--d-base) var(--ease);
 }
 .bench-tab:hover {
   color: var(--c-ink);
+}
+/* The tab row clips its edges, so the ring goes inside. */
+.bench-tab:focus-visible {
+  outline-offset: var(--ring-inset);
 }
 .bench-tab[aria-pressed='true'],
 .bench-tab[aria-selected='true'] {
@@ -95,8 +103,11 @@
   font-weight: 600;
   line-height: var(--lh-ui);
 }
+/* The seal and anything else under the question keep their own width, as on
+   the landing board, and never pass the bench's edge. */
 .bench-q > :not(.bench-question) {
   align-self: flex-start;
+  max-width: 100%;
 }
 
 .bench-block {

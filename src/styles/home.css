@@ -638,4 +638,11 @@
   .copy-line {
     width: 100%;
   }
+  /* The two hero actions stack at one full width */
+  .landing-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    margin-left: 0;
+  }
 }

@@ -5,8 +5,8 @@ export function ApiGroup({ children }: { children: ReactNode }) {
   return <ul className="api-group">{children}</ul>;
 }
 
-// A reference table too wide for the text column: it keeps its width and
-// scrolls inside its own box, and code in its cells does not break.
+// A reference table with long signatures: code in its cells wraps so the
+// table fits the text column, and on a small phone each row stacks.
 export function ApiWide({ children }: { children: ReactNode }) {
   return <div className="api-wide">{children}</div>;
 }

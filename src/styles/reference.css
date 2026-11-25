@@ -84,15 +84,14 @@
   margin-top: var(--s-2);
 }
 
-/* Wide tables keep their width and scroll in their box */
-.api-wide table {
-  min-width: var(--w-api-table);
-}
+/* Wide tables fit the text column: long signatures wrap inside their cell,
+   so the plain-text column stays in view. */
 .api-wide td:last-child {
   min-width: var(--w-api-desc);
 }
 .api-wide td code {
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* What the item returns, in the bench note */
@@ -108,5 +107,36 @@
 @media (max-width: 48rem) {
   .api-item[data-selected] {
     --api-outdent: var(--s-2);
+  }
+}
+
+/* Small phone: three columns do not fit beside a readable description, so
+   each row stacks its cells, name first. The header row is kept for
+   assistive technology only. */
+@media (max-width: 40rem) {
+  .api-wide :is(table, tbody, tr, td) {
+    display: block;
+  }
+  .api-wide thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .api-wide tr {
+    padding: var(--s-2) 0;
+    border-bottom: 1px solid var(--c-line);
+  }
+  .api-wide tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .api-wide .table-wrap td {
+    padding: var(--s-1) var(--s-4);
+    border-bottom: 0;
+  }
+  .api-wide td:first-child {
+    font-weight: 600;
   }
 }

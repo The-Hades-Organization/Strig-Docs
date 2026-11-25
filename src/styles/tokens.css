@@ -141,10 +141,9 @@
   --w-search-trigger: 15rem;
   /* Space between the text and the bench */
   --gap-bench: var(--s-7);
+  /* Height of the fade at the foot of a pinned bench that can still scroll */
+  --h-pin-fade: var(--s-5);
   /* Reference */
-  /* A wide reference table is never narrower than the text column; past
-     that it scrolls inside its own box. */
-  --w-api-table: var(--w-prose);
   /* A wide table's last column, the plain-text one, never shrinks below this */
   --w-api-desc: 14rem;
   /* The picked item stands out of the text column by this much on each side */

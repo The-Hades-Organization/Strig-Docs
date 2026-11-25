@@ -128,11 +128,35 @@
    on its own when it is taller than the screen. */
 .doc-body > .bench,
 .doc-body > .doc-panel {
+  --edge-bg: var(--c-bg);
   position: sticky;
   top: var(--doc-pin);
   align-self: start;
   max-height: calc(100vh - var(--doc-pin) - var(--s-4));
   overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.doc-body > .bench {
+  --edge-bg: var(--c-panel);
+}
+/* While there is more below, the foot fades into the panel. The fade sticks
+   to the bottom edge while the content runs under it; at the end it rests in
+   its own space after the last line, over nothing. Code blocks and output
+   paint their own ground, so a background gradient on the box would sit
+   under them; this layer sits above. */
+.doc-body > .bench::after,
+.doc-body > .doc-panel::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  flex: none;
+  height: var(--h-pin-fade);
+  background: linear-gradient(to bottom, transparent, var(--edge-bg));
+  pointer-events: none;
+}
+/* The panel is a grid with a gap; the fade does not add one more. */
+.doc-body > .doc-panel::after {
+  margin-top: calc(-1 * var(--s-3));
 }
 
 /* The syntax panel of the language pages (src/ds/SyntaxPanel.tsx) */
@@ -257,12 +281,12 @@
   color: var(--c-accent);
 }
 
-/* A question in a table cell that switches the bench */
+/* A question in a table cell that switches the bench. It reads as one
+   underlined phrase; the 44px target is a layer behind it, so the line keeps
+   its height. */
 .cell-pick {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: var(--hit);
+  position: relative;
+  display: inline;
   padding: 0;
   border: 0;
   background: transparent;
@@ -274,6 +298,16 @@
   text-underline-offset: 0.2em;
   cursor: pointer;
   transition: text-decoration-color var(--d-fast) var(--ease);
+}
+.cell-pick::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: var(--hit);
+  min-height: 100%;
+  transform: translateY(-50%);
 }
 .cell-pick:hover {
   text-decoration-color: var(--c-accent);
@@ -294,6 +328,10 @@
     position: static;
     max-height: none;
     overflow: visible;
+  }
+  .doc-body > .bench::after,
+  .doc-body > .doc-panel::after {
+    display: none;
   }
 }
 
