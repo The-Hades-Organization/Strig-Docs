@@ -88,6 +88,9 @@
 .api-wide table {
   min-width: var(--w-api-table);
 }
+.api-wide td:last-child {
+  min-width: var(--w-api-desc);
+}
 .api-wide td code {
   white-space: nowrap;
 }
