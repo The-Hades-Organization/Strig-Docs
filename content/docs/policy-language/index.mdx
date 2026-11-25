@@ -1,19 +1,217 @@
 ---
 title: Policy language
-description: Sample page that introduces the three syntaxes of the policy language.
+description: One policy, written in Blocks, Rules or Actors. All three compile to the same model, and you pick the one your team reads fastest.
 ---
 
-<Seal verdict="allow" reason="Bruno may edit documents in Apollo." />
+A Strig policy is data: a catalog of permissions, roles, assignments, grants and rules. You can build it in Rust, load it from JSON, or write it as text. The text form is the policy language. The examples on these pages run against Strig 0.6.1.
 
-The policy language has three syntaxes that describe the same policy. This is sample copy: it exists
-to give the layout real structure, not to document anything.
+The language has three syntaxes. They describe the same thing and differ only in layout:
 
-- **Blocks** names every part of the policy as a block.
-- **Rules** writes each fact as one line.
-- **Actors** groups the policy by who acts.
+- **Blocks** gives every declaration a block with `key = value` fields. It is explicit and regular.
+- **Rules** writes each fact as one line, meant to be read aloud.
+- **Actors** groups the policy under whoever acts: a role, a user, a principal.
 
-The panel beside this text shows the same complete policy in each syntax. Pick the one your team reads fastest.
+The panel beside this text shows one complete policy in each syntax. All three parse to equal policies.
+
+## One model underneath
+
+Parsing a source produces a `Policy`, the value you would otherwise build in code. Two sources in different syntaxes that mean the same thing give the same policy and the same JSON. `Policy::equivalent` compares two policies, and `convert` rewrites a source from one syntax into another.
+
+The text is checked while it is parsed, with the same checks as `Policy::validate`. Treat the text as the way people edit the policy and the JSON as the artifact that services load.
+
+```rust
+use strig::dsl::{Language, convert, parse};
+
+let blocks = std::fs::read_to_string("documents.strig")?;
+let rules = convert(&blocks, Language::Rules)?;
+
+let a = parse("documents.strig", &blocks)?.policy;
+let b = parse("documents.rules", &rules)?.policy;
+assert!(a.equivalent(&b));
+```
+
+The language needs the `dsl` feature of the `strig` crate. Reading and writing files needs `dsl-fs` as well.
+
+```text title="Cargo.toml"
+strig = { version = "0.6", features = ["dsl", "dsl-fs"] }
+```
+
+## Choose a syntax
+
+| If you | Use |
+| --- | --- |
+| generate the file, or keep a large policy | Blocks |
+| write a short policy, or review changes line by line | Rules |
+| ask "what can an editor do?" more often than "who can edit?" | Actors |
+
+The choice is per file, so it is cheap to change. `convert` moves a policy to another syntax and keeps its comments beside the same elements.
 
 <CardLink href="/docs/policy-language/blocks" title="Blocks">
-  Sample link to the Blocks page.
+  Declarations, fields, and the grammar of each.
 </CardLink>
+
+<CardLink href="/docs/policy-language/rules" title="Rules">
+  Statements, one per line.
+</CardLink>
+
+<CardLink href="/docs/policy-language/actors" title="Actors">
+  Headings for who acts, and what is indented under them.
+</CardLink>
+
+## The same construct in each syntax
+
+| Construct | Blocks | Rules | Actors |
+| --- | --- | --- | --- |
+| Kinds of resource | `target_kinds = [a, b]` | `kinds a, b` | `kinds a, b` under `catalog` |
+| Broadest kind | `broad_targets = [org]` | `broad org` | `broad org` under `catalog` |
+| Strategy | `strategy = deny_overrides` | `strategy deny_overrides` | `strategy deny_overrides` under `engine` |
+| Depth limit | `max_depth = 4` | `depth 4` | `depth 4` under `engine` |
+| Permission | `permission doc.read { }` with `targets` | `permission doc.read on doc` | `doc.read on doc` under `catalog` |
+| Role inheritance | `inherits = [viewer]` in `role` | `role editor inherits viewer` | `role editor inherits viewer` |
+| Role assignment | `assign editor { scope = ... }` in `subject` | `user:ana has role editor in project:apollo` | `role editor in project:apollo` under `subject user:ana` |
+| Grant | `grant g-edit { }` | `g-edit: allow ... to ... on ...` | `allow ... on ... as g-edit` under who it applies to |
+| Invariant | `invariant forbid { }` | `always forbid ...` | `forbid ...` under `governance` |
+
+Names change with the syntax in two places. A flag written `non_delegable` in Blocks is `non-delegable` in Rules and Actors, and the same goes for `management_only` and `override_only`. An invariant such as `no_lockout` is `no-lockout` outside Blocks.
+
+## What the three share
+
+### The language line
+
+The first line of a source that is not blank or a comment names its syntax:
+
+```text
+language blocks
+language rules
+language actors
+```
+
+A source without it stops at line 1. An unknown name lists the valid ones.
+
+```text title="Error"
+a.strig:1:1: a source starts by declaring its language
+  hint: write on the first line: language blocks
+```
+
+```text title="Error"
+b.strig:1:10: unknown language `prose`
+  hint: expected one of: blocks, rules, actors
+```
+
+A file has one `language` line and keeps that syntax to its end. A second `language` line is an error, even when it names the same syntax.
+
+```text title="Error"
+c.strig:7:1: a source declares its language once, on its first line (also at c.strig:1:1)
+  hint: one file holds one syntax: split the other into its own file
+```
+
+### Comments, names and references
+
+- A comment starts with `//` and runs to the end of the line. Comments are kept as notes beside the element they sit next to, and `convert` writes them back in the new syntax.
+- Permissions (`doc.read`), roles and kinds are bare words. Strings use double quotes.
+- A resource or subject reference is `kind:id`, such as `project:apollo` or `user:ana`.
+- Where a field takes a resource, it can be a path of steps joined by `>`, such as `org:acme > doc`. Each step is `kind` or `kind:id`.
+- Dates are UTC: `2026-01-01` or `2026-01-01T09:00:00Z`, with optional milliseconds.
+- Declaration order does not matter. A role can inherit one that is declared further down.
+
+### Subject matchers
+
+A grant says who it applies to with one of these:
+
+| Matcher | Applies to |
+| --- | --- |
+| `anyone` | every subject |
+| `role <name>` | subjects that hold the role |
+| `user <id>` | one user |
+| `principal <id>` | one principal |
+| `relation <name>` | subjects that hold the relation |
+
+### Conditions
+
+A grant can carry a condition, written after `when`. The three syntaxes write conditions the same way.
+
+| Form | Meaning |
+| --- | --- |
+| `==`, `!=`, `<`, `<=`, `>`, `>=`, `in` | comparison |
+| `and` or `&&`, `or` or `\|\|`, `not` or `!` | combination, with parentheses to group |
+| `exists <attribute>` | the attribute is present |
+| `all(...)`, `any(...)` | quantifiers |
+| `@function(arguments)` | a function |
+| `a starts_with b`, `a ends_with b` | the text `a` begins or ends with `b` |
+| `a contains b` | `a` has `b` as a substring, or as an element of the list |
+| `a any_in b`, `a all_in b` | some or every element of list `a` is in list `b` |
+| `a ip_in b` | the address `a` is inside the CIDR `b`, or one CIDR of the list `b` |
+| `time_between "09:00" "17:30"` | the UTC time of day is in the window |
+| `weekday_in ["mon", "tue"]` | the UTC weekday is one of the days |
+
+Attributes start with `subject.`, `resource.` or `env.`, as in `subject.dept == "legal"`.
+
+- A window with a start after its end crosses midnight, and equal bounds make an empty window.
+- Days are `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`, written as strings.
+- An address without a prefix length stands for one host.
+- There is no regular-expression condition.
+- The validator refuses a CIDR, a time of day or a weekday it cannot read, with the position and a hint.
+- A condition the engine cannot evaluate never opens access. With a wrong operand type or an unreadable operand, an `allow` does not apply and a `deny` does.
+- The time conditions read the decision instant, always in UTC. Without an instant they cannot be resolved, so a grant that uses them never allows.
+
+```text title="Error"
+g.strig:6:60: `9:00` is not a time of day
+  hint: write hours and minutes with two digits each, 00:00 to 23:59, like "09:30"
+```
+
+### Relation rewrites
+
+A relation is defined in terms of others with a rewrite:
+
+| Form | Meaning |
+| --- | --- |
+| `this` | the tuples stored for the relation |
+| `a \| b` | union |
+| `a & b` | intersection |
+| `a - b` | difference |
+| `parent->relation` | a walk to the parent, then a relation |
+| `union(...)`, `intersection(...)`, `exclusion(a, b)` | the function forms |
+
+Do not mix `|`, `&` and `-` without parentheses.
+
+## Several files, and checks on the way
+
+A policy can span several files and several syntaxes. Add each source to a `Project` and build it. `add_source` returns the syntax it detected, and `build` merges the sources into one policy.
+
+```rust
+use strig::dsl::Project;
+
+let mut project = Project::new();
+project.add_source("catalog.strig", "language rules\n\nkinds doc\npermission doc.read on doc\n")?;
+project.add_source("people.strig", "language blocks\n\ntarget_kinds = [org]\nrole viewer {\n}\n")?;
+let built = project.build()?;
+let policy = built.policy;
+```
+
+The merge refuses a declaration that appears twice and shows both places:
+
+```text title="Error"
+two.strig:3:1: the kind `doc` is listed in target_kinds twice (also at one.strig:3:1)
+  hint: list each kind in one source only
+```
+
+`strig-inspect fmt <file|dir>` rewrites `.strig` files in the canonical layout of their syntax, and `fmt --check` lists the files that would change and exits with 1. In Rust, `format` and `is_formatted` do the same on text, and in Node, `strig.format` and `strig.isFormatted`. Two other crates read the language: `strig-macros` checks a policy while your program compiles, with `policy!` and `include_policy!`, and the [playground](https://github.com/The-Hades-Organization/Strig/tree/main/playground) edits it in all three syntaxes.
+
+### Errors
+
+Every error carries `file:line:column`, a message and, when there is a likely fix, a hint. When a name is close to a declared one, the hint says which. The parser keeps going after the first error and reports up to 100, then "and N more". An error that involves two places names the second one with "also at". Messages and hints are in English. Each syntax page shows the errors that typical mistakes produce.
+
+### Limits
+
+Parsing is bounded, so untrusted text cannot exhaust memory or the stack.
+
+| Limit | Value |
+| --- | --- |
+| Size of one source | 4 MiB |
+| Sources in a project | 10000 |
+| Total size of a project | 64 MiB |
+| Policy files in a directory | 1024 |
+| Nesting of conditions and groups | 64 |
+| Errors reported | 100 |
+
+A source over the size limit is refused at its first position, before any parsing.

@@ -1,24 +1,263 @@
 ---
 title: Rules
-description: Sample page for the Rules syntax.
+description: Each fact of the policy as one line, written to be read aloud. The reference for each statement, with a full example and the usual mistakes.
 ---
 
-<Seal verdict="allow" reason="Bruno may edit documents in Apollo." />
+Rules writes one statement per line. It is the shortest of the three syntaxes and reads almost as a sentence, so it suits short policies and review of a change line by line. What the three syntaxes share (the `language` line, references, conditions, rewrites) is on [the section page](/docs/policy-language).
 
-Rules writes each fact as one line.
+## Shape of a source
 
-```rules title="documents.rules"
+A source is the `language rules` line, then one statement per line.
+
+- A statement starts with its keyword, or with a grant id followed by a colon.
+- A line indented deeper than the one above continues it. A long permission can wrap, and a comment can sit under the line it explains.
+- A list is the names separated by commas (`kinds a, b, c`), or in square brackets inside the invariant fields.
+- `//` starts a comment.
+
+## Statements
+
+| Statement | Form |
+| --- | --- |
+| `kinds` | `kinds a, b, c` |
+| `broad` | `broad org` |
+| `strategy` | `strategy <name>`, where the name is `most_specific`, `deny_overrides`, `permit_overrides` or `first_applicable` |
+| `depth` | `depth <n>` |
+| `permission` | `permission <id> on <kinds> [implied by <ids>] [depends_on <ids>] [label "..."] [about "..."] [non-delegable] [management-only] [override-only] [meta k = "v"]` |
+| `role` | `role <name> [inherits <names>]` |
+| `subject` | `subject team:ops` declares a subject |
+| role assignment | `user:ana has role <name> [in <scope>] [from <date>] [until <date>]` |
+| principal | `user:ana has principal <id>` |
+| attribute | `user:ana has attr <key> = <value>` |
+| `relations` | `relations none` declares that the policy uses no relations |
+| `relation` | `relation doc#viewer = this \| owner` |
+| `tuple` | `tuple doc:d1#owner@user:bob` |
+| grant | `<id>: allow\|deny <matcher> to <permission> on <target> [in <scope>] [when <condition>] [from <date>] [until <date>]` |
+| `override` | `override resource-owner <attr> [except <ids>]` and `override permission-holder <id> [except <ids>]` |
+| `always` | `always <invariant> [fields]` |
+
+The invariant words are the Blocks names with hyphens: `catalog-conformance`, `no-self-management`, `prerequisites`, `require-permission`, `no-lockout`, `non-delegable`, `management-only`, `no-escalation` and `forbid`. Fields follow the word as `name value` pairs, with lists in square brackets, for example `always require-permission permission doc.read resource org:acme > doc`.
+
+In a grant, the matcher is `anyone`, `role viewer`, `user ana`, `principal ana` or `relation viewer`. `on` names the kind or the resource the grant sits on, and `in` limits where it applies. The word after `to` is a permission the catalog declares.
+
+## A complete example
+
+One policy for the documents of an organization. Viewers see a project, editors edit documents in it, and `legal` is a folder that nobody edits.
+
+```rules title="documents.strig"
+// Documents of an organization: who may read and edit them, and when.
 language rules
 
 kinds document, folder, project
 broad org
+depth 4
 
+permission project.view on project label "View project"
+// Reading a document follows from viewing its project.
 permission document.view on project, folder, document implied by project.view
 permission document.edit on project, folder, document depends_on document.view
+  // never alone
 
 role editor inherits viewer
+role viewer
 
-user:bruno has role editor in project:apollo
+user:ana has role editor in project:apollo
+user:ana has principal ana
+user:ana has attr dept = "legal"
+// A temporary assignment.
+user:carla has role viewer in project:apollo from 2026-01-01 until 2026-12-31T23:59:59Z
 
-g-edit: allow role editor to document.edit on project in org:acme
+g-view: allow role viewer to project.view on project in org:acme
+g-edit: allow role editor to document.edit on project in org:acme when subject.dept == "legal"
+g-seal: deny anyone to document.edit on folder:legal in project:apollo
+
+always no-self-management
+always catalog-conformance
+```
+
+Read it from the top:
+
+- `kinds` and `broad` set the kinds of resource and the one at the top of a path. `depth` sets the depth limit of a relation check.
+- Each `permission` line is a catalog entry. `document.view` follows from `project.view` through `implied by`, and `document.edit` is never held without `document.view`, through `depends_on`. The comment indented under it belongs to that line.
+- `role editor inherits viewer` makes an editor hold everything a viewer does. Declaration order does not matter, so `viewer` can come after the role that inherits it.
+- The `user:` lines fill in the subjects. Ana is an editor in Apollo and has a `dept` attribute that `g-edit` reads in its `when`. Carla is a viewer in Apollo for 2026 only, with dates in UTC.
+- The three grant lines each start with their id. `g-seal` denies `document.edit` on the folder `legal` inside Apollo, a closer step to the document than the project, so under `most_specific` it decides.
+- The two `always` lines are invariants, rules that governance checks every later change to the grants against.
+
+## Relations and tuples
+
+A relation is defined by a rewrite, and tuples state the facts it reads. A grant reaches them through the `relation` matcher.
+
+```rules title="relations.strig"
+language rules
+
+kinds doc, org
+depth 4
+
+permission doc.read on doc
+
+role viewer
+
+g-read: allow relation viewer to doc.read on doc
+
+// Owners and viewers of a document.
+relation doc#owner = this
+relation doc#viewer = this | owner
+relation org#member = this
+
+tuple doc:d1#owner@user:bob
+tuple doc:d1#viewer@org:acme#member  // the whole organization
+```
+
+`org:acme#member` is a subject of its own in the second tuple, so every member of the organization is a viewer of `doc:d1`.
+
+## Governance
+
+Flags and invariants let the catalog state its own rules. The flags go at the end of the permission line, and the invariants are `always` lines.
+
+```rules title="governance.strig"
+language rules
+
+kinds doc, org
+
+permission doc.read on doc
+permission doc.edit on doc implied by doc.read non-delegable
+permission org.settings on org management-only
+permission doc.purge on doc label "Purge for good" meta risk = "high" override-only
+
+role viewer
+
+user:bob has role viewer
+
+// The owner of a document may do anything to it.
+override resource-owner owner except doc.purge
+override permission-holder doc.read
+always no-self-management
+always catalog-conformance
+always require-permission permission doc.read resource org:acme > doc
+always no-lockout permissions [doc.read] members [user:bob] resource doc:d1 reserve_role viewer reserve_subjects [user:bob]
+always forbid subject anyone permissions [doc.edit]
+```
+
+## Common mistakes
+
+The `language` line left out:
+
+```text title="policy.strig"
+role viewer
+```
+
+```text title="Error"
+policy.strig:1:1: a source starts by declaring its language
+  hint: write on the first line: language blocks
+```
+
+A second `language` line, even for the same syntax:
+
+```text title="policy.strig"
+language rules
+
+kinds doc
+permission doc.read on doc
+role editor
+g1: allow role editor to doc.read on doc
+language rules
+```
+
+```text title="Error"
+policy.strig:7:1: a source declares its language once, on its first line (also at policy.strig:1:1)
+  hint: one file holds one syntax: split the other into its own file
+```
+
+A grant with no colon after its id. The parser reads the id as a statement:
+
+```text title="policy.strig"
+language rules
+
+kinds doc
+permission doc.read on doc
+role editor
+g1 allow role editor to doc.read on doc
+```
+
+```text title="Error"
+policy.strig:6:1: unknown statement `g1`
+  hint: expected one of: kinds, broad, strategy, depth, permission, role, subject, tuple, relation, relations, override, always
+```
+
+The old `needs` word. It is now `depends_on`, in the same place on the line:
+
+```text title="policy.strig"
+language rules
+
+kinds doc
+permission doc.read on doc
+permission doc.edit on doc needs doc.read
+```
+
+```text title="Error"
+policy.strig:5:28: `needs` is now `depends_on`
+  hint: write: depends_on <ids>
+```
+
+A role that is not declared. The hint names the nearest one and the way to declare it:
+
+```text title="policy.strig"
+language rules
+
+kinds doc
+permission doc.read on doc
+role editor
+user:ana has role edtor
+```
+
+```text title="Error"
+policy.strig:6:19: role `edtor` is not declared
+  hint: did you mean `editor`? or declare it with: role edtor { }
+```
+
+A kind that is not in `kinds`:
+
+```text title="policy.strig"
+language rules
+
+kinds doc
+permission doc.read on dcc
+```
+
+```text title="Error"
+policy.strig:4:24: `doc.read` targets `dcc`, which is not in target_kinds or broad_targets
+  hint: did you mean `doc`? or add it to target_kinds
+```
+
+A time of day without two digits in the hour:
+
+```text title="policy.strig"
+language rules
+
+kinds doc
+permission doc.read on doc
+role editor
+g1: allow role editor to doc.read on doc when time_between "9:00" "17:00"
+```
+
+```text title="Error"
+policy.strig:6:60: `9:00` is not a time of day
+  hint: write hours and minutes with two digits each, 00:00 to 23:59, like "09:30"
+```
+
+A grant id used twice:
+
+```text title="policy.strig"
+language rules
+
+kinds doc
+permission doc.read on doc
+role editor
+g1: allow role editor to doc.read on doc
+g1: allow role editor to doc.read on doc
+```
+
+```text title="Error"
+policy.strig:7:1: grant `g1` is declared twice (also at policy.strig:6:1)
+  hint: the first declaration is the related position
 ```

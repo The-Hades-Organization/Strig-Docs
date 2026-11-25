@@ -1,26 +1,258 @@
 ---
 title: Actors
-description: Sample page for the Actors syntax.
+description: The policy grouped by who acts. The reference for each heading, with a full example and the usual mistakes.
 ---
 
-<Seal verdict="allow" reason="Bruno may edit documents in Apollo." />
+Actors groups the policy under whoever acts: a role, a user, a principal. A heading names the actor and the indented lines under it say what that actor may do, so the file answers "what can an editor do?" by reading one place. What the three syntaxes share (the `language` line, references, conditions, rewrites) is on [the section page](/docs/policy-language).
 
-Actors groups the policy by who acts.
+## Shape of a source
 
-```actors title="documents.actors"
+A source is the `language actors` line, then headings.
+
+- A heading starts in the first column. The lines under it are indented.
+- A grant lives under the actor it applies to, and ends with `as <id>`, which names it.
+- The catalog, the relations, the tuples, the engine settings and the invariants each have a heading of their own.
+- `//` starts a comment.
+
+## Headings
+
+| Heading | Lines under it |
+| --- | --- |
+| `role <name> [inherits <names>]` | `in <scope>` and, under it or directly, `allow\|deny <permission> on <target> [when <condition>] [from <date>] [until <date>] as <id>` |
+| `user <id>` or `subject <kind:id>` | `role <name> [in <scope>] [from <date>] [until <date>]`, `principal <id>`, `attr <key> = <value>`, and the same `allow` and `deny` lines |
+| `principal <id>`, `relation <name>`, `anyone` | the `allow` and `deny` lines |
+| `catalog` | `kinds`, `broad`, then each permission as in Rules, without the `permission` word |
+| `relations` | `doc#viewer = this \| owner`, one per line |
+| `tuples` | `doc:d1#owner@user:bob`, one per line |
+| `engine` | `strategy`, `depth` and `override ...` |
+| `governance` | the invariant words, as in Rules without `always` |
+
+A permission line under `catalog` is `<id> on <kinds>` with the same optional parts as in Rules: `implied by`, `depends_on`, `label`, `about`, `non-delegable`, `management-only`, `override-only` and `meta`. The invariant words are the Blocks names with hyphens, such as `no-self-management` and `no-lockout`.
+
+The actor heading is the matcher of the grant. Lines under `role editor` apply to the role, lines under `anyone` to every subject, and a `user`, `principal` or `relation` heading to that user, principal or relation. `in <scope>` limits where the lines under it apply, as `in org:acme` does below. A grant line names its target after `on` and ends with `as <id>`.
+
+## A complete example
+
+One policy for the documents of an organization. Viewers see a project, editors edit documents in it, and `legal` is a folder that nobody edits.
+
+```actors title="documents.strig"
+// Documents of an organization: who may read and edit them, and when.
 language actors
 
 role editor inherits viewer
 
+role viewer
+  in org:acme
+    allow project.view on project as g-view
+
 role editor
   in org:acme
-    allow document.edit on project as g-edit
+    allow document.edit on project when subject.dept == "legal" as g-edit
 
-subject user:bruno
+anyone
+  in project:apollo
+    deny document.edit on folder:legal as g-seal
+
+subject user:ana
   role editor in project:apollo
+  principal ana
+  attr dept = "legal"
+
+// A temporary assignment.
+subject user:carla
+  role viewer in project:apollo from 2026-01-01 until 2026-12-31T23:59:59Z
 
 catalog
   kinds document, folder, project
   broad org
+  project.view on project label "View project"
+  // Reading a document follows from viewing its project.
+  document.view on project, folder, document implied by project.view
   document.edit on project, folder, document depends_on document.view
+    // never alone
+
+engine
+  depth 4
+
+governance
+  no-self-management
+  catalog-conformance
+```
+
+Read it from the top:
+
+- `role editor inherits viewer` makes an editor hold everything a viewer does. The heading and the later `role viewer` can come in any order.
+- Under `role viewer`, the lines say what a viewer may do: in `org:acme`, allow `project.view` on `project`, as the grant `g-view`. Under `role editor`, `g-edit` allows `document.edit` and carries a `when` that reads Ana's `dept` attribute.
+- Under `anyone`, `g-seal` denies `document.edit` on the folder `legal` inside Apollo. The folder is a closer step to the document than the project, so under `most_specific` it decides.
+- Each `subject` heading holds a person's roles, attributes and principals. Ana is an editor in Apollo. Carla is a viewer in Apollo for 2026 only, with dates in UTC.
+- `catalog` lists the kinds and the permissions. `document.edit` is never held without `document.view`, through `depends_on`, and the comment indented under it belongs to that line.
+- `engine` sets the depth limit of a relation check, and `governance` lists the invariants, rules that governance checks every later change to the grants against.
+
+## Relations and tuples
+
+A relation is defined under `relations`, and tuples state the facts it reads. A grant reaches them through a `relation` heading.
+
+```actors title="relations.strig"
+language actors
+
+relation viewer
+  allow doc.read on doc as g-read
+
+role viewer
+
+catalog
+  kinds doc, org
+  doc.read on doc
+
+relations
+  // Owners and viewers of a document.
+  doc#owner = this
+  doc#viewer = this | owner
+  org#member = this
+
+tuples
+  doc:d1#owner@user:bob
+  doc:d1#viewer@org:acme#member  // the whole organization
+
+engine
+  depth 4
+```
+
+`org:acme#member` is a subject of its own in the second tuple, so every member of the organization is a viewer of `doc:d1`.
+
+## Governance
+
+Flags and invariants let the catalog state its own rules. The flags go at the end of a permission line under `catalog`, the overrides under `engine` and the invariants under `governance`.
+
+```actors title="governance.strig"
+language actors
+
+role viewer
+
+subject user:bob
+  role viewer
+
+catalog
+  kinds doc, org
+  doc.read on doc
+  doc.edit on doc implied by doc.read non-delegable
+  org.settings on org management-only
+  doc.purge on doc label "Purge for good" meta risk = "high" override-only
+
+engine
+  // The owner of a document may do anything to it.
+  override resource-owner owner except doc.purge
+  override permission-holder doc.read
+
+governance
+  no-self-management
+  catalog-conformance
+  require-permission permission doc.read resource org:acme > doc
+  no-lockout permissions [doc.read] members [user:bob] resource doc:d1 reserve_role viewer reserve_subjects [user:bob]
+  forbid subject anyone permissions [doc.edit]
+```
+
+## Common mistakes
+
+A grant line that starts in the first column, so it reads as a heading:
+
+```text title="policy.strig"
+language actors
+
+catalog
+  kinds doc
+  doc.read on doc
+
+role editor
+allow doc.read on doc as g1
+```
+
+```text title="Error"
+policy.strig:8:1: unknown heading `allow`
+  hint: expected one of: catalog, relations, tuples, engine, governance, role, user, subject, principal, relation, anyone
+```
+
+A grant with no `as <id>`:
+
+```text title="policy.strig"
+language actors
+
+catalog
+  kinds doc
+  doc.read on doc
+
+role editor
+  allow doc.read on doc
+```
+
+```text title="Error"
+policy.strig:8:24: a rule needs an id: end the line with `as <id>`
+```
+
+A permission the catalog does not declare:
+
+```text title="policy.strig"
+language actors
+
+catalog
+  kinds doc
+  doc.read on doc
+
+role editor
+  allow doc.write on doc as g1
+```
+
+```text title="Error"
+policy.strig:8:9: unknown permission `doc.write`
+  hint: declare it as a permission block
+```
+
+A heading that is not one of the valid ones. The hint lists them:
+
+```text title="policy.strig"
+language actors
+
+catalog
+  kinds doc
+  doc.read on doc
+
+team ops
+  role editor
+```
+
+```text title="Error"
+policy.strig:7:1: unknown heading `team`
+  hint: expected one of: catalog, relations, tuples, engine, governance, role, user, subject, principal, relation, anyone
+```
+
+A source with no `catalog`, so no permission is declared:
+
+```text title="policy.strig"
+language actors
+
+role editor
+  allow doc.read on doc as g1
+```
+
+```text title="Error"
+policy.strig:4:9: unknown permission `doc.read`
+  hint: declare it as a permission block
+```
+
+A role that no heading declares:
+
+```text title="policy.strig"
+language actors
+
+catalog
+  kinds doc
+  doc.read on doc
+
+subject user:ana
+  role editor
+```
+
+```text title="Error"
+policy.strig:8:3: role `editor` is not declared
+  hint: declare it with: role editor { }
 ```

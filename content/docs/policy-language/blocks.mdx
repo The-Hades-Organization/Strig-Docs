@@ -1,19 +1,75 @@
 ---
 title: Blocks
-description: Sample page for the Blocks syntax.
+description: Every part of the policy as a named block with key = value fields. The reference for each declaration, with a full example and the usual mistakes.
 ---
 
-<Seal verdict="allow" reason="Bruno may edit documents in Apollo." />
+Blocks gives each declaration a block of its own. It is the most explicit of the three syntaxes and the most regular, so it suits files that a program generates and policies that grow large. What the three syntaxes share (the `language` line, references, conditions, rewrites) is on [the section page](/docs/policy-language).
 
-Blocks writes every part of the policy as a named block.
+## Shape of a source
 
-```blocks title="documents.blocks"
-// Documents of an organization: who may read, edit and manage them.
+A source is the `language blocks` line, then the settings, then the declarations.
+
+- A setting is `name = value`, at the top level.
+- A field inside a block is also `name = value`. A list is `[a, b]`, a string uses double quotes, and a flag is `true`.
+- A block opens with `{` on its header line and closes with `}` at the start of a line. A block with no fields still has both: a role with nothing to say is the line `role viewer {` followed by a line `}`.
+- `//` starts a comment.
+
+## Settings
+
+| Setting | Value |
+| --- | --- |
+| `target_kinds` | the kinds of resource the policy talks about, such as `[project, folder, document]` |
+| `broad_targets` | the kinds that sit at the top of a path, such as `[org]` |
+| `strategy` | `most_specific` (the default), `deny_overrides`, `permit_overrides` or `first_applicable` |
+| `max_depth` | a number: the depth limit of a relation check |
+
+## Declarations
+
+| Declaration | Fields |
+| --- | --- |
+| `permission <id> { }` | `label`, `description`, `targets` (required), `implied_by`, `depends_on`, `non_delegable`, `management_only`, `override_only`, `meta { k = "v" }` |
+| `role <name> { }` | `inherits` |
+| `subject <kind:id> { }` | `principals`, `attrs { }`, and `assign <role> { }` with `scope`, `valid_from`, `valid_until` |
+| `grant <id> { }` | `effect` (`allow` or `deny`), `subject`, `permission`, `target`, `scope`, `when`, `valid_from`, `valid_until` |
+| `relation <kind#name> { }` | `rewrite` |
+| `relations = []` | declares that the policy uses no relations |
+| `tuples { }` | one `object#relation@subject` per line |
+| `override resource_owner { }` | `attr`, `except` |
+| `override permission_holder { }` | `permission`, `except` |
+| `invariant <kind> { }` | the fields of the kind, below |
+
+In a grant, `subject` takes a matcher (`anyone`, `role viewer`, `user ana`, `principal ana`, `relation viewer`), `target` names the kind or the resource the grant sits on, and `scope` limits where it applies, as in `scope = org:acme`.
+
+The invariant kinds and their fields are:
+
+| Kind | Fields |
+| --- | --- |
+| `catalog_conformance`, `no_self_management`, `prerequisites` | none, written as an empty block |
+| `require_permission` | `permission`, `resource` |
+| `no_lockout` | `permissions`, `members`, `resource`, `reserve_role`, `reserve_scope`, `reserve_subjects`, `reserve_from`, `reserve_until` |
+| `non_delegable` | `manager` |
+| `management_only` | `roles` |
+| `no_escalation` | `bypass`, `on` |
+| `forbid` | `subject`, `permissions` |
+
+## A complete example
+
+One policy for the documents of an organization. Viewers see a project, editors edit documents in it, and `legal` is a folder that nobody edits.
+
+```blocks title="documents.strig"
+// Documents of an organization: who may read and edit them, and when.
 language blocks
 
-target_kinds = [project, folder, document]
+target_kinds = [document, folder, project]
 broad_targets = [org]
+max_depth = 4
 
+permission project.view {
+  label = "View project"
+  targets = [project]
+}
+
+// Reading a document follows from viewing its project.
 permission document.view {
   targets = [project, folder, document]
   implied_by = [project.view]
@@ -28,10 +84,34 @@ role editor {
   inherits = [viewer]
 }
 
-subject user:bruno {
+role viewer {
+}
+
+subject user:ana {
+  principals = [ana]
+  attrs {
+    dept = "legal"
+  }
   assign editor {
     scope = project:apollo
   }
+}
+
+// A temporary assignment.
+subject user:carla {
+  assign viewer {
+    scope = project:apollo
+    valid_from = 2026-01-01
+    valid_until = 2026-12-31T23:59:59Z
+  }
+}
+
+grant g-view {
+  effect = allow
+  subject = role viewer
+  permission = project.view
+  target = project
+  scope = org:acme
 }
 
 grant g-edit {
@@ -40,5 +120,305 @@ grant g-edit {
   permission = document.edit
   target = project
   scope = org:acme
+  when = subject.dept == "legal"
 }
+
+grant g-seal {
+  effect = deny
+  subject = anyone
+  permission = document.edit
+  target = folder:legal
+  scope = project:apollo
+}
+
+invariant no_self_management {
+}
+
+invariant catalog_conformance {
+}
+```
+
+Read it from the top:
+
+- The catalog is the three `permission` blocks. `document.view` follows from `project.view` through `implied_by`, and `document.edit` is never held without `document.view`, through `depends_on`.
+- `editor` inherits `viewer`, so an editor holds everything a viewer does.
+- Ana is an editor in Apollo, with a `dept` attribute that `g-edit` reads in its `when`. Carla is a viewer in Apollo for 2026 only: `valid_from` and `valid_until` are UTC.
+- `g-view` and `g-edit` allow on `project` inside `org:acme`. `g-seal` denies `document.edit` on the folder `legal` inside Apollo. The folder is a closer step to the document than the project, so under `most_specific` it decides.
+- The two invariants, `no_self_management` and `catalog_conformance`, are rules that governance checks every later change to the grants against. A change is applied only if every invariant passes.
+
+## Relations and tuples
+
+A relation is defined by a rewrite, and tuples state the facts it reads. A grant reaches them through the `relation` matcher.
+
+```blocks title="relations.strig"
+language blocks
+
+target_kinds = [doc, org]
+max_depth = 4
+
+permission doc.read {
+  targets = [doc]
+}
+
+role viewer {
+}
+
+grant g-read {
+  effect = allow
+  subject = relation viewer
+  permission = doc.read
+  target = doc
+}
+
+// Owners and viewers of a document.
+relation doc#owner {
+  rewrite = this
+}
+
+relation doc#viewer {
+  rewrite = this | owner
+}
+
+relation org#member {
+  rewrite = this
+}
+
+tuples {
+  doc:d1#owner@user:bob
+  doc:d1#viewer@org:acme#member  // the whole organization
+}
+```
+
+`org:acme#member` is a subject of its own in the second tuple, so every member of the organization is a viewer of `doc:d1`. A policy that uses no relations can say so with `relations = []`.
+
+## Governance
+
+Flags and invariants let the catalog state its own rules. This source uses `non_delegable`, `management_only` and `override_only`, the two overrides and the invariants.
+
+```blocks title="governance.strig"
+language blocks
+
+target_kinds = [doc, org]
+
+permission doc.read {
+  targets = [doc]
+}
+
+permission doc.edit {
+  targets = [doc]
+  implied_by = [doc.read]
+  non_delegable = true
+}
+
+permission org.settings {
+  targets = [org]
+  management_only = true
+}
+
+permission doc.purge {
+  label = "Purge for good"
+  targets = [doc]
+  override_only = true
+  meta {
+    risk = "high"
+  }
+}
+
+role viewer {
+}
+
+subject user:bob {
+  assign viewer {
+  }
+}
+
+// The owner of a document may do anything to it.
+override resource_owner {
+  attr = "owner"
+  except = [doc.purge]
+}
+
+override permission_holder {
+  permission = doc.read
+}
+
+invariant no_self_management {
+}
+
+invariant catalog_conformance {
+}
+
+invariant require_permission {
+  permission = doc.read
+  resource = org:acme > doc
+}
+
+invariant no_lockout {
+  permissions = [doc.read]
+  members = [user:bob]
+  resource = doc:d1
+  reserve_role = viewer
+  reserve_subjects = [user:bob]
+}
+
+invariant forbid {
+  subject = anyone
+  permissions = [doc.edit]
+}
+```
+
+## Common mistakes
+
+A field misspelled, here `target` for `targets`:
+
+```text title="policy.strig"
+language blocks
+
+target_kinds = [doc]
+
+permission doc.read {
+  target = [doc]
+}
+```
+
+```text title="Error"
+policy.strig:5:12: permission `doc.read` needs `targets`
+  hint: add a line: targets = ...
+policy.strig:6:3: unknown field `target` in permission
+  hint: did you mean `targets`?
+```
+
+The parser reports the missing required field and the unknown one. The hint on the second names the field you meant.
+
+A closing brace left over:
+
+```text title="policy.strig"
+language blocks
+
+target_kinds = [doc]
+
+permission doc.read {
+  targets = [doc]
+}
+}
+```
+
+```text title="Error"
+policy.strig:8:1: expected a declaration, found `}`
+```
+
+A block that is never closed:
+
+```text title="policy.strig"
+language blocks
+
+target_kinds = [doc]
+
+permission doc.read {
+  targets = [doc]
+```
+
+```text title="Error"
+policy.strig:5:12: the permission block is not closed
+  hint: add a closing `}` at the start of a line
+```
+
+A permission with a typo in a grant. The hint names the nearest declared one:
+
+```text title="policy.strig"
+language blocks
+
+target_kinds = [doc]
+
+permission doc.read {
+  targets = [doc]
+}
+
+role editor {
+}
+
+grant g1 {
+  effect = allow
+  subject = role editor
+  permission = doc.raed
+  target = doc
+}
+```
+
+```text title="Error"
+policy.strig:15:3: unknown permission `doc.raed`
+  hint: did you mean `doc.read`? or declare it as a permission block
+```
+
+A value outside the allowed ones:
+
+```text title="policy.strig"
+language blocks
+
+target_kinds = [doc]
+
+permission doc.read {
+  targets = [doc]
+}
+
+role editor {
+}
+
+grant g1 {
+  effect = permit
+  subject = role editor
+  permission = doc.read
+  target = doc
+}
+```
+
+```text title="Error"
+policy.strig:13:12: effect must be allow or deny, found `permit`
+```
+
+A required field left out:
+
+```text title="policy.strig"
+language blocks
+
+target_kinds = [doc]
+
+permission doc.read {
+  targets = [doc]
+}
+
+role editor {
+}
+
+grant g1 {
+  effect = allow
+  subject = role editor
+  permission = doc.read
+}
+```
+
+```text title="Error"
+policy.strig:12:7: grant `g1` needs `target`
+  hint: add a line: target = ...
+```
+
+A name declared twice. The first declaration is the one the second error points back to:
+
+```text title="policy.strig"
+language blocks
+
+target_kinds = [doc]
+
+permission doc.read {
+  targets = [doc]
+}
+
+permission doc.read {
+  targets = [doc]
+}
+```
+
+```text title="Error"
+policy.strig:9:12: permission `doc.read` is declared twice (also at policy.strig:5:12)
+  hint: the first declaration is the related position
 ```
