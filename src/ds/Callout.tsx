@@ -19,8 +19,9 @@ export function Callout({
   children: ReactNode;
 }) {
   const meta = META[kind];
+  // A note, not a landmark: a page with several callouts should not grow several regions.
   return (
-    <aside className="callout" data-kind={kind}>
+    <aside className="callout" data-kind={kind} role="note">
       <p className="callout-title">
         <Icon name={meta.icon} size={18} />
         {title ?? meta.title}

@@ -55,6 +55,7 @@
   margin: 0;
   color: var(--c-mute);
   font-size: var(--t-sm);
+  line-height: var(--lh-ui);
 }
 
 .verdict-tag {
@@ -74,7 +75,9 @@
   color: var(--c-deny);
 }
 
-/* Callout: tinted surface, full 1px border, icon and word; no side stripe */
+/* Callout: tinted surface, full 1px border, icon and word; no side stripe.
+   Note is neutral, warning takes the support tint (never the deny colour),
+   breaking takes the deny tint. */
 .callout {
   --callout-ink: var(--c-ink);
   --callout-bg: var(--c-sunk);
@@ -83,6 +86,7 @@
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
   background: var(--callout-bg);
+  color: var(--c-ink);
 }
 .callout[data-kind='warning'] {
   --callout-ink: var(--c-support-ink);
@@ -99,38 +103,45 @@
   margin: 0 0 var(--s-2);
   color: var(--callout-ink);
   font-weight: 600;
+  line-height: var(--lh-ui);
 }
-.callout-body > :first-child {
+/* Tight rhythm inside the box; prose margins would make it read as two blocks. */
+.callout .callout-body > * {
   margin-top: 0;
-}
-.callout-body > :last-child {
   margin-bottom: 0;
+}
+.callout .callout-body > * + * {
+  margin-top: var(--s-2);
 }
 
 /* Kbd */
 .kbd {
   display: inline-block;
-  min-width: 1.6em;
+  min-width: var(--w-kbd);
   padding: 0 var(--s-2);
   border: 1px solid var(--c-line-strong);
   border-bottom-width: 2px;
   border-radius: var(--r-1);
   background: var(--c-panel);
   color: var(--c-ink);
-  font-size: var(--t-xs);
-  line-height: 1.6;
+  font: 400 var(--t-xs) / var(--lh-label) var(--f-ui);
   text-align: center;
+  white-space: nowrap;
 }
 
-/* Version badge */
+/* Version badge: only versions the changelog gives. A changed badge has a dashed border. */
 .version-badge {
   display: inline-block;
+  flex: none;
   padding: 0 var(--s-2);
   border: 1px solid var(--c-line-strong);
   border-radius: var(--r-pill);
   color: var(--c-mute);
-  font-size: var(--t-xs);
-  line-height: 1.6;
+  font: 400 var(--t-xs) / var(--lh-label) var(--f-ui);
+  white-space: nowrap;
+}
+.version-badge[data-kind='changed'] {
+  border-style: dashed;
 }
 .version-badge[data-kind='deprecated'] {
   color: var(--c-deny);
@@ -139,6 +150,11 @@
   color: var(--c-support-ink);
   font-family: var(--f-mono);
   font-weight: 500;
+}
+.version-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
 }
 
 /* Card link */
@@ -212,7 +228,7 @@
 }
 .tab {
   margin-bottom: -1px;
-  min-height: 2.75rem;
+  min-height: var(--hit);
   padding: var(--s-2) var(--s-4);
   border: 0;
   border-bottom: 2px solid transparent;
@@ -239,8 +255,9 @@
   margin-top: 0;
 }
 
-/* Table */
+/* Table: scrolls inside its own box, with the scroll edges below */
 .table-wrap {
+  max-width: 100%;
   margin: var(--s-5) 0;
   overflow-x: auto;
   border: 1px solid var(--c-line);
@@ -251,6 +268,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--t-sm);
+  line-height: var(--lh-ui);
 }
 .table-wrap th,
 .table-wrap td {
@@ -261,7 +279,7 @@
 }
 .table-wrap th {
   color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  font: 600 var(--t-xs) / var(--lh-label) var(--f-ui);
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   white-space: nowrap;
@@ -280,7 +298,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--s-2);
-  min-height: 2.75rem;
+  min-height: var(--hit);
   padding: var(--s-2) var(--s-5);
   border: 1px solid var(--c-line-strong);
   border-radius: var(--r-2);
@@ -340,4 +358,146 @@
 }
 .doc-tabs ul {
   --edge-bg: var(--c-bg);
+}
+
+/* Text for assistive technology only: live announcements and hints. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Search dialog (src/ds/Search.tsx). The trigger's look lives with the header;
+   here it only gets the 44px target. */
+.search-trigger {
+  min-height: var(--hit);
+}
+.search-modal {
+  width: var(--w-panel);
+  max-width: calc(100% - var(--s-5));
+  max-height: none;
+  margin: var(--search-top) auto 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-3);
+  background: var(--c-panel);
+  color: var(--c-ink);
+  box-shadow: var(--sh-3);
+}
+.search-modal::backdrop {
+  background: var(--c-backdrop);
+}
+.search-box-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--s-7);
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--c-line);
+  color: var(--c-mute);
+}
+/* The one exception to the focus ring: the field shows an accent underline. */
+.search-box-field:focus-within {
+  box-shadow: inset 0 var(--ring-inset) 0 var(--c-accent);
+}
+.search-box-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--hit);
+  border: 0;
+  background: transparent;
+  color: var(--c-ink);
+  font: 400 var(--t-md) / 1 var(--f-ui);
+}
+.search-box-field input:focus-visible {
+  outline: none;
+}
+/* Reserves its height, so a note and the results take the same box. */
+.search-box-results {
+  min-height: var(--h-search-list-min);
+  max-height: var(--h-search-list);
+  padding: var(--s-2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.search-box-results ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.search-box-results ul[hidden] {
+  display: none;
+}
+.search-box-results li a {
+  display: grid;
+  grid-template-columns: var(--w-search-kind) minmax(0, 1fr);
+  gap: var(--s-3);
+  min-height: var(--hit);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  color: var(--c-ink);
+  text-decoration: none;
+  transition: background var(--d-fast) var(--ease);
+}
+.search-box-results li[aria-selected='true'] a,
+.search-box-results li a:hover {
+  background: var(--c-sunk);
+}
+.search-box-kind {
+  color: var(--c-mute);
+  font: 600 var(--t-xs) / var(--lh-label) var(--f-ui);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+.search-box-text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--t-sm);
+  line-height: var(--lh-ui);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.search-box-where {
+  display: block;
+  color: var(--c-mute);
+  font-size: var(--t-xs);
+  line-height: var(--lh-label);
+}
+::highlight(fd-search) {
+  background-color: var(--c-accent-bg);
+  color: var(--c-ink);
+}
+.search-box-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  color: var(--c-mute);
+  font-size: var(--t-sm);
+  line-height: var(--lh-ui);
+}
+.search-box-note p {
+  margin: 0;
+}
+.search-box-note a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit);
+  color: var(--c-accent);
+  font-weight: 600;
+}
+.search-box-note a:hover {
+  color: var(--c-ink);
+}
+.search-box-note .button {
+  cursor: pointer;
 }

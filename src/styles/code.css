@@ -1,11 +1,19 @@
 /* Code block and token roles. Colour follows the role of the word in the decision. */
 
 .code-block {
+  min-width: 0;
+  max-width: 100%;
   margin: var(--s-5) 0;
   border: 1px solid var(--c-line);
   border-radius: var(--r-3);
   background: var(--c-sunk);
   overflow: hidden;
+}
+/* Inside a panel: no outer margin, side borders or radius; the panel draws the frame. */
+.code-block[data-flush] {
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
 }
 .code-head {
   display: flex;
@@ -18,24 +26,28 @@
   background: var(--c-panel);
 }
 .code-label {
+  min-width: 0;
+  overflow: hidden;
   color: var(--c-mute);
-  font: 600 var(--t-xs) / 1.6 var(--f-ui);
+  font: 600 var(--t-xs) / var(--lh-label) var(--f-ui);
   letter-spacing: var(--track-label);
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .code-copy {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
-  gap: var(--s-1);
-  min-width: 2.75rem;
-  min-height: 2.75rem;
+  min-width: var(--hit);
+  min-height: var(--hit);
   padding: 0 var(--s-3);
   border: 0;
   border-radius: var(--r-1);
   background: transparent;
   color: var(--c-mute);
-  font: 500 var(--t-xs) / 1.4 var(--f-ui);
+  font: 500 var(--t-xs) / var(--lh-ui) var(--f-ui);
   cursor: pointer;
   transition: color var(--d-fast) var(--ease), background var(--d-fast) var(--ease);
 }
@@ -45,15 +57,47 @@
 }
 /* The button sits flush with the block's clipped edge, so its ring goes inside. */
 .code-copy:focus-visible {
-  outline-offset: -2px;
+  outline-offset: var(--ring-inset);
+}
+.code-copy[data-copied] {
+  color: var(--c-ink);
+}
+.code-copy[data-copied] .icon {
+  color: var(--c-accent);
+}
+/* "Copy" and "Copied" share one cell; the one not shown keeps its space. */
+.code-copy-swap {
+  display: inline-grid;
+}
+.code-copy-swap > span {
+  display: inline-flex;
+  grid-area: 1 / 1;
+  align-items: center;
+  gap: var(--s-1);
+}
+.code-copy-swap > span[data-hidden] {
+  visibility: hidden;
 }
 .code-block pre {
   margin: 0;
   padding: var(--s-4);
   overflow-x: auto;
-  font-size: 0.84375rem;
+  color: var(--c-ink);
+  font-size: var(--t-code);
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
   line-height: var(--lh-code);
   tab-size: 2;
+  white-space: pre;
+}
+/* The block clips its edge, so the ring of the scrollable box goes inside. */
+.code-block pre:focus-visible {
+  outline-offset: var(--ring-inset);
+}
+/* Narrow columns read beside the text: long lines wrap so the end of a call stays in view. */
+.code-block[data-wrap] pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .code-block code {
   font-family: var(--f-mono);
@@ -100,8 +144,8 @@
 
 /* Inline code */
 :not(pre) > code {
-  padding: 0.1em var(--s-1);
+  padding: var(--pad-inline-code) var(--s-1);
   border-radius: var(--r-1);
   background: var(--c-sunk);
-  font-size: 0.9em;
+  font-size: var(--t-inline-code);
 }
