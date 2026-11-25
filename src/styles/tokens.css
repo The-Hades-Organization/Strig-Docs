@@ -17,6 +17,7 @@
   --c-mute: #5c4f4f;
   --c-accent: #b01030;
   --c-accent-bg: #f9e4e8;
+  --c-on-accent: #ffffff;
   --c-support: #996c6c;
   --c-support-ink: #7a5050;
   --c-support-bg: #f3e9e9;
@@ -40,6 +41,8 @@
   --t-xl: 1.625rem;
   --t-2xl: 2.25rem;
   --t-3xl: 3.25rem;
+  --t-code: 0.84375rem;
+  --t-lead: 1.125rem;
   --lh-tight: 1.15;
   --lh-ui: 1.43;
   --lh-prose: 1.65;
@@ -89,6 +92,55 @@
   --w-wide: 76rem;
   --w-doc: 90rem;
   --h-header: 3.5rem;
+  /* Doc components: code, kbd, badges, search (src/ds) */
+  --lh-label: 1.6;
+  --w-kbd: 1.6em;
+  --t-inline-code: 0.9em;
+  --pad-inline-code: 0.1em;
+  /* A focus ring drawn inside a box whose parent clips its edge */
+  --ring-inset: -2px;
+  --search-top: 12vh;
+  --h-search-list: 50vh;
+  /* The results box keeps this height while it waits, so nothing moves */
+  --h-search-list-min: calc(var(--s-9) + var(--s-8) + var(--s-5));
+  --w-search-kind: var(--s-8);
+  --c-backdrop: rgb(var(--c-shadow) / 0.45);
+  /* Smallest target for anything clickable */
+  --hit: 2.75rem;
+  /* Trail: the column that holds a step of the resource path */
+  --w-trail-step: 9.5rem;
+
+  /* Landing pieces (src/pages/index.tsx) */
+  --w-hero-heading: 40rem;
+  --w-lead: 34rem;
+  /* Copy and Play buttons keep one width whatever their word says */
+  --w-copy-button: 6.5rem;
+  /* Smallest column of the facts and exits grids */
+  --w-fact-min: 16rem;
+  --w-exit-min: 13rem;
+  /* Column weights: the court's request against its ruling, copy against code */
+  --fr-court-request: 1.15fr;
+  --fr-two-code: 1.3fr;
+  /* Lines the syntax tabs show before the longest one scrolls */
+  --syntax-lines: 17;
+  --t-copy-button: 0.8125rem;
+  --t-heading-1-sm: 1.5rem;
+  --t-heading-2-sm: 1.375rem;
+  --ratio-clip: 1280 / 760;
+  --ratio-shot: 1400 / 750;
+
+  /* Doc pages, the bench layout (src/ds/DocPage.tsx) */
+  /* The bar under the header: two rows of targets (section tabs, page
+     contents), each with its 1px rule. On a phone only the contents row. */
+  --h-bar-two: calc(2 * var(--hit) + 2px);
+  --h-bar-one: calc(var(--hit) + 1px);
+  --h-bar: var(--h-bar-two);
+  /* Where pinned things and targeted headings stop: under header and bar */
+  --doc-pin: calc(var(--h-header) + var(--h-bar) + var(--s-4));
+  /* The search trigger in the header, with its words and keys */
+  --w-search-trigger: 15rem;
+  /* Space between the text and the bench */
+  --gap-bench: var(--s-7);
 
   /* Breakpoints, kept as data. CSS media queries cannot read custom
      properties, so @media rules repeat these literal values. */
@@ -110,6 +162,7 @@
   --c-mute: #b5a6a6;
   --c-accent: #ff5e70;
   --c-accent-bg: #2e1218;
+  --c-on-accent: #0a0a0a;
   --c-support: #996c6c;
   --c-support-ink: #c9a0a0;
   --c-support-bg: #221a1a;

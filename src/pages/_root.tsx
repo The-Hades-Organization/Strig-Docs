@@ -3,9 +3,11 @@ import '../styles/tokens.css';
 import '../styles/base.css';
 import '../styles/components.css';
 import '../styles/code.css';
+import '../styles/trail.css';
 import '../styles/shell.css';
 import '../styles/design-system.css';
 import '../styles/doc.css';
+import '../styles/bench.css';
 import '../styles/home.css';
 import { THEME_INIT_SCRIPT } from '../ds/theme';
 
