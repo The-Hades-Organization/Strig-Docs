@@ -1,6 +1,6 @@
 ---
 title: Concepts
-description: The model behind a Strig decision: the question, permissions, targets, roles, conditions, prerequisites and the grant that decides.
+description: The model behind a Strig decision, from the question to the grant that decides it.
 ---
 
 A Strig decision answers one question: may this subject do this permission to this resource? This page takes the question apart, so you can write your first policy. Every answer on it is real output from Strig 0.6.1. Pick a command, and the bench shows the case.
@@ -15,7 +15,7 @@ A request has three parts.
 
 The answer is a `Decision`: `effect` (`allow` or `deny`), `reason`, `matched` (every grant that applied) and `warnings`. When nothing applies, the answer is `deny`.
 
-<BenchRef>The policy, `question.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `question.strig`, is in the bench.</BenchRef>
 
 Ana has a grant for `document.view`. Bob has none.
 
@@ -31,7 +31,7 @@ The same program asks every question on this page. It reads the policy file, fin
 
 A permission is a dotted key that the catalog declares. The line that declares it also says where a grant of it can sit: `permission document.view on project, document`. A permission the catalog does not declare is denied, with the reason `unknown_permission`.
 
-<BenchRef>The policy, `perms.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `perms.strig`, is in the bench.</BenchRef>
 
 `implied by` lets a broader permission carry a narrower one. `document.invoice.export` is implied by `document.export`, so a grant of `document.export` holds for it. Ana has that grant and asks for the narrower permission:
 
@@ -56,7 +56,7 @@ rank 0          rank 1           rank 2     rank 3
 
 `in org:acme` is the scope, not the target. It says the resource path must pass through `org:acme` for the grant to apply.
 
-<BenchRef>The policy, `targets.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `targets.strig`, is in the bench.</BenchRef>
 
 `g-view` sits on `org`, a broad target, so it reaches `document.view` even though that permission lists only `document`. Dan asks about a document in Acme, then in another organization:
 
@@ -72,7 +72,7 @@ A role is a name that grants can address. `role editor inherits viewer` gives ed
 
 A grant names who it is for with one of five matchers: `anyone`, `role <name>`, `user <id>`, `principal <id>` and `relation <name>`. A relation grant applies to whoever holds that relation on the step the target matched, read from stored tuples. This page does not follow relations further.
 
-<BenchRef>The policy, `roles.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `roles.strig`, is in the bench.</BenchRef>
 
 Ana is an editor in Apollo. The same question, asked about Apollo and about Zephyr:
 
@@ -90,7 +90,7 @@ The Actors syntax writes the same policy grouped by who acts. The three syntaxes
 
 A grant can end with `when`, followed by a condition over `subject.*`, `resource.*` and `env.*` attributes. The grant applies only when the condition holds. Conditions compare values, test membership, combine with `and`, `or` and `not`, and can test text, lists, addresses and the time of day. The [policy language](/docs/policy-language) lists them.
 
-<BenchRef>The policy, `conditions.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `conditions.strig`, is in the bench.</BenchRef>
 
 | User | `subject.dept` | Verdict | `reason.kind` |
 | --- | --- | --- | --- |
@@ -108,7 +108,7 @@ A condition that cannot be evaluated never opens access. An `allow` that depends
 
 `depends_on` makes one permission require others: holding it means holding each listed permission on the same resource. `implied by` widens what a grant reaches. `depends_on` narrows what a grant is worth.
 
-<BenchRef>The policy, `prereq.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `prereq.strig`, is in the bench.</BenchRef>
 
 `document.edit` depends on `document.view`. Bob has a grant for `document.edit` and none for `document.view`:
 
@@ -124,7 +124,7 @@ The catalog refuses a prerequisite that cannot be granted wherever the permissio
 
 Several grants can apply to one question. The strategy picks the one that decides. The default, `most_specific`, lets the grant on the closest step decide, and a `deny` beats an `allow` on the same step. An `allow` for one document and a `deny` for the whole project:
 
-<BenchRef>The policy, `strategy.strig`, is in the bench beside this text.</BenchRef>
+<BenchRef>The policy, `strategy.strig`, is in the bench.</BenchRef>
 
 <Run case="w1" />
 
@@ -151,7 +151,11 @@ The engine reaches a verdict in four steps:
 
 1. An unknown permission is denied.
 2. Overrides run in order, and the first one that answers decides.
-3. A grant is a candidate when its permission is the one asked or one that implies it, the resource path passes through its scope, its target matches a step of the path, its subject matches and its condition is true.
+3. A grant is a candidate when all of these hold:
+   - its permission is the one asked, or one that implies it;
+   - the resource path passes through its scope;
+   - its target matches a step of the path;
+   - its subject matches and its condition is true.
 4. The strategy picks the deciding grant. With no candidate, the answer is `deny`. Then `depends_on` is checked, and a missing prerequisite turns an `allow` into a `deny`.
 
 `reason.kind` says which step decided:
