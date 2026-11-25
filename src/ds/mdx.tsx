@@ -1,4 +1,6 @@
 import { isValidElement, type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { ApiItem } from './ApiItem';
+import { ApiGroup, ApiWide } from './ApiParts';
 import { Callout } from './Callout';
 import { CardLink } from './CardLink';
 import { CodeBlock } from './CodeBlock';
@@ -65,6 +67,9 @@ function BenchRef({ children }: { children: ReactNode }) {
 // Components available to every MDX page without an import.
 export const mdxComponents = {
   pre: Pre,
+  ApiGroup,
+  ApiItem,
+  ApiWide,
   h2: H2,
   h3: H3,
   BenchRef,

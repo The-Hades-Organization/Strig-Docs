@@ -1,20 +1,244 @@
 ---
 title: Reference
-description: Sample page for dense reference material.
+description: "The Rust API of the strig crate, 0.6.1: the engine, what a decision carries, the request types, grants, strategies and errors."
 ---
+
+Every signature is copied from the published crate. Pick a name to see it in the bench with a real example and what it returns. Install it with `strig = "0.6"`; the default features are `audit`, and `dsl` and `dsl-fs` add the policy language.
+
+The crate ships no changelog, so no item here carries an "Added in" badge. Strig was called Themis until 0.5.0: the crate `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`, with the same code.
 
 ## Engine
 
-| Method | Returns | Added |
+The decision engine. Immutable once built, and shared between threads. It holds only configuration; the grants come with each call.
+
+<ApiGroup>
+  <ApiItem id="engine-builder" name="Engine::builder" pick="builder" sig={"pub fn builder(catalog: impl Into<Arc<Catalog>>) -> EngineBuilder"}>
+    Starts an engine from a catalog. The default strategy is `MostSpecific` and the relation depth is 32.
+  </ApiItem>
+  <ApiItem id="enginebuilder-build" name="EngineBuilder::build" sig={"pub fn build(self) -> Result<Engine, EngineError>"}>
+    Builds the engine. Fails if an override exception names a permission outside the catalog.
+  </ApiItem>
+</ApiGroup>
+
+<ApiWide>
+
+| Builder method | Signature | What it does |
 | --- | --- | --- |
-| `compile` | A policy | 0.1.0 |
-| `check` | A verdict | 0.1.0 |
-| `explain` | A trace | 0.3.0 |
+| `roles` | `pub fn roles(mut self, roles: RoleGraph) -> Self` | Sets role inheritance. |
+| `relations` | `pub fn relations(mut self, schema: RelationSchema) -> Self` | Turns on ReBAC with this schema. |
+| `conditions` | `pub fn conditions(mut self, registry: ConditionRegistry) -> Self` | Registers custom condition functions. |
+| `strategy` | `pub fn strategy(mut self, strategy: impl Strategy + 'static) -> Self` | Picks how applicable grants combine. |
+| `override_with` | `pub fn override_with(self, rule: impl Override + 'static) -> Self` | Adds an override that decides before the grants. |
+| `override_except` | `pub fn override_except<I, S>(mut self, rule: impl Override + 'static, except: I) -> Self` | Adds an override that does not reach the listed permissions. |
+| `max_relation_depth` | `pub fn max_relation_depth(mut self, depth: usize) -> Self` | Caps ReBAC recursion. |
 
-## Error codes
+</ApiWide>
 
-Sample paragraph about stable error codes. <VersionBadge version="0.4.0" kind="changed" />
+### From a policy file
 
-<Callout kind="breaking" title="Breaking change">
-  Sample text for a change that needs a migration step.
+There is no direct call from a policy to an engine. Parse the text, take its `EngineSpec`, then build.
+
+<ApiGroup>
+  <ApiItem level={4} id="dsl-parse" name="dsl::parse" sig={"pub fn parse(file: &str, text: &str) -> Result<Parsed, Diagnostics>"}>
+    Reads and validates policy text. `Parsed.policy` is the `Policy`. Needs the `dsl` feature.
+  </ApiItem>
+  <ApiItem level={4} id="policy-engine-spec" name="Policy::engine_spec" sig={"pub fn engine_spec(&self) -> EngineSpec"}>
+    From a parsed policy to an `EngineSpec`.
+  </ApiItem>
+  <ApiItem level={4} id="enginespec-build" name="EngineSpec::build" sig={"pub fn build(&self) -> Result<Engine, SpecError>"}>
+    Builds an engine from JSON, TOML or YAML configuration.
+  </ApiItem>
+  <ApiItem level={4} id="enginespec-builder" name="EngineSpec::builder" sig={"pub fn builder(&self) -> Result<EngineBuilder, SpecError>"}>
+    The same, but returns the builder so you can add what does not serialize, such as condition functions.
+  </ApiItem>
+</ApiGroup>
+
+### Deciding
+
+<ApiGroup>
+  <ApiItem level={4} id="engine-decide" name="Engine::decide" pick="decide" sig={"pub fn decide(&self, ctx: &Context<'_>, request: &Request<'_>) -> Decision"}>
+    Allows or denies the request and says why.
+  </ApiItem>
+  <ApiItem level={4} id="engine-check" name="Engine::check" pick="check" sig={"pub fn check(&self, ctx: &Context<'_>, request: &Request<'_>) -> bool"}>
+    `decide(..).is_allowed()`, nothing else.
+  </ApiItem>
+  <ApiItem level={4} id="engine-explain" name="Engine::explain" pick="explain" sig={"pub fn explain(&self, ctx: &Context<'_>, request: &Request<'_>) -> Explanation"}>
+    The same decision as `decide`, plus the trace of every override and grant. Costs more.
+  </ApiItem>
+  <ApiItem level={4} id="engine-decide-without-overrides" name="Engine::decide_without_overrides" sig={"pub fn decide_without_overrides(&self, ctx: &Context<'_>, request: &Request<'_>) -> Decision"}>
+    Decides by grants only, for overrides that depend on a permission. Prerequisites (`depends_on`) still apply.
+  </ApiItem>
+  <ApiItem level={4} id="engine-capabilities" name="Engine::capabilities" sig={"pub fn capabilities(&self, ctx: &Context<'_>, subject: &Subject, scope: &Resource) -> CapabilitySet"}>
+    Preloads the grants that may hold for a subject in a scope. The result is a `GrantSource` for repeated decisions.
+  </ApiItem>
+  <ApiItem level={4} id="engine-validate-grant" name="Engine::validate_grant" sig={"pub fn validate_grant(&self, grant: &Grant) -> Result<(), GrantError>"}>
+    Checks a grant against the catalog and the configuration before you store it.
+  </ApiItem>
+</ApiGroup>
+
+### Queries
+
+These take a `QueryContext`, which carries limits as well as the grants.
+
+<ApiGroup>
+  <ApiItem level={4} id="engine-check-for" name="Engine::check_for" pick="checkfor" sig={"pub fn check_for(&self, ctx: &QueryContext<'_>, resolver: &dyn SubjectResolver, subject: &SubjectRef, permission: &str, resource: &Resource) -> Result<CheckAnswer, QueryError>"}>
+    Decides for a subject reference loaded by `resolver` and names the path that decided. A subject it cannot load is an error, never an allow.
+  </ApiItem>
+  <ApiItem level={4} id="engine-list" name="Engine::list" pick="list" sig={"pub fn list(&self, ctx: &QueryContext<'_>, subject: &Subject, permission: &str, kind: &str) -> AccessFilter"}>
+    What of `kind` the subject reaches, as a filter. Its `residual()` must be checked row by row.
+  </ApiItem>
+  <ApiItem level={4} id="engine-who-can-on" name="Engine::who_can_on" pick="whocan" sig={"pub fn who_can_on(&self, ctx: &QueryContext<'_>, permission: &str, resource: &Resource) -> Result<WhoCan, QueryError>"}>
+    Who holds the permission on this resource, overrides included.
+  </ApiItem>
+  <ApiItem level={4} id="engine-who-can" name="Engine::who_can" sig={"pub fn who_can(&self, ctx: &QueryContext<'_>, permission: &str) -> Vec<SubjectRef>"}>
+    Parties named by an allow grant anywhere. It evaluates nothing.
+  </ApiItem>
+  <ApiItem level={4} id="engine-access-of" name="Engine::access_of" sig={"pub fn access_of(&self, ctx: &QueryContext<'_>, resource: &Resource) -> Result<Vec<PartyAccess>, QueryError>"}>
+    Who has access to the resource, with each party's permissions.
+  </ApiItem>
+</ApiGroup>
+
+## Decision
+
+There are no getters besides `is_allowed`: the reason, the deciding grant and the trail are public fields.
+
+<ApiGroup>
+  <ApiItem id="decision-struct" name="Decision" pick="decision" sig={"pub struct Decision { pub effect: Effect, pub reason: Reason, pub matched: Vec<String>, pub warnings: Vec<String> }"}>
+    Allow or deny, why, every grant id that applied in source order, and problems that did not stop the decision.
+  </ApiItem>
+  <ApiItem id="decision-is-allowed" name="Decision::is_allowed" sig={"pub fn is_allowed(&self) -> bool"}>
+    True only when `effect == Effect::Allow`.
+  </ApiItem>
+  <ApiItem id="reason" name="Reason" pick="reason" sig={"pub enum Reason"}>
+    Why the decision came out that way. Serialized with the tag `kind`, in snake_case.
+  </ApiItem>
+</ApiGroup>
+
+<ApiWide>
+
+| Variant | It means |
+| --- | --- |
+| `Override { name: String }` | An override decided before the grants. |
+| `Grant { grant_id: String, permission: String, rank: usize, strategy: String }` | A grant decided; this is the deciding grant. `rank` 0 is the most specific step. |
+| `NoApplicableGrant` | No grant applied: default deny. |
+| `UnknownPermission` | The permission is not in the catalog: deny. |
+| `MissingPrerequisite { permission: String, prerequisite: String }` | Would be allowed, but a `depends_on` prerequisite is not allowed on the same resource. |
+
+</ApiWide>
+
+<Callout kind="note">
+  `Reason` is not `#[non_exhaustive]`, so a `match` on it must name all five variants, `MissingPrerequisite` included.
 </Callout>
+
+<ApiGroup>
+  <ApiItem id="effect" name="Effect" sig={"pub enum Effect { Allow, Deny }"}>
+    The outcome of a decision or of a grant.
+  </ApiItem>
+  <ApiItem id="explanation" name="Explanation" sig={"pub struct Explanation { pub subject: Subject, pub permission: String, pub resource: Resource, pub effective: Vec<String>, pub path: Vec<Anchor>, pub roles: Vec<String>, pub overrides: Vec<OverrideStep>, pub grants: Vec<GrantTrace>, pub strategy: String, pub prerequisites: Vec<PrerequisiteStep>, pub decision: Decision }"}>
+    The trail: the resource path, the roles in force, each override and each grant with its fate, then the decision. `prerequisites` holds the `depends_on` checks made once the permission was allowed.
+  </ApiItem>
+</ApiGroup>
+
+## Request types
+
+<ApiGroup>
+  <ApiItem id="request-new" name="Request::new" pick="request" sig={"pub fn new(subject: &'a Subject, permission: &'a str, resource: &'a Resource) -> Self"}>
+    The question: can this subject do this permission on this resource.
+  </ApiItem>
+  <ApiItem id="resource" name="Resource::new, Resource::within" sig={"pub fn new(kind: impl Into<String>, id: impl Into<String>) -> Self\npub fn within(mut self, kind: impl Into<String>, id: impl Into<String>) -> Self"}>
+    The resource itself, then each broader step. The path runs from most specific to broadest, with an implicit `global` at the end.
+  </ApiItem>
+  <ApiItem id="subject" name="Subject::user" sig={"pub fn user(id: impl Into<String>) -> Self"}>
+    A user by id. Add roles with `with_role` or `with_role_in`, attributes with `with_attr`.
+  </ApiItem>
+  <ApiItem id="subject-with-role-in" name="Subject::with_role_in" sig={"pub fn with_role_in(mut self, role: impl Into<String>, scope: Anchor) -> Self"}>
+    A role held only under that step of the path.
+  </ApiItem>
+  <ApiItem id="context-new" name="Context::new" sig={"pub fn new(grants: &'a dyn GrantSource) -> Self"}>
+    The data of one decision, over a grant source. A `Vec<Grant>` works.
+  </ApiItem>
+  <ApiItem id="context-at" name="Context::at" sig={"pub fn at(mut self, now: u64) -> Self"}>
+    The decision instant, in ms since the epoch. Without it, windowed allows are ignored and windowed denies hold.
+  </ApiItem>
+</ApiGroup>
+
+<Callout kind="note">
+  `Context` has the public field `now`, and `Grant` has `valid_from` and `valid_until`. A struct literal of either must name every field; the constructors set them for you.
+</Callout>
+
+## Grants
+
+<ApiGroup>
+  <ApiItem id="grant-allow" name="Grant::allow" pick="grant" sig={"pub fn allow(id: impl Into<String>, subject: SubjectMatcher, permission: impl Into<String>, target: TargetSelector) -> Self"}>
+    An allow grant. `Grant::deny` takes the same arguments.
+  </ApiItem>
+  <ApiItem id="grant-scoped" name="Grant::scoped, Grant::when" sig={"pub fn scoped(mut self, scope: Anchor) -> Self\npub fn when(mut self, condition: Condition) -> Self"}>
+    Only under a step of the path; only when the condition is true.
+  </ApiItem>
+  <ApiItem id="grant-valid-between" name="Grant::valid_between" sig={"pub fn valid_between(self, from: u64, until: u64) -> Self"}>
+    A validity window `[from, until)` in ms. `try_valid_between` returns `Result<Self, ValidityError>`.
+  </ApiItem>
+  <ApiItem id="subject-matcher" name="SubjectMatcher" sig={"pub enum SubjectMatcher { User { id: String }, Role { id: String }, Principal { name: String }, Relation { relation: String }, Any }"}>
+    Whom the grant applies to. Constructors `user`, `role`, `principal`, `relation`; `Any` has none, so use the variant.
+  </ApiItem>
+  <ApiItem id="target-selector" name="TargetSelector" sig={"pub struct TargetSelector { pub kind: String, pub id: Option<String> }"}>
+    Where the grant sits on the path: `global()` everywhere, `kind(..)` any instance of a kind, `exact(..)` one instance.
+  </ApiItem>
+</ApiGroup>
+
+## Strategy
+
+<ApiGroup>
+  <ApiItem id="strategy-trait" name="Strategy" pick="strategy" sig={"pub trait Strategy: Send + Sync { fn name(&self) -> &'static str; fn combine(&self, candidates: &[Candidate]) -> Option<usize>; fn native(&self) -> Option<NativeStrategy> { None } }"}>
+    How applicable grants combine. A trait, with four unit structs. `native` says which of the four a strategy is, so a listing can reproduce it; with `None`, the default, the listing leaves a residue to check row by row.
+  </ApiItem>
+</ApiGroup>
+
+<ApiWide>
+
+| Rust type | In a policy | The deciding grant |
+| --- | --- | --- |
+| `MostSpecific` | `most_specific` | The most specific step with any grant decides; on it, deny wins. The default. |
+| `DenyOverrides` | `deny_overrides` | Any deny wins. |
+| `PermitOverrides` | `permit_overrides` | Any allow wins. |
+| `FirstApplicable` | `first_applicable` | The first grant in source order decides. |
+
+</ApiWide>
+
+## Errors
+
+A deny is never an error: `decide` always returns a `Decision`, and an unknown permission is `Reason::UnknownPermission`. Errors come from building and validating.
+
+<ApiWide>
+
+| Type | Variants | From |
+| --- | --- | --- |
+| `EngineError` | `UnknownPermission(String)` | `EngineBuilder::build` |
+| `GrantError` | `EmptyId`, `UnknownPermission(String)`, `UnknownTargetKind(String)`, `TargetNotAllowed { permission, target }`, `OverrideOnly(String)`, `RelationsDisabled`, `UnknownFunction(String)`, `InvalidWindow(ValidityError)` | `Engine::validate_grant` |
+| `SpecError` | `Catalog(CatalogErrors)`, `Roles(RbacError)`, `Engine(EngineError)` | `EngineSpec::build` |
+| `QueryError` | `UnknownSubject(SubjectRef)`, `LimitExceeded { what, limit }`, `RelationDepthExceeded { grant_id }` | `check_for`, `who_can_on`, `access_of` |
+| `dsl::Diagnostics` | A list of `Diagnostic { location, message, hint, related }` | `dsl::parse` |
+
+</ApiWide>
+
+<Callout kind="warning">
+  In 0.6.1 `EngineError`, `GrantError` and `SpecError` print their text in Portuguese, while `QueryError` and `dsl::Diagnostics` print English. Match on the variant, not on the text.
+</Callout>
+
+<ApiWide>
+
+| Variant | Message, as 0.6.1 prints it |
+| --- | --- |
+| `EngineError::UnknownPermission` | <code lang="pt">exceção de override cita permissão fora do catálogo: {'{0}'}</code> |
+| `GrantError::EmptyId` | <code lang="pt">grant sem id</code> |
+| `GrantError::UnknownPermission` | <code lang="pt">permissão desconhecida: {'{0}'}</code> |
+| `GrantError::UnknownTargetKind` | <code lang="pt">tipo de alvo não registrado: {'{0}'}</code> |
+| `GrantError::TargetNotAllowed` | <code lang="pt">a permissão {'{permission}'} não aceita alvo {'{target}'}</code> |
+| `GrantError::OverrideOnly` | <code lang="pt">a permissão {'{0}'} vale só por override e não pode ser citada em grant</code> |
+| `GrantError::RelationsDisabled` | <code lang="pt">grant por relação exige RelationSchema no motor</code> |
+| `GrantError::UnknownFunction` | <code lang="pt">condição chama função não registrada: {'{0}'}</code> |
+| `GrantError::InvalidWindow` | <code lang="pt">janela de validade inválida: {'{0}'}</code> |
+
+</ApiWide>
+
+Nothing in 0.6.1 is deprecated. The Rust core has no string error codes.

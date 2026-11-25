@@ -8,6 +8,7 @@ import '../styles/shell.css';
 import '../styles/design-system.css';
 import '../styles/doc.css';
 import '../styles/bench.css';
+import '../styles/reference.css';
 import '../styles/home.css';
 import { THEME_INIT_SCRIPT } from '../ds/theme';
 

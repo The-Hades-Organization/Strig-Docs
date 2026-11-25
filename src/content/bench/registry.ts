@@ -1,5 +1,6 @@
 import { bench as concepts } from './concepts';
 import { bench as index } from './index';
+import { bench as reference } from './reference';
 import type { PageBench } from './types';
 
 // Bench data per page, keyed by the page's slugs joined with "/". The docs
@@ -7,6 +8,7 @@ import type { PageBench } from './types';
 const BENCHES: Record<string, PageBench> = {
   index,
   concepts,
+  reference,
 };
 
 export function benchFor(slugs: string[]): PageBench | undefined {

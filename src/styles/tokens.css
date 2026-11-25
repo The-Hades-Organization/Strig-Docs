@@ -141,6 +141,12 @@
   --w-search-trigger: 15rem;
   /* Space between the text and the bench */
   --gap-bench: var(--s-7);
+  /* Reference */
+  /* A wide reference table is never narrower than the text column; past
+     that it scrolls inside its own box. */
+  --w-api-table: var(--w-prose);
+  /* The picked item stands out of the text column by this much on each side */
+  --api-outdent: var(--s-4);
 
   /* Breakpoints, kept as data. CSS media queries cannot read custom
      properties, so @media rules repeat these literal values. */
