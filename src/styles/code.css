@@ -12,7 +12,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4);
+  /* No block padding: the copy button's 44px hit box sets the caption height. */
+  padding: 0 0 0 var(--s-4);
   border-bottom: 1px solid var(--c-line);
   background: var(--c-panel);
 }
@@ -25,8 +26,11 @@
 .code-copy {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--s-1);
-  padding: var(--s-1) var(--s-2);
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 var(--s-3);
   border: 0;
   border-radius: var(--r-1);
   background: transparent;
@@ -38,6 +42,10 @@
 .code-copy:hover {
   background: var(--c-sunk);
   color: var(--c-ink);
+}
+/* The button sits flush with the block's clipped edge, so its ring goes inside. */
+.code-copy:focus-visible {
+  outline-offset: -2px;
 }
 .code-block pre {
   margin: 0;

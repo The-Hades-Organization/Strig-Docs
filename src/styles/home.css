@@ -75,7 +75,8 @@
   align-items: center;
   gap: var(--s-3);
   max-width: 100%;
-  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-4);
+  /* No padding on the button side: its 44px hit box sets the line height. */
+  padding: 0 0 0 var(--s-4);
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
   background: var(--c-sunk);
@@ -90,8 +91,9 @@
 .copy-line button {
   display: inline-grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
   border: 0;
   border-radius: var(--r-1);
   background: transparent;
@@ -102,6 +104,9 @@
 .copy-line button:hover {
   background: var(--c-line);
   color: var(--c-ink);
+}
+.copy-line button:focus-visible {
+  outline-offset: -2px;
 }
 
 /* Clip: a recording of the product in a quiet frame */

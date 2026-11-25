@@ -1,9 +1,6 @@
-import { EXTRA_PATHS } from './icon-extra';
 import { ICON_PATHS } from './icon-paths';
 
-const PATHS = { ...ICON_PATHS, ...EXTRA_PATHS };
-
-export type IconName = keyof typeof PATHS;
+export type IconName = keyof typeof ICON_PATHS;
 
 // Sharp set from the design system: filled polygons, no stroke, colour inherited.
 // Sizes: 14 tags, 16 code captions, 18 buttons and callouts, 20 the seal, 24 emphasis.
@@ -22,7 +19,7 @@ export function Icon({ name, size = 18, label }: { name: IconName; size?: number
       aria-hidden={decorative ? true : undefined}
       focusable="false"
     >
-      <path d={PATHS[name]} />
+      <path d={ICON_PATHS[name]} />
     </svg>
   );
 }
