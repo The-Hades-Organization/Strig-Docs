@@ -5,9 +5,9 @@ import { useDoc } from './DocState';
 import { Icon } from './icons';
 import { VerdictTag } from './Seal';
 
-// A command in the prose that switches the bench to its case:
-// <Run case="c3" />. Shows the case's verdict (or its tag), the command, and
-// where the answer appears.
+// A line in the prose that switches the bench to its case:
+// <Run case="c3" />. Shows the case's verdict (or its tag) and its short
+// label; the command itself is in the bench.
 export function Run({ case: id }: { case: string }) {
   const { cases, shown, pick } = useDoc();
   const meta = cases[id];
@@ -22,7 +22,7 @@ export function Run({ case: id }: { case: string }) {
           {meta.run.tag ?? 'Rust'}
         </span>
       )}
-      <span className="run-cmd">{meta.run.command}</span>
+      <span className="run-label">{meta.tab}</span>
       <span className="run-where">In the bench</span>
     </button>
   );

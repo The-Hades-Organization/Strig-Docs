@@ -88,14 +88,15 @@
   --w-sidebar: 17rem;
   --w-toc: 14rem;
   --w-panel: 28rem;
-  --w-prose: 44rem;
+  --w-prose: 38rem;
   --w-wide: 76rem;
   --w-doc: 90rem;
   --h-header: 3.5rem;
   /* Doc components: code, kbd, badges, search (src/ds) */
   --lh-label: 1.6;
   --w-kbd: 1.6em;
-  --t-inline-code: 0.9em;
+  /* Inline code is a touch smaller than its text, never under 12px */
+  --t-inline-code: max(0.9em, 0.75rem);
   --pad-inline-code: 0.1em;
   /* A focus ring drawn inside a box whose parent clips its edge */
   --ring-inset: -2px;

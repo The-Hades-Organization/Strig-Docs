@@ -43,6 +43,7 @@ export function DocPage({ tree, url, title, description, toc, Body, bench, withS
   const cases: CaseMeta[] = (bench?.cases ?? []).map((c) => ({
     id: c.id,
     section: c.section,
+    tab: c.tab,
     verdict: c.verdict,
     run: c.run,
   }));

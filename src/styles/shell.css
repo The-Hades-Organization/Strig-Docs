@@ -267,3 +267,31 @@
 .prose .table-wrap:not(.api-wide .table-wrap) tr:not(:has(> :nth-child(4))) td code {
   white-space: nowrap;
 }
+
+/* Small phone: a table of two columns stacks each row, the name first and its
+   description under it at the full width, as the wide API tables do. The
+   header row stays for assistive technology only. */
+@media (max-width: 40rem) {
+  .prose .table-wrap:not(.api-wide .table-wrap):not(:has(tr > :nth-child(3))) :is(table, tbody, tr, td) {
+    display: block;
+  }
+  .prose .table-wrap:not(.api-wide .table-wrap):not(:has(tr > :nth-child(3))) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .prose .table-wrap:not(.api-wide .table-wrap):not(:has(tr > :nth-child(3))) tr {
+    padding: var(--s-2) 0;
+    border-bottom: 1px solid var(--c-line);
+  }
+  .prose .table-wrap:not(.api-wide .table-wrap):not(:has(tr > :nth-child(3))) tbody tr:last-child {
+    border-bottom: 0;
+  }
+  .prose .table-wrap:not(.api-wide .table-wrap):not(:has(tr > :nth-child(3))) td {
+    padding: var(--s-1) var(--s-4);
+    border-bottom: 0;
+  }
+}

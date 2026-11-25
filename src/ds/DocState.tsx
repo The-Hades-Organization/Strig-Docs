@@ -1,6 +1,15 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import type { BenchLang } from '../content/bench/types';
 import type { Verdict } from './Seal';
 
@@ -9,6 +18,8 @@ import type { Verdict } from './Seal';
 export type CaseMeta = {
   id: string;
   section: string;
+  // Short label of the case, shown on its Run button.
+  tab: string;
   verdict?: Verdict;
   run?: { command: string; tag?: string };
 };
@@ -20,6 +31,10 @@ type DocState = {
   shown: string | null;
   lang: BenchLang;
   cases: Record<string, CaseMeta>;
+  // Below 78rem the bench is a sheet at the foot of the screen.
+  wide: boolean;
+  sheetOpen: boolean;
+  setSheetOpen: (open: boolean) => void;
   pick: (caseId: string) => void;
   setLang: (lang: BenchLang) => void;
 };
@@ -31,6 +46,9 @@ const DocContext = createContext<DocState>({
   shown: null,
   lang: 'rust',
   cases: {},
+  wide: false,
+  sheetOpen: false,
+  setSheetOpen: NOOP,
   pick: NOOP,
   setLang: NOOP,
 });
@@ -96,6 +114,7 @@ export function DocProvider({
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [last, setLast] = useState<string | null>(null);
   const [lang, setLang] = useState<BenchLang>('rust');
+  const [sheetOpen, setSheetOpen] = useState(false);
   const wide = useSyncExternalStore(subscribeWide, readWide, readWideOnServer);
 
   const spyKey = spy.join(' ');
@@ -138,6 +157,7 @@ export function DocProvider({
       setPicked((current) => ({ ...current, [meta.section]: caseId }));
       setLast(caseId);
       setBenchSection(meta.section);
+      setSheetOpen(true);
     },
     [byId],
   );
@@ -149,8 +169,8 @@ export function DocProvider({
     : (last ?? firstCase);
 
   const value = useMemo<DocState>(
-    () => ({ location, shown, lang, cases: byId, pick, setLang }),
-    [location, shown, lang, byId, pick],
+    () => ({ location, shown, lang, cases: byId, wide, sheetOpen, setSheetOpen, pick, setLang }),
+    [location, shown, lang, byId, wide, sheetOpen, pick],
   );
 
   return <DocContext.Provider value={value}>{children}</DocContext.Provider>;

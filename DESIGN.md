@@ -188,6 +188,13 @@ no invented testimonials, numbers or logos. One icon set.
   stray space around the code. Wrapped code in the bench breaks anywhere in a word, so a long indented line
   no longer leaves a blank line after its indent.
 - 2026-11-25 — Prose wraps with `text-wrap: pretty`, h3 balances, and inline code in tables of up to three columns does not break mid-expression — the policy-language tables read as code, and a broken `[a,` / `b]` does not.
+- 2026-11-25 — Critique fixes on Concepts, shared by every doc page: `w-prose` goes from 44rem to 38rem, which
+  reads at 65 to 75 characters a line and gives the width to the bench; `t-inline-code` is `max(0.9em, 0.75rem)`,
+  so no text is under 12px; a Run line shows the case's short label with its verdict tag, and the command stays
+  in the bench's own pane; the page contents are one button that names the section in view and opens the list of
+  all of them with whole labels, replacing the row of tabs that cut the last labels; below 78rem the bench is a
+  sheet at the foot of the screen whose handle shows the case and which a Run or a chip opens (without scripts it
+  stays a block after the text); a table of two columns stacks its rows below 40rem, as the wide API tables do.
 
 ## Open questions
 
@@ -235,10 +242,11 @@ accent `#ff5e70`, support `#996c6c`.
 Inter for the interface and prose, JetBrains Mono for code and data. Cinzel appears only in the
 wordmark, which is outlined vector lettering, so the site ships no Cinzel font file.
 
-- Prose is 16/26, measure capped at 44rem.
+- Prose is 16/26, measure capped at 38rem (65 to 75 characters a line).
 - Interface text is 14/20; support text is 12.5.
 - Labels are Inter capitals at 12.5 px with 0.08em spacing (`--track-label`).
-- Code is 13.5/22 with ligatures off and tabular figures.
+- Code is 13.5/22 with ligatures off and tabular figures. Inline code is 0.9em of its text and never
+  under 12 px.
 
 ### Code colour follows role
 

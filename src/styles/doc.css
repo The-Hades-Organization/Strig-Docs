@@ -59,47 +59,91 @@
   color: var(--c-accent);
 }
 
-/* On this page (src/ds/OnPage.tsx) */
+/* On this page (src/ds/OnPage.tsx): a button that names the section in view
+   and opens the list of all of them, each with its whole label. */
 .on-page {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
+  position: relative;
   max-width: var(--w-doc);
   margin: 0 auto;
-  padding: 0 var(--s-5) 0 calc(var(--s-5) + var(--s-4));
+  padding: 0 var(--s-5);
 }
-.on-page p {
+.on-page-button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--hit);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--c-ink);
+  font: 500 var(--t-sm) / var(--lh-ui) var(--f-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.on-page-kicker {
   flex: none;
-  margin: 0;
-  font-size: var(--t-sm);
+  color: var(--c-mute);
   font-weight: 600;
 }
-.on-page ul {
-  display: flex;
-  gap: var(--s-1);
+.on-page-kicker::after {
+  content: '·';
+  margin-left: var(--s-3);
+}
+.on-page-current {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.on-page-button .icon {
+  flex: none;
+  margin-left: auto;
+  color: var(--c-accent);
+  transition: transform var(--d-fast) var(--ease);
+}
+.on-page-button[aria-expanded='true'] .icon {
+  transform: rotate(180deg);
+}
+.on-page-list {
+  position: absolute;
+  top: 100%;
+  right: var(--s-5);
+  left: var(--s-5);
+  max-height: calc(100vh - var(--doc-pin));
+  overflow-y: auto;
+  border: 1px solid var(--c-line);
+  border-radius: 0 0 var(--r-2) var(--r-2);
+  background: var(--c-bg);
+  box-shadow: var(--sh-2);
+}
+.on-page-list[hidden] {
+  display: none;
+}
+.on-page-list ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
   margin: 0;
-  padding: 0;
-  overflow-x: auto;
+  padding: var(--s-2);
   list-style: none;
 }
-.on-page a {
-  display: inline-flex;
+.on-page-list a {
+  display: flex;
   align-items: center;
   min-height: var(--hit);
-  padding: 0 var(--s-3);
-  border-bottom: 2px solid transparent;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-1);
   color: var(--c-mute);
   font-size: var(--t-sm);
+  line-height: var(--lh-ui);
   text-decoration: none;
-  white-space: nowrap;
-  transition: color var(--d-fast) var(--ease), border-color var(--d-fast) var(--ease);
 }
-.on-page a:hover {
+.on-page-list a:hover {
+  background: var(--c-sunk);
   color: var(--c-ink);
 }
-.on-page a[aria-current='location'] {
-  border-bottom-color: var(--c-accent);
+.on-page-list a[aria-current='location'] {
+  background: var(--c-accent-bg);
   color: var(--c-ink);
   font-weight: 600;
 }
@@ -272,12 +316,11 @@
   letter-spacing: var(--track-label);
   text-transform: uppercase;
 }
-.run-cmd {
-  overflow: hidden;
-  color: var(--c-mute);
-  font: 400 var(--t-xs) / 1.5 var(--f-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.run-label {
+  min-width: 0;
+  color: var(--c-ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 .run-where {
   color: var(--c-mute);
@@ -357,7 +400,11 @@
   .on-page {
     padding: 0 var(--s-4);
   }
-  .on-page p {
+  .on-page-list {
+    right: var(--s-4);
+    left: var(--s-4);
+  }
+  .on-page-kicker {
     display: none;
   }
   .doc-body {
@@ -368,6 +415,81 @@
     grid-template-columns: auto minmax(0, 1fr);
   }
   .run-where {
+    display: none;
+  }
+}
+
+/* Below 78rem the bench is a sheet at the foot of the screen, one tap from
+   the line that drives it: the handle shows the case, a tap opens the rest.
+   It is set by script (data-sheet); without it the bench is a block after
+   the text. */
+@media (max-width: 78rem) {
+  .doc-body > .bench[data-sheet] {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-overlay);
+    max-height: 80vh;
+    max-height: 80dvh;
+    border-width: 1px 0 0;
+    border-radius: var(--r-3) var(--r-3) 0 0;
+    box-shadow: var(--sh-3);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .bench[data-sheet='closed'] > .bench-body {
+    display: none;
+  }
+  .doc-body:has(> .bench[data-sheet]) {
+    padding-bottom: calc(var(--hit) + var(--s-7));
+  }
+  .bench-toggle {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-base);
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    width: 100%;
+    min-height: var(--hit);
+    padding: 0 var(--s-5);
+    border: 0;
+    border-bottom: 1px solid var(--c-line);
+    border-radius: inherit;
+    background: var(--c-panel);
+    color: var(--c-ink);
+    font: 500 var(--t-sm) / var(--lh-ui) var(--f-ui);
+    text-align: left;
+    cursor: pointer;
+  }
+  .bench[data-sheet='closed'] > .bench-toggle {
+    border-bottom: 0;
+  }
+  .bench-toggle-case {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bench-toggle-chevron {
+    flex: none;
+    color: var(--c-accent);
+    transition: transform var(--d-fast) var(--ease);
+  }
+  .bench[data-sheet='closed'] > .bench-toggle .bench-toggle-chevron {
+    transform: rotate(180deg);
+  }
+}
+@media (max-width: 48rem) {
+  .bench-toggle {
+    padding: 0 var(--s-4);
+  }
+}
+@media (min-width: 78.0625rem) {
+  .bench-toggle {
     display: none;
   }
 }
