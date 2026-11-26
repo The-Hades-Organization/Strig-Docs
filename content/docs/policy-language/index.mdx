@@ -3,7 +3,7 @@ title: Policy language
 description: One policy, written in Blocks, Rules or Actors. All three compile to the same model, and you pick the one your team reads fastest.
 ---
 
-A Strig policy is data: a catalog of permissions, roles, assignments, grants and rules. You can build it in Rust, load it from JSON, or write it as text. The text form is the policy language. The examples on these pages run against Strig 0.6.1.
+A Strig policy is data: a catalog of permissions, roles, assignments, grants and rules. You can build it in Rust, load it from JSON, or write it as text. The text form is the policy language. The examples on these pages ran against Strig 0.6.1; 0.7.0 adds only the optional `tz`.
 
 The language has three syntaxes. They describe the same thing and differ only in layout:
 
@@ -33,7 +33,7 @@ assert!(a.equivalent(&b));
 The language needs the `dsl` feature of the `strig` crate. Reading and writing files needs `dsl-fs` as well.
 
 ```text title="Cargo.toml"
-strig = { version = "0.6", features = ["dsl", "dsl-fs"] }
+strig = { version = "0.7", features = ["dsl", "dsl-fs"] }
 ```
 
 ## Choose a syntax
@@ -144,7 +144,9 @@ A grant can carry a condition, written after `when`. The three syntaxes write co
 | `a any_in b`, `a all_in b` | some or every element of list `a` is in list `b` |
 | `a ip_in b` | the address `a` is inside the CIDR `b`, or one CIDR of the list `b` |
 | `time_between "09:00" "17:30"` | the UTC time of day is in the window |
+| `time_between "09:00" "18:00" tz "America/Sao_Paulo"` | the time of day on the wall clock of that IANA zone is in the window |
 | `weekday_in ["mon", "tue"]` | the UTC weekday is one of the days |
+| `weekday_in ["mon"] tz "Europe/Lisbon"` | the weekday in that zone is one of the days |
 
 Attributes start with `subject.`, `resource.` or `env.`, as in `subject.dept == "legal"`.
 
@@ -154,7 +156,9 @@ Attributes start with `subject.`, `resource.` or `env.`, as in `subject.dept == 
 - There is no regular-expression condition.
 - The validator refuses a CIDR, a time of day or a weekday it cannot read, with the position and a hint.
 - A condition the engine cannot evaluate never opens access. With a wrong operand type or an unreadable operand, an `allow` does not apply and a `deny` does.
-- The time conditions read the decision instant, always in UTC. Without an instant they cannot be resolved, so a grant that uses them never allows.
+- The time conditions read the decision instant, in UTC unless `tz` names a zone. Without an instant they cannot be resolved, so a grant that uses them never allows.
+- `tz` takes an IANA name in quotes after the other arguments, in all three syntaxes. An unknown name is a validation error with a position and a hint. See [Time zones](/docs/concepts#time-zones).
+- A policy that uses `tz` exports its JSON with `"schema": 3`, so a reader on schema 2 refuses it instead of reading the window in UTC. A policy without `tz` exports what it did before.
 
 ```text title="Error"
 g.strig:6:60: `9:00` is not a time of day

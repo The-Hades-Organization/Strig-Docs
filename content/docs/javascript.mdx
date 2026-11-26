@@ -1,0 +1,153 @@
+---
+title: JavaScript
+description: Install the npm package, write conditions, overrides and invariants as JavaScript functions, generate permission types for the frontend and keep grants in a JSON file.
+---
+
+The npm package `@the-hades-organization/strig` runs the same engine on Node, Bun and in the browser. This page covers what is specific to JavaScript. Policies, decisions and governance work as they do in the other pages, with `camelCase` names. Every signature is in the [reference](/docs/reference#javascript-the-npm-package).
+
+```js title="JavaScript"
+import { load } from '@the-hades-organization/strig';
+
+const { Engine, Context } = await load();  // native on Node and Bun, wasm in the browser
+
+const engine = new Engine(spec);           // the same EngineSpec JSON as in Rust
+const ctx = new Context({ grants });
+engine.check(ctx, { subject, permission: 'document.view', resource });
+engine.apply({ actor, current, mutation: { add: grant }, invariants, audit: { level: 'standard' } });
+```
+
+## Install by platform
+
+<VersionBadge version="0.7.0" kind="changed" />
+
+On Node and Bun, `load()` tries the native module and falls back to wasm. Set `STRIG_BACKEND=native` or `STRIG_BACKEND=wasm` to force one.
+
+```text title="Terminal"
+npm install @the-hades-organization/strig
+```
+
+The native module no longer ships inside the main package, which had about 24 MB unpacked. Each platform has its own package, installed by npm as an optional dependency. A typical install is about 2 MB to download and 8 MB on disk.
+
+| Platform | Package |
+| --- | --- |
+| Linux x64 and arm64 (glibc) | `strig-linux-x64-gnu`, `strig-linux-arm64-gnu` |
+| macOS Intel and Apple silicon | `strig-darwin-x64`, `strig-darwin-arm64` |
+| Windows x64 | `strig-win32-x64-msvc` |
+
+Each is published as `@the-hades-organization/<name>`. The loader resolves the platform package, then a local build, then falls back to wasm.
+
+- **Linux with musl** (Alpine, for example) has no native module and runs on the wasm backend, which is bundled in the main package. The [benchmarks](/docs/benchmarks) show what that costs.
+- **`--omit=optional` or `--no-optional`** leaves the platform package out, so `load()` falls back to wasm. With `STRIG_BACKEND=native` it throws an error that names the package to install.
+- **If you vendored `node_modules` by platform**, or copied files out of the package, point them at the platform package.
+
+### Verify what you installed
+
+Every npm package is published with provenance, and each release carries a CycloneDX SBOM. `npm audit signatures` checks both of what is in your `node_modules`. [Security](/docs/security#verify-a-release) has the commands.
+
+## Rules written in JavaScript
+
+<VersionBadge version="0.7.0" />
+
+The function of a `call` condition, your own override and your own invariant are synchronous callbacks passed to the `Engine` constructor. The engine calls them in the middle of a decision or of `apply`, and they show up like the built-in ones: the `explain` trace names the override, a refusal carries your violation, and the audit records it as it records the built-in invariants.
+
+```js title="JavaScript"
+const engine = new Engine(spec, {
+  // `call` conditions: { op: 'call', func: 'same_dept', args: [{ attr: 'subject.dept' }, { attr: 'resource.dept' }] }
+  conditions: { same_dept: ([a, b]) => a === b },
+
+  // Decides before the grants: 'allowed', 'denied' or 'abstained'. `except` skips permissions.
+  overrides: [{ name: 'frozen', except: ['project.view'], evaluate: ({ permission }) => (frozen ? 'denied' : undefined) }],
+
+  invariants: {
+    // A role in use is not deleted.
+    role_in_use({ mutation, before }) {
+      if (!('remove' in mutation)) return;
+      const grant = before.find((g) => g.id === mutation.remove.id);
+      if (grant?.subject.kind === 'role' && inUse(grant.subject.id)) return `role ${grant.subject.id} is in use`;
+    },
+  },
+});
+
+engine.apply({ actor, current, mutation, invariants: [{ kind: 'custom', name: 'role_in_use' }] });
+```
+
+An invariant runs only when `invariants` lists `{ kind: 'custom', name }`, and an unknown name is `UNKNOWN_INVARIANT`.
+
+| Callback | Gets | Answers |
+| --- | --- | --- |
+| `conditions[func]` | The operands of the `call`, already resolved: `{ attr: 'subject.dept' }` arrives as the value of the attribute. | A boolean. |
+| `overrides[i].evaluate` | `{ subject, permission, resource, env, now }`. | `'allowed'`, `'denied'`, `'abstained'`, or nothing to abstain. |
+| `invariants[name]` | `{ actor, mutation, before, after, now }`; `mutation` has the shape `apply` takes. | Nothing, `null` or `true` to accept; a text, or `{ message, suggestion? }`, to refuse. |
+
+A host override runs after the overrides of the spec, in list order, and `except` lists permissions it is never consulted for. A `suggestion` is a change: the governance checks it against every invariant before it surfaces in the violation.
+
+- **A throw denies, never crashes.** A condition that throws, or does not return a boolean, is a condition error: an `allow` grant does not apply, a `deny` grant still does, and the trace carries the message. An override that throws answers `denied`. An invariant that throws refuses with the message of the error.
+- **Callbacks are synchronous.** A promise is not awaited. It is a wrong answer and denies like a throw.
+- **No re-entry.** A callback that calls the engine or changes a `Context` gets `REENTRANT_CALL`. Changing the very `Context` under decision is refused by the runtime with an error of its own. Read what you need before the call and keep it in the closure.
+- **Listings treat an override as opaque.** `list` cannot know what a function of yours would decide, so the resources it might decide on stay as residue, never as allowed.
+
+The audit sink, its policy and the redactor go in the same second argument. They are on [Audit](/docs/audit#the-sink-in-javascript).
+
+## Catalog types for the frontend
+
+<VersionBadge version="0.7.0" />
+
+The frontend should not hold permission ids as loose strings. `strig-types` turns an exported catalog into one `.ts` file, so a typo is a compile error.
+
+A permission can carry its display name and description per locale, `labels` and `descriptions`, next to `label` and `description`. They are optional, they are not declared in the policy language, only in the catalog export (JSON) or the builder, and in Rust `PermissionDef::localized_label("pt-BR", "Editar")` sets one.
+
+```text title="Terminal"
+npx strig-types catalog.json -o src/permissions.generated.ts
+```
+
+The file has the `PermissionId` union, a `PermissionLocale` union, a `PERMISSIONS` constant with the metadata, `PERMISSION_IDS`, and three helpers: `isPermissionId`, `permissionLabel` and `permissionDescription`. The helpers take a locale and fall back to the default text. The output is sorted, so it changes only when the catalog does. Without `-o` it goes to the standard output.
+
+`generateTypes` from `@the-hades-organization/strig/types` does the same as a function.
+
+```ts title="TypeScript"
+import { PermissionClient } from '@the-hades-organization/strig/client';
+import { permissionLabel, isPermissionId, type PermissionId } from './permissions.generated';
+
+// With the parameter, check, decide, explain, list, whoCan, whoCanOn and checkFor accept only these ids.
+// Without it they accept any string, as before.
+const engine = new strig.Engine<PermissionId>(spec);
+const client = new PermissionClient<PermissionId>(/* ... */);
+
+client.can('users:read', resource);          // only ids of the union compile
+permissionLabel('users:read', 'pt-BR');      // the label in that locale, or the default one
+
+function guard(id: string) {
+  if (isPermissionId(id)) client.can(id, resource);  // narrow a plain string first
+}
+```
+
+## Grants and roles in a JSON file
+
+<VersionBadge version="0.7.0" />
+
+For a system with neither Postgres nor Redis, `@the-hades-organization/strig/store` keeps the grants and the role assignments in one JSON file. It runs on Node and Bun, because it uses `node:fs`.
+
+```ts title="TypeScript"
+import { openJsonStore } from '@the-hades-organization/strig/store';
+
+const store = await openJsonStore({ path: './strig.json', createIfMissing: true });
+const provider = engineProvider({ engine, Context, loadGrants: store.loadGrants });  // the grant source
+const subject = store.subject({ kind: 'user', id: 'ana' });                          // plus the roles in the file
+
+const result = await store.apply(engine, { actor, mutation: { assign_role: { subject, role: { role: 'admin' } } }, invariants });
+// accepted: the new grants and roles are written; refused: nothing is written
+```
+
+The file is `{ "version": 1, "grants": [...], "roles": { "<subject id>": [<assignment>, ...] } }`. The roles themselves, the hierarchy, stay in the engine spec. The file holds who has which. It can also hold a `pending` list: see [Approvals](/docs/approvals#where-the-requests-are-kept).
+
+- **It fails closed.** A missing file, invalid JSON, a repeated grant id or a `version` other than 1 throws `JsonStoreError` (`STORE_NOT_FOUND`, `STORE_CORRUPT`, `STORE_VERSION`) on load. The store never starts empty on its own. `createIfMissing` is the explicit way to start one.
+- **Writes are atomic.** The store writes a temp file in the same directory, calls `fsync`, renames it over the file and then syncs the directory. A crash leaves the old file or the new one, never half of one.
+- **Writes are serialised.** Calls in one process queue up. Between processes, a `<file>.lock` created with `O_EXCL` is held. A lock whose owner died on this host, or that is older than `lockStaleMs` (30 s), is taken over. Each change re-reads the file under the lock, so processes do not overwrite each other. After `lockTimeoutMs` (5 s) a write fails with `STORE_LOCK_TIMEOUT`.
+- **Changes** are `addGrant`, `updateGrant`, `removeGrant`, `assignRole`, `revokeRole`, `setRoles`, or `apply(engine, input)`, which runs the governance over the grants the file holds right now and persists what it accepts. A refusal writes nothing.
+- **Reload.** `reload()` picks up an outside edit, and `watch()` does it on its own. It watches the directory, because the rename replaces the file. A bad file on reload keeps the last good snapshot, throws from `reload()` and goes to `onError` from `watch()`. `onChange` fires after every reload and every write.
+
+Not here: audit records, which go to your own sink ([Audit](/docs/audit)).
+
+<CardLink href="/docs/web-frameworks" title="Web frameworks">
+  One route table for Express, Fastify and NestJS, deny by default.
+</CardLink>

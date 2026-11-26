@@ -23,7 +23,7 @@ npm install @the-hades-organization/strig
   </Tab>
 </Tabs>
 
-Rust 1.88 or later. Node, Bun and the browser use the same engine through one npm package. The examples on this page run against Strig 0.6.1.
+Rust 1.88 or later. Node, Bun and the browser use the same engine through one npm package. The examples on this page ran against Strig 0.6.1; 0.7.0 does not change them.
 
 ## Write the smallest useful policy
 
@@ -253,7 +253,7 @@ g-edit: allow role editor to document.edit on project in org:acme when subject.m
 A condition the engine cannot evaluate never opens access. The `allow` is dropped, nothing else applies, and the answer is `deny` with the cause in `warnings`.
 
 <Callout kind="note">
-  The text of a warning is in Portuguese in 0.6.1.
+  The text of a warning is in Portuguese in 0.7.0.
 </Callout>
 
 Rust and Node print the same for these two.

@@ -1,4 +1,17 @@
 {
   "title": "Strig",
-  "pages": ["index", "getting-started", "concepts", "policy-language", "reference"]
+  "pages": [
+    "index",
+    "getting-started",
+    "concepts",
+    "policy-language",
+    "javascript",
+    "web-frameworks",
+    "audit",
+    "approvals",
+    "reference",
+    "upgrading",
+    "security",
+    "benchmarks"
+  ]
 }
