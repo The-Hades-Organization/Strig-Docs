@@ -1,0 +1,58 @@
+---
+title: Security
+description: How to report a vulnerability in Strig, which versions get fixes, what is in scope, and how to verify the provenance and the SBOM of a release.
+---
+
+Strig decides who can access what, so a bug that grants access it should not is a security issue.
+
+## Report a vulnerability
+
+Report it privately through GitHub Security Advisories: **Security → Report a vulnerability** on the [Strig repository](https://github.com/The-Hades-Organization/Strig/security/advisories/new). Do not open a public issue, a pull request or a discussion about it.
+
+Include the spec, the grants and the request that reproduce the problem, the decision you got and the one you expected, and the version: the crate or the npm package, and the backend, native or wasm.
+
+What to expect:
+
+| Step | When |
+| --- | --- |
+| Acknowledgement | Within 7 days. |
+| Assessment: accepted, declined with a reason, or more information needed | Within 14 days of the acknowledgement. |
+| Fix and advisory | We agree a fix and a release date with you and aim to release within 90 days of the report, sooner for an access bypass. We publish a GitHub Security Advisory, with a CVE when it applies, crediting you unless you prefer not to be named. Keep the report private until then. |
+
+## Supported versions
+
+Strig is pre-1.0: only the latest minor release (`0.y`) receives security fixes, as a patch release. A fix can come with a breaking change when keeping the old behaviour would be unsafe, and the release notes say so ([Upgrading](/docs/upgrading#deprecation-policy)). From 1.0, fixes ship in a patch of the latest minor and of the last minor of the previous major, for 12 months after the new major.
+
+## What is in scope
+
+- **A wrong authorization decision.** An allow where the model says deny: a deny grant, an override, a missing prerequisite, an expired validity window, a condition that does not hold, a failed callback. Also a deny explained wrongly in a way that misleads an operator.
+- **A bypass of governance.** A grant or role change that passes the invariants (`NoEscalation`, `NoLockout`, `Forbid`, `NonDelegable`, `ManagementOnly`, custom invariants) when it should be refused, or a refused change that reaches the stored grants.
+- **A break in the audit chain.** A record that can be altered, dropped or reordered without `verify_chain` or `verify_chain_anchored` noticing. A hash that does not match [the format](/docs/audit#the-canonical-format). A redaction that leaks a masked attribute into the record. A change that goes through without a record under `FailMode::Closed`.
+- **Leaks across tenants or subjects** in listing and reverse queries (`list`, `who_can_on`, `access_of`), in the SQL produced by `strig-postgres`, in the real-time transports (`strig-sync`, `strig-redis`, `strig-axum`, `strig-server`) and in the JS integrations: the route table, `StrigRouteGuard` and `authorizeRoutes`, including a route the deny-by-default table lets through.
+- **Memory-safety or denial-of-service bugs** reachable from untrusted input: a policy file or JSON spec, a request, a frame on the wire, a store file.
+
+## What is not in scope
+
+- Policies that are too permissive because of how the grants were written, and a catalog designed with a gap.
+- The behaviour of your own callbacks, sinks and stores (`call` conditions, JS overrides, an `AuditSink`), except when the engine mishandles what they return or throw.
+- Findings that need a malicious host process or access to the machine the engine runs on.
+- Vulnerabilities in a dependency with no way to reach them through Strig. Report these upstream.
+- The `strig-inspect` window and the playground, which are tools with no authority of their own.
+
+## Verify a release
+
+Every GitHub release carries the native modules (`strig-<version>-<platform>.node`), the wasm archive, a `SHA256SUMS` file that lists all of them, and CycloneDX SBOMs: `strig-<version>-npm.cdx.json` for the npm package and the `*.cdx.json` files of the crates. Every npm package is published with provenance by the release workflow.
+
+```text title="Terminal"
+# 1. Provenance: registry signatures and build attestations of what is in your node_modules.
+npm audit signatures
+
+# 2. A native module or archive from the release against the checksums.
+curl -LO https://github.com/The-Hades-Organization/Strig/releases/download/vX.Y.Z/SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+
+# 3. The SBOMs: download the *.cdx.json files of the release and give them to your scanner,
+#    for example `grype sbom:strig-X.Y.Z-npm.cdx.json`.
+```
+
+`npm audit signatures` fails for a package that has no valid signature or provenance. On the npm page of each package, "Provenance" links to the workflow run that built it. A package that has no provenance, or whose run is not in `The-Hades-Organization/Strig`, is not ours: do not install it, and tell us.

@@ -104,6 +104,29 @@ Bob's condition is false, so `g-legal` does not apply. Eve has no `dept` at all,
 
 A condition that cannot be evaluated never opens access. An `allow` that depends on it does not apply, a `deny` that depends on it still does, and the cause goes to `warnings`.
 
+## Time zones
+
+<VersionBadge version="0.7.0" />
+
+Office hours are local. `time_between` and `weekday_in` read UTC unless you give them an IANA zone with `tz`. The same condition, in the three syntaxes and in JSON:
+
+```text title="Rules"
+g-hours: allow role editor to document.edit on document when time_between "09:00" "18:00" tz "America/Sao_Paulo"
+g-monday: allow role editor to document.view on document when weekday_in ["mon"] tz "Europe/Lisbon"
+```
+
+```json title="JSON"
+{ "op": "time_between", "from": "09:00", "until": "18:00", "tz": "America/Sao_Paulo" }
+```
+
+- **The instant decides the local time.** Daylight saving time follows the zone's rules. A window inside the hour that a spring-forward jump skips never holds that day. The hour that a fall-back repeats holds on both passes.
+- **Midnight and the date are local.** A window that crosses midnight (`"22:00"` to `"06:00"`) and the weekday both follow the local date.
+- **An unknown name is refused when the policy loads**, with position and hint. A condition built without validation fails when evaluated, and an `allow` that errors never applies.
+- **The trace shows the local time it used**, for example `12:30 America/Sao_Paulo (UTC-03:00)`.
+- **Without `tz` nothing changes.** A policy that uses `tz` exports its JSON with `"schema": 3`, so a reader of schema 2 refuses it. See [Upgrading](/docs/upgrading).
+
+The zone database is the default feature `tz` of the `strig` crate. It adds about 0.9 MB to the `.wasm` (2.70 MB to 3.58 MB, 657 KB to 785 KB gzipped). Build with `default-features = false, features = ["audit"]` to leave it out; a `tz` in a policy is then refused at load.
+
 ## Prerequisites
 
 `depends_on` makes one permission require others: holding it means holding each listed permission on the same resource. `implied by` widens what a grant reaches. `depends_on` narrows what a grant is worth.

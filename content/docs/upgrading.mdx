@@ -1,0 +1,174 @@
+---
+title: Upgrading
+description: What counts as public API and what breaks it, how a feature is deprecated before it goes, and the steps to move from 0.6 to 0.7.
+---
+
+Strig follows [Semantic Versioning](https://semver.org/). This page says what the public API is, what counts as a breaking change, how versions behave before and after 1.0, which toolchains are supported and how a feature is deprecated. Then it lists what to change in your code, release by release, newest first. The [changelog](https://github.com/The-Hades-Organization/Strig/blob/main/CHANGELOG.md) lists every change.
+
+All crates and the npm package share one version number, and a release bumps them together.
+
+## What is public API
+
+| Surface | What is covered |
+| --- | --- |
+| Rust crates | Everything reachable from the public items of `strig`, `strig-sync`, `strig-redis`, `strig-postgres`, `strig-axum`, `strig-macros` and `strig-server`, with the documented feature flags. `strig-node` and `strig-inspect` are not libraries: their API is the npm package and the command line. |
+| npm package | The exports of `@the-hades-organization/strig` and its subpaths (`/client`, `/server`, `/protocol`, `/remote`, `/express`, `/fastify`, `/nestjs`, `/store`, `/testing`, `/types`, `/approvals`), their TypeScript types, and the `strig-types` command. |
+| Policy language | The grammar and meaning of the three syntaxes, and the canonical JSON the parser produces. |
+| JSON spec | The shape of `EngineSpec`, `Grant`, `Condition`, `Catalog`, the exported catalog and the files read by the JSON store, with their `schema` numbers. |
+| Audit format | The canonical form of a record and the hash of the chain, with its test vector. |
+| `errorCode`s | The `code` of every error the JS binding throws, and the stable names the Rust errors map to. |
+| Wire protocol | The messages of `strig-sync`, `strig-server` and the JS `/protocol` module. |
+| `strig-inspect` command line | Subcommands, flags and exit codes. The window and the text of messages are not covered. |
+
+Not public, and free to change in any release: items marked `#[doc(hidden)]`, anything under an `internal` or `__private` name, the layout of the built `dist/` and `wasm/` folders (use the exports map), the wording of error messages and hints (match on `code`, never on the text), the exact text of `explain` traces, the playground and the `strig-inspect` window, and benchmark numbers.
+
+## What counts as a breaking change
+
+- **Rust.** Removing or renaming a public item. Changing a signature or a trait. Adding a required method to a public trait that users implement (`AuditSink`, `Invariant`, `ExclusiveStore`, `TupleStore`). Adding a variant to a public enum, or a field to a public struct, that is not `#[non_exhaustive]`, since an exhaustive `match` or a struct literal stops compiling. Changing a default feature. Raising the MSRV. Changing what a method returns for the same input in a way a caller can observe.
+- **npm package.** Removing or renaming an export, an option or a field. Narrowing an accepted type or widening a returned one. Changing the `code` of an error. Dropping a supported Node or Bun version. Moving a subpath.
+- **Policy language and JSON spec.** A source or document that parsed before must parse to the same policy. Removing a keyword, `op`, field or syntax is breaking. Adding one is not, but a policy that uses it exports a higher `schema` number, so older readers refuse it instead of reading it wrongly (`DSL_SCHEMA` is 3 today). Making the validator reject what it accepted is breaking. Fixing it to stop accepting what the documentation never allowed is a fix.
+- **Audit format.** Any change to the canonical form or the hash computation is breaking, because it invalidates stored chains and anchors. It needs a major version and a documented migration of existing chains.
+- **`errorCode`s.** Codes are added, never changed or reused. Removing a code, or making an existing situation report a different one, is breaking.
+- **Decisions.** A bug fix that makes the engine deny where it allowed wrongly is not breaking, even if a caller relied on it. It is announced under **Fixed**, as security fixes are. A change that allows where it denied needs a test showing the deny cases that must still deny, and is announced under **Changed** or **Breaking**.
+
+Anything breaking is listed under **Breaking** in the changelog with the step you take, and the larger ones are written out below.
+
+## Versions before and after 1.0
+
+- **Before 1.0** (`0.y.z`): a minor version (`0.y`) may contain breaking changes. A patch version never does. Every breaking change is in the changelog, and in this page when it needs more than one line.
+- **From 1.0** (`x.y.z`): only a major version breaks the public API. A minor adds features and deprecations. A patch only fixes. Security fixes ship in a patch of every supported line.
+- **A pre-release** (`1.0.0-rc.1`) can change until the final version.
+
+## Supported toolchains
+
+- **Rust (MSRV)**: 1.88 today. Raising it is a minor change before 1.0. From 1.0 it may be raised only in a minor version, never in a patch, stays at least six months old, and is announced in the changelog.
+- **Node** 18.17 or newer, and **Bun** 1.1 or newer. Dropping a version is a breaking change before 1.0. From 1.0 it needs a major version, unless the runtime has been end-of-life for more than six months.
+- **Browsers**: the WebAssembly backend needs WebAssembly with the features the shipped `.wasm` uses. The `browser` export is built for current evergreen browsers.
+- **Platforms with a native module**: `linux-x64` and `linux-arm64` (glibc), `darwin-x64`, `darwin-arm64` and `win32-x64`. Linux with musl uses the WebAssembly backend. Adding a platform is not breaking. Removing one is.
+
+## Deprecation policy
+
+1. **Warn in a minor.** A feature is deprecated in a minor release, with at least one `0.y` release before removal when you are before 1.0. The release notes list it under **Deprecated**, naming the replacement and the version where it will go.
+2. **Remove only in the next major.** From 1.0, a deprecated item stays through the rest of the major line and goes in the next major. Before 1.0, it goes no sooner than the next minor after the one that deprecated it.
+3. **Keep it working.** A deprecated item keeps its behaviour. The only change allowed is the warning.
+4. **Security is the exception.** When keeping something works against safety, it can be removed or made to fail closed in a minor or a patch. The advisory and the changelog say so.
+
+How the warning reaches you:
+
+| Where | How you see it |
+| --- | --- |
+| Rust | `#[deprecated(since = "0.y.0", note = "use new_name; removed in 2.0")]`. The compiler warns at every use. CI builds with `-D warnings`, so a project that denies warnings fails at the first build after the upgrade, which is the point. |
+| JavaScript and TypeScript | A `@deprecated` JSDoc tag in the `.d.ts`, with the replacement, which editors strike through. At runtime, a one-time `process.emitWarning(message, 'DeprecationWarning', 'STRIG_DEPnnn')` on Node and Bun, and `console.warn` in the browser. Run Node with `--throw-deprecation` in your tests to fail on a use. Each deprecation has a stable `STRIG_DEPnnn` code that the changelog repeats. |
+| Policy language and JSON | A deprecated keyword or field still parses. The validator reports it as a warning, not an error, with the position and the replacement in the hint. |
+| Error codes | A deprecated code keeps being thrown until the major version. The changelog names the code that replaces it. |
+
+Changes made before this policy, such as the `needs` to `depends_on` rename in 0.5.0, were breaking at once. From now on a rename goes through the steps above. Nothing is deprecated in 0.7.0.
+
+## 0.7.0
+
+Most of 0.7.0 is additive. The Rust items below break code that matches or builds the changed types exhaustively; the npm and policy items change behaviour you may depend on.
+
+### Rust: `ChainError` has two new variants
+
+**Before.** `match error { Tampered { .. } => .., Broken { .. } => .., Unchained { .. } => .. }` was exhaustive.
+
+**After.** `verify_chain_anchored` can also return `ChainError::AnchorMismatch` (the chain does not start at the known anchor) and `ChainError::HeadMismatch` (it does not end at the published head). `verify_chain` itself returns the same three variants as before.
+
+**Step.** Add the two arms, or a `_ =>` arm that refuses the chain. `AuditError` and `AuditRecord` are unchanged, and so are stored records and hashes.
+
+### Rust: `Condition::TimeBetween` and `Condition::WeekdayIn` have a `tz` field
+
+**Before.**
+
+```rust title="Rust"
+let c = Condition::TimeBetween { from: "09:00".into(), until: "18:00".into() };
+if let Condition::WeekdayIn { days } = &cond { .. }
+```
+
+**After.** Both variants carry `tz: Option<String>`:
+
+```rust title="Rust"
+let c = Condition::TimeBetween { from: "09:00".into(), until: "18:00".into(), tz: None };
+if let Condition::WeekdayIn { days, .. } = &cond { .. }
+```
+
+**Step.** Add `tz: None` where you build the variants and `..` where you match them. The constructors `Condition::time_between` and `Condition::weekday_in` are unchanged, so prefer them, and `.in_tz("America/Sao_Paulo")` sets a zone. The JSON is unchanged: a condition without `tz` serializes exactly as before.
+
+### Rust: new variants in `AuditAction` and `AuditOutcome`
+
+**Before.** `AuditAction` ended at `ExclusiveExpire` and `AuditOutcome` at `Denied`, and an exhaustive `match` on them compiled.
+
+**After.** The approval flow adds `AuditAction::MutationPropose`, `MutationApprove`, `MutationReject` and `MutationExpire`, and `AuditOutcome::Pending`.
+
+```rust title="Rust"
+match record.action {
+    // ... the arms you had
+    AuditAction::MutationPropose => "change proposed",
+    AuditAction::MutationApprove => "change approved",
+    AuditAction::MutationReject => "change refused by an approver",
+    AuditAction::MutationExpire => "pending change expired",
+}
+```
+
+**Step.** Add the four action arms and the `Pending` outcome arm, or a `_ =>` arm. Nothing changes for code that never calls the approval flow: only `Approvals` writes these values. In the JSON they are `mutation_propose`, `mutation_approve`, `mutation_reject`, `mutation_expire` and `pending`. If a log consumer, such as a SIEM mapping or a schema, accepts a closed list of `action` and `outcome` values, add them before you turn the flow on.
+
+### Rust: `AuditRecord` has a `pending` field
+
+**Before.** `AuditRecord { at, level, actor, .., decision, full_grant, .. }` listed every field.
+
+**After.** There is one more field, `pending: Option<PendingRef>`: the request of an approval-flow record, from the `standard` level up.
+
+**Step.** Add `pending: None` where you build the struct with a literal, and `..` where you destructure it. Records you already stored deserialize and hash as before. The field is left out of the canonical form when unset, so the hash chain and the test vector do not change.
+
+### Policies that use `tz` export `"schema": 3`
+
+**Before.** `DSL_SCHEMA` was 2.
+
+**After.** `DSL_SCHEMA` is 3. A policy with no `tz` still exports the JSON it did before. One that uses `tz` exports its canonical JSON with `"schema": 3`. `Policy::from_json` accepts documents with or without `schema` and refuses one above 3.
+
+**Step.** Only if you read policy JSON with another reader, such as a service or a tool on an older version: upgrade it before you start writing `tz`. A reader of schema 2 refuses the document on purpose rather than reading the window in UTC. An unknown zone name is now a validation error when the policy loads, so fix the name.
+
+### The `tz` default feature adds the time zone database
+
+**Before.** `strig` had `audit` as its only default feature.
+
+**After.** `default = ["audit", "tz"]`. The `tz` feature brings `chrono-tz`: about 0.9 MB more in the `.wasm` (2.70 MB to 3.58 MB, 657 KB to 785 KB gzipped).
+
+**Step.** If the size matters and you never use `tz`, set `default-features = false, features = ["audit"]`. A `tz` in a policy is then refused at load.
+
+### npm: one package per platform
+
+**Before.** `@the-hades-organization/strig` bundled the five native modules, about 24 MB unpacked.
+
+**After.** Each platform has its own package, `@the-hades-organization/strig-<platform>`, installed as an optional dependency. A typical install is about 8 MB. The loader resolves the platform package, then a local build, then the wasm backend. Linux with musl is served by wasm, and `STRIG_BACKEND=native` throws a clear error when there is no native module.
+
+**Step.** Nothing for most installs. Do not install with `--omit=optional` or `--no-optional` if you want the native backend, or set `STRIG_BACKEND=wasm` on purpose. A Docker image on Alpine runs on wasm: see the numbers in [Benchmarks](/docs/benchmarks). If you vendored `node_modules` by platform or copied files out of the package, point them at the platform package.
+
+### `strig-inspect --tab` and terminal text are in English
+
+**Before.** `strig-inspect --tab avaliacao|matriz|auditoria`, with terminal output such as `NEGADO`.
+
+**After.** `strig-inspect --tab evaluation|matrix|audit`, and the output is in English (`DENIED`). The example scenario in `examples/scenario.json` uses `ben`, `cara`, `visitor` and `invoice-7`. There is no locale selection yet.
+
+**Step.** Change `--tab` in scripts and shortcuts, and any script that matches the old text.
+
+### New, no action
+
+`Mutation::kind()` and `MutationKind` (`add`, `remove`, `assign_role`, `revoke_role`), `strig::pending` (`Approvals`, `ApprovalPolicy`, `PendingStore`, `MemoryPendingStore`) and the JS `/approvals` subpath are additions. A `Governance` that nobody wraps in `Approvals` behaves as before, and a kind with no approval rule applies at once. The JSON store gains an optional `pending` list: a file without it reads as before and the store version stays 1. If several processes or versions share one store file, upgrade all of them before the first request is proposed. The other new pieces, the audit fail mode, the sink in JS, the route table, the `/store` and `/testing` subpaths, `strig-types` and the JS callbacks, are additive too.
+
+## 0.6.0: Themis becomes Strig
+
+| Before | After |
+| --- | --- |
+| `themis-auth` (library `themis`) | `strig` (library `strig`) |
+| `themis-sync`, `-redis`, `-postgres`, `-axum`, `-macros`, `-server`, `-inspect` | `strig-sync`, `-redis`, `-postgres`, `-axum`, `-macros`, `-server`, `-inspect` |
+| npm `themis-auth` | npm `@the-hades-organization/strig` (since 0.6.1) |
+| `use themis::...` | `use strig::...` |
+| `*.themis` policy files | `*.strig` |
+| `THEMIS_*` environment variables | `STRIG_*` |
+
+**Step.** Rename the dependencies in `Cargo.toml` and `package.json`, the `use` paths, the policy file extension and the environment variables. Behaviour is the same.
+
+## 0.5.0: `needs` becomes `depends_on`
+
+The Rules and Actors syntaxes write `depends_on <ids>` on a `permission` line where they wrote `needs <ids>`. `needs` is now an error with the hint `write: depends_on <ids>`. Replace it in existing policy files, in the same position on the line. The JSON is unchanged. Blocks was already `depends_on`.

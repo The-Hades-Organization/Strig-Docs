@@ -1,0 +1,183 @@
+---
+title: Audit
+description: Record every change to the grants, choose what happens when the log cannot be written, and prove later that no record was edited, dropped or cut off the end.
+---
+
+With the `audit` feature, on by default, every change that goes through governance becomes an `AuditRecord`, applied or refused. A record says when, who, what, on which object and with which outcome. Role changes, ReBAC tuple changes and decisions can be recorded too.
+
+Where the records go is yours to decide. Rust has two sinks, `MemoryAuditLog` and `JsonLinesAudit`, which writes to any `io::Write`; for a database, a queue or a SIEM, implement `AuditSink`. In JavaScript the sink is a function.
+
+```rust title="Rust"
+let auditor = Arc::new(Auditor::new(AuditLevel::Standard, Arc::new(JsonLinesAudit::new(file))));
+```
+
+## Levels
+
+Each level keeps everything from the one above it. Sizes are compact JSON bytes per line, without compression or indexes, measured on a reference record: a grant with a scope and a two-clause condition, UUID ids, an actor with two roles and three metadata entries.
+
+| Level | A change record keeps | Bytes | Per 1M records |
+| --- | --- | ---: | ---: |
+| `minimal` | When, who, action, object id, outcome | 175 | 175 MB |
+| `standard` | A grant summary and the names of the invariants that refused | 388 | 388 MB |
+| `detailed` | The whole grant, the full actor, the violation messages, the request metadata | 1,097 | 1.10 GB |
+| `forensic` | The SHA-256 digest of the grant set before and after, and the hash chain | 1,415 | 1.42 GB |
+
+Decisions are recorded by `Auditor::decide`, and at `forensic` they carry the full trace from `explain`. `AuditLevel::estimate_bytes(n)` projects your own volume.
+
+## When the sink fails
+
+<VersionBadge version="0.7.0" />
+
+A log that cannot be written leaves a choice: refuse the change, or let it through and write the record late. Strig asks you to make it, per call, per permission or once for everything.
+
+| Mode | What happens when the sink fails |
+| --- | --- |
+| `closed` (default) | The change is refused with the `audit` violation. No record, no change. |
+| `open` | The change goes ahead. The record waits in an in-memory retry queue and is written when the sink recovers. |
+
+The mode of a record is the first of these that is set: the mode of the call, the mode of its permission, the auditor's default, then `closed`. Role, tuple and exclusive-resource records carry no permission, so they follow the call and the default.
+
+```rust title="Rust"
+let auditor = Auditor::new(AuditLevel::Forensic, sink)
+    .with_fail_mode(FailMode::Closed)
+    .with_permission_fail_mode("report.view", FailMode::Open)
+    .with_retry(RetryPolicy { capacity: 500, ..RetryPolicy::default() })
+    .with_redactor(mask_attributes(["ip", "email"], "[redacted]"));
+```
+
+### The retry queue
+
+- Records leave the queue in the order they entered, and nothing is written ahead of the record at the head. While it waits, every later record waits behind it, so the sink always sees the chain in order. A `closed` record made while others wait forces the queue to drain first and is refused if it cannot.
+- The queue is bounded: `capacity` defaults to 1024. Retries back off from `base_delay_ms` (100), doubling up to `max_delay_ms` (30 000), and happen on the next record or on `flush`.
+- A full queue drops the new record and keeps the older ones in place. A dropped record is not part of the chain: the next record continues the last one that was accepted, so the chain of what was written still verifies. The verifier cannot see the gap, so Strig reports it instead: `AuditStatus::Dropped`, the `dropped` counter of `AuditStats` and the drop callback, which receives the whole record so you can keep it elsewhere.
+- The queue lives in memory. Records waiting when the process stops are lost: flush before shutdown, and treat `pending` as an alarm.
+
+<Callout kind="warning">
+  `open` trades completeness for availability. A record that waits can be lost with the process, and a dropped one is lost for good unless your callback keeps it. Use `open` for permissions where an outage of the log must not stop work, and keep `closed` for the rest.
+</Callout>
+
+### The sink in JavaScript
+
+On Node, Bun and in wasm, the sink and its policy go in the second argument of `Engine`. The sink is synchronous, and a throw is a failure of the sink.
+
+```js title="JavaScript"
+const engine = new Engine(spec, {
+  auditSink: (record) => log.append(record),
+  auditPolicy: { failMode: 'closed', permissions: { 'report.view': 'open' }, capacity: 500 },
+  onAuditDrop: (record) => spill.write(record),
+});
+
+const out = engine.apply({
+  actor,
+  current,
+  mutation: { add: grant },
+  audit: { level: 'forensic', prevHash, failMode: 'open' },
+});
+
+out.auditStatus;      // 'written' | 'pending' | 'dropped'
+engine.flushAudit();  // retries the queue; answers { pending, writtenLate, dropped, failures, nextRetryAt }
+engine.auditStats();  // the same counters, without a retry
+```
+
+`auditPolicy` also takes `baseDelayMs` and `maxDelayMs`. `apply` and `applyTemplate` take `failMode`, `redact` and `prevHash` in their `audit` option and return `auditStatus`; for a template it is the worst destination among the records. Without a sink, `apply` still returns the record and writes nothing: you store it wherever you keep your log.
+
+## Redact what must not be kept
+
+Attribute values such as an IP address or an email are often not for a log. A redactor masks them before the record is hashed and written.
+
+```js title="JavaScript"
+engine.apply({
+  actor,
+  current,
+  mutation,
+  audit: { level: 'detailed', redact: { keys: ['ip', 'email'], mask: '[redacted]' } },
+});
+```
+
+It replaces the value of those attribute keys in `meta`, in the `attrs` of the actor and the resource, and in their copies inside a decision trace. The mask defaults to `[redacted]`. For anything else, pass a function: `hooks.auditRedact` in JavaScript, `Auditor::with_redactor` in Rust. It runs after `audit.redact`.
+
+- **If a redactor fails, the change is refused, whatever the failure mode.** A record is never written unmasked.
+- **The hash covers the masked record.** A log that only ever held the masked version still verifies. `before_digest` and `after_digest` are computed before redaction and carry no attribute.
+- **Redaction does not read grants or `object`.** It does not look inside the condition of a grant or in the object string. Keep sensitive values out of ids.
+
+## The chain
+
+At the `forensic` level each record carries `prev_hash`, the `hash` of the record before it, and its own `hash`. Verification walks the records in the order they were written: each must have a `hash`, each from the second on must carry a `prev_hash` equal to the `hash` before it, and each `hash` must match the recomputation. An edited record is `Tampered`. A removed or reordered one makes the next `Broken`.
+
+```js title="JavaScript"
+import { load } from '@the-hades-organization/strig';
+
+const { verifyAuditChain } = await load();
+verifyAuditChain(records);   // { ok: true, head } or { ok: false, code, index, message }
+```
+
+`code` is one of `TAMPERED`, `BROKEN`, `UNCHAINED`, `ANCHOR_MISMATCH` and `HEAD_MISMATCH`. Verify with the records as stored: they are re-serialized in the canonical order, so it does not matter that a JavaScript object does not keep the order of its keys. In Rust, `audit::verify_chain(&records)`, and `Auditor::resume_chain` continues a chain after a restart.
+
+### Chain records in your own log
+
+You do not have to hand Strig the destination. `apply` returns the record (`audit`; `audits` for a template), and you store it wherever you keep your log, in the order the changes were made.
+
+- **Chain.** Pass `prevHash` (JS) or call `Auditor::resume_chain` (Rust) with the `hash` of the last record you stored, so the next record continues it.
+- **One writer per chain.** Two records made from the same `prevHash` fork the chain. Serialize the calls.
+- **Opaque hashes.** Store `hash` and `prev_hash` as they are and do not recompute them by any rule but the one below.
+
+### Anchor the head
+
+A chain proves that nothing was edited or removed from the middle. It cannot prove that the last records were not cut off, because there is nothing after them to disagree. Publish the **head**, the `hash` of the last record, somewhere the writer cannot rewrite: an external log, a signed timestamp, a ticket. Strig takes no network dependency for this; it gives you the value and checks against it.
+
+```js title="JavaScript"
+const { ok, head } = verifyAuditChain(records);   // publish `head`, outside the log
+
+// later, over the records written since the last anchor
+verifyAuditChain(segment, { start: lastHead, head: newHead });
+```
+
+- `head` fails with `HEAD_MISMATCH` if the sequence ends anywhere else.
+- `start` fails with `ANCHOR_MISMATCH` if the first record does not continue the hash you know. It lets you verify a segment instead of the whole log: the head you published last time is the `start` of the next check.
+- In Rust: `Auditor::chain_head()` or `chain_head(&records)`, then `verify_chain_anchored(&records, start, head)`.
+
+## The canonical format
+
+The `forensic` trail is a contract, so a verifier in another language can check it. A record is one JSON object in compact JSON, encoded as UTF-8.
+
+- **Key order is the order of the fields**, not alphabetical. Maps (`meta`, `attrs`) are the exception: their keys go in ascending byte order.
+- **Absent fields are omitted**, never `null`. An empty list and an empty map do not appear either.
+- **Strings escape only** `"`, `\` and the control characters below U+0020 (`\b`, `\t`, `\n`, `\f`, `\r`, and `\u00XX` in lowercase hex for the rest). Everything else is written as is in UTF-8, and `/` is not escaped.
+- **Integers** are decimal, with no sign, exponent or fraction. `at` is milliseconds since the Unix epoch.
+- **Enums** are `snake_case` strings.
+
+The hash is:
+
+```text title="Hash"
+hash = lowercase_hex( SHA-256( canonical JSON of the record without the `hash` field ) )
+```
+
+The record is serialized with `prev_hash` already set and `hash` left out. Because `hash` is the last field, a verifier can take a line as received, cut the trailing `,"hash":"<64 hex>"` and hash what is left. That works on the JSON Lines Strig wrote (`JsonLinesAudit`) with nothing but SHA-256. The first record of a chain has no `prev_hash`.
+
+The first fields, in order: `at`, `level`, `actor`, `action`, `object`, `outcome`; then the ones the level keeps, up to `explanation`, `before_digest`, `after_digest`, `prev_hash` and `hash`. The full table, with the nested types, is in [`docs/audit-format.md`](https://github.com/The-Hades-Organization/Strig/blob/main/docs/audit-format.md) in the repository, and a test there fails if the page and the code drift apart.
+
+### Test vector
+
+Reproduce this before you trust your verifier. A `forensic` tuple change, one line, with a `prev_hash` of 64 `a`:
+
+```json title="Record, before hashing"
+{"at":1700000000000,"level":"forensic","actor":"alice","action":"tuple_add","object":"doc:d1#viewer@user:bob","outcome":"applied","tuple":{"object":{"kind":"doc","id":"d1"},"relation":"viewer","subject":{"object":{"kind":"user","id":"bob"}}},"actor_detail":{"kind":"user","id":"alice","roles":[{"role":"admin"}],"principals":["authenticated"]},"meta":{"ip":"203.0.113.42","reason":"ticket \"SUP-1\" é"},"prev_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+```
+
+The SHA-256 of exactly those bytes, UTF-8 with no trailing newline:
+
+```text title="Hash"
+087dbffda54667a64ae971f80c70bf6544b205be90c9ca9cc592ef113f4a4cb5
+```
+
+The record as written is the same object with `,"hash":"087dbffd…4cb5"` before the closing `}`.
+
+## Records of the approval flow
+
+<VersionBadge version="0.7.0" />
+
+Four actions record the steps of a pending request: `mutation_propose`, `mutation_approve`, `mutation_reject` and `mutation_expire`, with a new `pending` outcome. A log consumer that validates `action` and `outcome` against a closed list needs the new values before you turn the flow on. The steps and their outcomes are on [Approvals](/docs/approvals#what-the-audit-records).
+
+<CardLink href="/docs/approvals" title="Approvals">
+  A change that waits for a second person before it applies.
+</CardLink>

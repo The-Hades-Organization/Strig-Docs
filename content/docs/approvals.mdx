@@ -1,0 +1,118 @@
+---
+title: Approvals
+description: Keep a change to the grants as a pending request until another actor approves or refuses it. The author never approves their own request.
+---
+
+<VersionBadge version="0.7.0" />
+
+A change the policy marks as needing approval does not apply on the spot. It waits as a **pending request**, and another actor approves or refuses it. The policy is per kind of change and names who approves.
+
+The kinds are `add`, `remove`, `assign_role` and `revoke_role`. A kind with no rule applies at once, as it always did, so a governance nobody wraps in `Approvals` behaves as before.
+
+## How a request lives
+
+1. **Propose.** The author proposes a change. The invariants judge it, and if they accept and the policy asks for approval, it is kept as a request: id, author, change, instant and an optional expiry. If they refuse, nothing is kept.
+2. **Approve or reject.** An approver decides. The author never decides their own request, and the approver must hold the permission the policy names, on the resource it names.
+3. **Apply.** An approval runs the invariants again over the grants as they are now, as the author, before it applies. If they now refuse, the request stays pending.
+4. **Expire.** A request with an expiry that has come can no longer be decided. `expire` closes the ones that are due.
+
+A request ends in one of three states: `approved`, `rejected` (with a reason) or `expired`.
+
+<Callout kind="note">
+  Not covered: several approvers (a quorum) and the author withdrawing their own request.
+</Callout>
+
+## In JavaScript
+
+The engine judges and audits each step. `Approvals` keeps the requests and chains the audit records.
+
+```js title="JavaScript"
+import { Approvals, MemoryPendingStore } from '@the-hades-organization/strig/approvals';
+
+const flow = new Approvals(engine, new MemoryPendingStore(), {
+  approval: [{ kind: 'add', permission: 'org.approve', resource: orgResource }],
+  invariants,
+});
+
+// Ana proposes; the request is kept and expires in an hour.
+const proposed = await flow.propose(ana, { add: grant }, grants, { id: 'req-1', expiresAt: Date.now() + 3_600_000 });
+
+// Caio approves. `persist` runs before the request is marked approved.
+const done = await flow.approve('req-1', caio, grants, { persist: (r) => saveGrants(r.grants) });
+
+await flow.reject('req-2', caio, 'outside the change window', grants);
+await flow.expire();
+```
+
+`approval` is a list of rules: `{ kind, permission, resource }` says that a change of that kind needs an approver who holds `permission` on `resource`. `propose` takes the author, the change in the shape `apply` takes, the grants as they are now, and `id`, `expiresAt`, `now`, `meta` and `tuples` as options. `pending()` lists the requests still waiting.
+
+What a call answers:
+
+| Call | Answer |
+| --- | --- |
+| `propose` | `{ ok: true, applied: true, grants }` when the kind needs no approval and the change went through. `{ ok: true, applied: false, request }` when it waits. `{ ok: false, code: 'REFUSED', violations }` when the invariants refused it. |
+| `approve`, `reject` | `{ ok: true, request, grants? }` when decided. `REFUSED` when the approver is the author, lacks the permission, or the invariants now refuse; the request stays pending. `EXPIRED` when its time came; the request is closed. `NOT_PENDING` when it was already decided. |
+| `expire` | `{ ok: true, expired }` with the requests it closed. |
+
+`persist` is where you save what the approval produced, the grants and, for a role change, the subject. A throw there leaves the request pending, so a failed write never leaves a request marked approved over grants you did not store.
+
+`propose`, `resolve` and `expire` also exist on `Engine` itself. They judge and audit but store nothing, so you keep the `request` yourself. `Approvals` is the version that does.
+
+### Where the requests are kept
+
+`MemoryPendingStore` keeps them in memory. For a store of your own, implement `PendingStore`: `get`, `put` (refuses a taken id), `update` (refuses a request that is no longer pending) and `list`. Errors are `PendingStoreError` with `PENDING_DUPLICATE`, `PENDING_UNKNOWN` or `PENDING_NOT_PENDING`.
+
+`JsonFileStore` keeps the requests in the same file as the grants (see [JavaScript](/docs/javascript#grants-and-roles-in-a-json-file)). `store.approvePending` persists the grants before it marks the request approved.
+
+```js title="JavaScript"
+import { openJsonStore } from '@the-hades-organization/strig/store';
+
+const store = await openJsonStore({ path: './strig.json', createIfMissing: true });
+const flow = new Approvals(engine, store.pendingStore, { approval, invariants });
+
+await flow.propose(ana, { add: grant }, store.grants(), { id: 'req-1' });
+await store.approvePending(flow, 'req-1', caio);
+```
+
+A file without a `pending` list reads as before, and the store version stays 1. If several processes or versions share one store file, upgrade all of them before the first request is proposed.
+
+## In Rust
+
+```rust title="Rust"
+let policy = ApprovalPolicy::new()
+    .require(MutationKind::Add, "org.approve", org_resource.clone())
+    .require(MutationKind::AssignRole, "org.approve", org_resource);
+let store = MemoryPendingStore::new();
+let flow = Approvals::new(&governance, &policy, &store);
+let review = Review { engine: &engine, current: &current, tuples: None, now, meta: &request_meta };
+
+// Ana proposes; the invariants judge it and, if they accept, it is kept (expires in an hour).
+let Proposed::Pending(request) = flow.propose(&review, &ana, &Mutation::Add(grant), "req-1", Some(now + 3_600_000))? else {
+    unreachable!("the policy covers Add");
+};
+
+// Caio approves: he needs `org.approve`, he is not Ana, and the invariants run again over `current`.
+let approved = flow.approve(&review, &caio, &request.id)?;
+// persist `approved.grants`
+```
+
+An approver who is the author, lacks the permission, or meets invariants that now refuse gets `ApprovalError::Refused`, and the request stays pending. `reject(&review, &caio, id, "reason")` closes it with a reason. `expire_due(now, &meta)` closes the requests whose expiry came, and approving a due request closes it too.
+
+The crate keeps no clock and no database: pass the instant, and serialise approvals of one request when several processes share a store. Requests live behind the `PendingStore` trait, with `MemoryPendingStore` in memory.
+
+## What the audit records
+
+Every step is audited, under the fail mode of the call. With an auditor on the governance, each step becomes a record of one of four actions, and the approval record is written before the change is applied.
+
+| Action | `actor` | `outcome` |
+| --- | --- | --- |
+| `mutation_propose` | the author | `pending` when the request was kept, `rejected` when the invariants or the audit refused it |
+| `mutation_approve` | the approver | `applied` when the change then went through, `rejected` when the approver was the author, lacked the permission, or the invariants now refuse it |
+| `mutation_reject` | the approver | `applied` when the request was refused, `rejected` when the attempt was refused |
+| `mutation_expire` | `strig-expiry` | `applied` |
+
+`object` is the request id. A `pending` field names the request: its `author`, the `kind` of the change, its `target` (a grant id, or `role@subject`), the optional `expires_at` and, on a refusal by an approver, the `reason`.
+
+An approval writes `mutation_approve` first and then the `grant_add`, `grant_remove` or `role_*` record of the change itself. That record has the author as `actor`, the approver in `meta.approved_by` and the request id in `meta.request_id`. A request whose approval record exists and whose change record does not was never applied.
+
+The new values are additive: records and files written before read unchanged. See [Audit](/docs/audit) for the chain, and [Upgrading](/docs/upgrading#070) for what a Rust `match` on `AuditAction` and `AuditOutcome` needs.

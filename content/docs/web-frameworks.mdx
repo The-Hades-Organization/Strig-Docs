@@ -1,0 +1,137 @@
+---
+title: Web frameworks
+description: Protect Express, Fastify and NestJS routes with Strig, either one permission per handler or one central route table that refuses whatever it does not cover.
+---
+
+The Express, Fastify and NestJS integrations take the same options and decide on each request. Their framework is an optional peer dependency: an integration you do not import costs nothing, and importing one whose peer is missing throws `MissingPeerError`.
+
+## One permission per handler
+
+```js title="JavaScript"
+import { load, scopeFromString } from '@the-hades-organization/strig';
+import { authorize } from '@the-hades-organization/strig/express';
+
+const { Engine, Context } = await load();
+const options = {
+  subject: (req) => (req.headers['x-user'] ? { kind: 'user', id: req.headers['x-user'] } : undefined),
+  resource: (req) => scopeFromString(`document:${req.params.id}/org:o1`),
+  local: { engine: new Engine(spec), context: new Context({ grants }), now: () => Date.now() },
+};
+
+app.get('/doc/:id', authorize({ ...options, permission: 'document.view' }), handler);
+```
+
+| Option | Meaning |
+| --- | --- |
+| `subject(req)` | The caller. Returning nothing answers `401`. |
+| `permission` | The permission, as text or `(req) => text`. |
+| `resource(req)` | The resource. |
+| `local: { engine, context, now }` or `remote: RemoteClient` | Where the decision comes from. Pass exactly one. |
+
+The request never passes unless the decision allows it:
+
+| Outcome | Status | Change it with |
+| --- | --- | --- |
+| No subject | `401` | `unauthenticatedStatus` |
+| Denied | `403` | `denyStatus` |
+| The decision could not be made | `503` | `failureStatus` |
+| Your `subject` or `resource` function threw | `500`, with no detail | `errorStatus`, `onError` |
+
+- **Fastify** (`/fastify`): the same `authorize`, plus a `plugin` that adds `fastify.strigCan`.
+- **NestJS** (`/nestjs`): `@Can('document.view')` on a handler or controller, with `new StrigGuard(options)` as the guard. A guarded handler with no `@Can` answers 500, so a missing declaration closes and never opens.
+
+## One route table, deny by default
+
+<VersionBadge version="0.7.0" />
+
+A permission on every handler puts the rules in as many places as there are routes, and a route someone forgets is open. A route table puts them in one list, and a request no rule covers is refused (`denyStatus`, 403). A route is public only when its rule says `public: true`.
+
+```js title="JavaScript"
+import { authorizeRoutes } from '@the-hades-organization/strig/express';
+
+const routes = [
+  { method: 'GET', path: '/health', public: true },
+  { method: 'GET', path: '/doc/:id', permission: 'document.view', resource: (req, params) => docScope(params.id) },
+  { method: ['PUT', 'DELETE'], path: '/doc/:id', permission: 'document.edit', resource: (req, params) => docScope(params.id) },
+];
+
+app.use(authorizeRoutes({ subject, local: { engine, context }, routes }));  // before the routers
+```
+
+Each rule has a `method` (a name, a list, or `'*'` for any), a `path`, and exactly one of `permission` and `public: true`. A bad table throws at startup. `resource` takes the request and the matched `params`: at app level Express has not filled `req.params` yet, so read the id from `params`.
+
+### How a request is matched
+
+- **Paths** use the framework syntax: literal segments, `:name` for one segment, and a trailing `*` for one or more.
+- **The first matching rule decides**, so write the specific ones first. `HEAD` falls under `GET` rules.
+- **The table matches the way the framework routes**, so no request can slip past a protected rule into a broader public one. Every segment is percent-decoded before the comparison: `/%61dmin/1` is `/admin/1`, `%2F` stays inside its segment, and a malformed escape matches nothing.
+- **Case** follows the framework. Express ignores it, Fastify is case sensitive, Nest follows its platform. Set `caseSensitive` on the table if you changed the Fastify option, and pass `{ caseSensitive: false }` to `assertRoutesCovered` for an Express app.
+
+<Callout kind="warning">
+  The table also answers 403 for URLs with no route, and a CORS preflight needs a rule of its own or has to be answered before the table.
+</Callout>
+
+### Where to mount it
+
+| Framework | Import | Mount |
+| --- | --- | --- |
+| Express | `authorizeRoutes` from `/express` | `app.use(authorizeRoutes(options))`, before the routers. |
+| Fastify | `authorizeRoutes` from `/fastify` | `fastify.addHook('onRequest', authorizeRoutes(options))`. |
+| NestJS | `StrigRouteGuard` from `/nestjs` | `{ provide: APP_GUARD, useValue: new StrigRouteGuard(options) }`. |
+
+In NestJS the table decides first. If it allows, a `@Can` on the handler or controller adds a second check that must also pass, even on a `public` rule. So `@Can` narrows and never opens what the table denies. A handler with no `@Can` needs nothing else.
+
+```ts title="NestJS"
+import { APP_GUARD } from '@nestjs/core';
+import { Can, StrigRouteGuard } from '@the-hades-organization/strig/nestjs';
+
+@Module({
+  providers: [{ provide: APP_GUARD, useValue: new StrigRouteGuard({ subject, local: { engine, context }, routes }) }],
+})
+export class AppModule {}
+
+@Controller('doc')
+export class DocController {
+  @Delete(':id')
+  @Can('document.purge', (req) => docScope(req.params.id))  // on top of what the table allows
+  remove() {}
+}
+```
+
+Only HTTP contexts are supported. A GraphQL, WebSocket or RPC context answers 500.
+
+## Test the table
+
+<VersionBadge version="0.7.0" />
+
+A table that drifts from the app is the failure it exists to prevent. `@the-hades-organization/strig/testing` lists the routes of an app and checks the table against them, in your own test suite.
+
+```js title="JavaScript"
+import { expressRoutes, assertRoutesCovered } from '@the-hades-organization/strig/testing';
+
+assertRoutesCovered(expressRoutes(app), routes);
+// throws, listing the routes with no rule and the rules with no route
+```
+
+- **A route with no rule** would be refused in production.
+- **A rule with no route** is a typo, a removed route, or a rule hidden behind an earlier one.
+
+| Function | Reads |
+| --- | --- |
+| `expressRoutes(app)` | An Express 4 or 5 app or router, nested routers included. Mounted sub-apps are not read. |
+| `nestRoutes(app)` | A Nest app on the Express adapter, after `app.init()`. |
+| `collectFastifyRoutes(fastify)` | Call it before registering routes, and pass the array it returns once the app is ready. |
+| `auditRoutes(routes, table)` | Returns `{ uncovered, unusedRules, ok }` if you prefer to assert yourself. |
+
+`assertRoutesCovered` throws a `RouteTableAuditError` that carries the same audit.
+
+## A decision server instead of a local engine
+
+To get decisions from a [decision server](/docs/reference#decision-server-strig-server), pass a `RemoteClient` from `/remote` as `remote`. It has a timeout and a circuit breaker, and it denies when there is no answer.
+
+```js title="JavaScript"
+import { RemoteClient } from '@the-hades-organization/strig/remote';
+
+const remote = new RemoteClient({ url: 'http://127.0.0.1:8080', timeoutMs: 250 });
+const { allowed } = await remote.check({ subject, permission: 'document.view', resource });
+```
