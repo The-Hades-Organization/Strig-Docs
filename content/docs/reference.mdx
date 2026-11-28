@@ -243,6 +243,99 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 
 Nothing in 0.7.0 is deprecated. The [deprecation policy](/docs/upgrading#deprecation-policy) says how it will be announced. The Rust core has no string error codes.
 
+## Fields and revisions
+
+A field permission narrows what a subject may use inside a resource; a revision pins a decision to a point in the history of a data scope. Walk-throughs: [Field permissions](/docs/modeling/field-permissions) and [Consistency](/docs/storage/consistency).
+
+#### `FieldSet`
+
+The fields of a resource a subject may use for a permission, as ``Engine::allowed_fields`` answers.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `contains` | `pub fn contains(&self, field: &str) -> bool` |
+| `is_none` | `pub fn is_none(&self) -> bool` |
+| `is_all` | `pub fn is_all(&self) -> bool` |
+
+</ApiWide>
+
+#### `FieldVerdict`
+
+Why one field came out allowed or denied.
+
+#### `FieldExplanation`
+
+The per-field trace of ``Engine::explain_fields``.
+
+#### `Revision`
+
+A position in the history of one data scope.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(scope: impl Into<String>, value: u64) -> Self` |
+| `scope` | `pub fn scope(&self) -> &str` |
+| `value` | `pub fn value(&self) -> u64` |
+| `reached_by` | `pub fn reached_by(required: &Revision, have: Option<&Revision>) -> Reached` |
+| `reaches` | `pub fn reaches(&self, required: &Revision) -> Reached` |
+| `advanced` | `pub fn advanced(&self, by: u64) -> Self` |
+
+</ApiWide>
+
+#### `Reached`
+
+How a revision a holder has compares with the one a decision requires.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_reached` | `pub fn is_reached(self) -> bool` |
+
+</ApiWide>
+
+#### `DEFAULT_SCOPE`
+
+The scope an empty one is read as.
+
+#### `RevisionParseError`
+
+The text did not read as a revision token.
+
+#### `RevisionSource`
+
+Where revisions come from: the store that persists the changes of one data scope.
+
+#### `MemoryRevisions`
+
+A ``RevisionSource`` that counts in memory, for the memory and file stores and for tests.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(scope: impl Into<String>) -> Self` |
+| `starting_at` | `pub fn starting_at(scope: impl Into<String>, value: u64) -> Self` |
+
+</ApiWide>
+
+#### `Revised`
+
+A value together with the revision its write was given.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(value: T, revision: Option<Revision>) -> Self` |
+
+</ApiWide>
+
+
 ## Real time: strig-sync
 
 `strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
