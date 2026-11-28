@@ -1,0 +1,70 @@
+---
+title: Postgres
+description: Keep grants, tuples, role assignments and pending requests in Postgres, and commit a change and its notice in one transaction.
+---
+
+`strig-postgres` stores the data behind the traits the engine already reads: `GrantSource`, `GrantIndex`, `TupleStore`, `TupleIndex` and `PendingStore`. Your decision code stays the same; only the place the grants live changes.
+
+## Connect and migrate
+
+```rust title="Rust"
+use strig_postgres::{PgPendingStore, PgStore, PgTables, connect, migrate_with};
+
+let tables = PgTables::default().in_schema("authz")?.with_prefix("strig")?;
+let client = connect(&url).await?;
+migrate_with(&client, &tables).await?;
+
+let store = PgStore::load(&client, tables.clone()).await?;
+let grants = store.grants(); // GrantSource + GrantIndex
+let tuples = store.tuples(); // TupleStore + TupleIndex
+let _follower = store.follow(hub.subscribe(), move || connect(&url), Duration::from_secs(1));
+```
+
+`PgTables` picks the schema and the table prefix. Both are checked as plain identifiers, so a value from configuration cannot smuggle SQL.
+
+`migrate_with` is safe to run on every boot. It records each version in `<prefix>_migrations`, runs inside one transaction under an advisory lock, and only adds (`CREATE ... IF NOT EXISTS`): nothing drops or rewrites data.
+
+## The engine reads a snapshot
+
+The core does no IO and `GrantSource` is synchronous, so `PgStore::load` reads the tables once and the engine decides from memory. The snapshot reloads when the transport delivers a `Change` (grants, tuples or a resync).
+
+- A store exists only loaded, so the engine never decides over an empty set that is missing a deny.
+- If a reload fails, the previous snapshot stays and `is_stale()` turns `true`. Put it in your readiness probe.
+- The snapshot holds every grant and tuple. Size it for that. For a very large tuple set, answer `TupleStore` from your own indexed query.
+
+## Write a change and notify in one transaction
+
+`put_grant`, `delete_grant`, `put_tuple`, `delete_tuple`, `assign_role` and `revoke_role` take a client or a transaction. To apply a governed change end to end:
+
+```rust title="Rust"
+let tx = client.transaction().await?;
+lock_governance(&tx).await?;                            // one change is judged at a time
+let current = all_grants(&tx).await?;                   // read inside the transaction
+let actor = tables.subject(&tx, "user", "ana").await?;  // the subject with its stored roles
+
+let next = governance.apply(&engine, &actor, &current, &mutation, None)?;
+commit_mutation(&tx, "strig:changes", &mutation).await?; // writes the rows and queues NOTIFY
+tx.commit().await?;                                     // the notice leaves only now
+```
+
+`lock_governance` comes first so two instances never judge a change against the same stale set. `commit_mutation` writes what the `Mutation` changes and sends its `NOTIFY` in the same transaction: the notice goes out if, and only if, the change commits. Other instances reload when it arrives.
+
+For a write you made yourself, call `strig_postgres::notify(&tx, channel, &change)` inside that transaction. The transport side is in [Revisions and real time](/docs/storage/consistency).
+
+## Roles and pending requests
+
+`strig_roles` keeps assignments per subject: the role, an optional scope and an optional validity window. A subject read from it carries the `authenticated` principal when its kind is `user`.
+
+`PgPendingStore` is the `PendingStore` of the [approval flow](/docs/approvals), over a table with the expiry in an indexed column (`due(now)` lists what `expire_due` closes). `update` is one `UPDATE ... WHERE state = 'pending'`, so a request decided meanwhile by another process is never decided twice.
+
+The trait is synchronous, so the store owns a connection on its own thread and each call blocks for one round trip. Call it from `spawn_blocking` inside async code. A call that does not answer in 10 seconds is a `PendingError::Store`, and the request is refused.
+
+Recertification campaigns use `PgRecertStore` (migration 5 adds `strig_recert`); see [Recertification](/docs/governance/recertification). Shared exclusive leases use `PgExclusiveStore` (migration 4); see [Exclusive resources](/docs/storage/exclusive-store).
+
+## Run the tests against a real database
+
+The integration tests run when `STRIG_PG_URL` is set and skip without it:
+
+```text title="Terminal"
+STRIG_PG_URL=postgres://strig:strig@localhost/strig cargo test -p strig-postgres
+```

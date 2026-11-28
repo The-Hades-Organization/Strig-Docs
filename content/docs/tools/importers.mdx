@@ -1,0 +1,106 @@
+---
+title: Importing Casbin and OpenFGA
+description: Convert a Casbin or OpenFGA model and its data into a .strig policy, with a report of what was narrowed or left out.
+---
+
+`strig import` reads the model and the policy of another library and writes a `.strig` file. Nothing runs Casbin or OpenFGA: the converter is a module of the library (feature `import`, on in `strig-cli`, no IO) that takes text and returns a policy and a report.
+
+For a step-by-step migration, see [Migrating from Casbin / OpenFGA](/docs/guides/migrating-from-casbin-openfga).
+
+## Try it on a Casbin ACL
+
+```text title="model.conf"
+[request_definition]
+r = sub, obj, act
+[policy_definition]
+p = sub, obj, act
+[policy_effect]
+e = some(where (p.eft == allow))
+[matchers]
+m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
+```
+
+```text title="policy.csv"
+p, alice, data1, read
+p, bob, data2, write
+```
+
+```sh title="Shell"
+strig import casbin model.conf policy.csv -o ./policy
+```
+
+```text title="Output"
+wrote policy/policy.strig
+converted:
+  2 policy lines (`p`)
+  2 grants
+  1 matcher alternative(s)
+  2 permissions, one per action
+```
+
+```blocks title="policy/policy.strig"
+language blocks
+
+target_kinds = [object]
+
+permission object.read {
+  targets = [object]
+}
+
+permission object.write {
+  targets = [object]
+}
+
+grant casbin_1 {
+  effect = allow
+  subject = user alice
+  permission = object.read
+  target = object:data1
+}
+
+grant casbin_2 {
+  effect = allow
+  subject = user bob
+  permission = object.write
+  target = object:data2
+}
+```
+
+## Usage
+
+```sh title="Shell"
+strig import casbin model.conf policy.csv -o ./policy [--language blocks|rules|actors] [--action read]...
+strig import openfga model.fga tuples.csv -o ./policy [--language blocks|rules|actors]
+```
+
+It writes `<dir>/policy.strig` and prints what was converted, what was converted with a narrower reach, and what was not.
+
+| Exit | Meaning |
+| --- | --- |
+| `0` | Everything converted |
+| `1` | Something has no faithful translation; nothing is written |
+| `2` | Usage error |
+
+The result is checked like any policy: run it with [`strig test`](/docs/tools/testing).
+
+## Casbin
+
+Read: ACL, RBAC (`g = _, _`, and domains with `g = _, _, _`), RBAC with `keyMatch` on the resource, and ABAC over attributes.
+
+- A `p` line becomes grants. A `g` line becomes a role assignment or an edge of the role graph.
+- The policy effect picks the strategy. `some(where (p.eft == allow))` is `most_specific`, and a `deny` line is dropped and reported. `!some(where (p.eft == deny))`, allow-and-deny and `priority(p.eft)` become `deny_overrides` or `first_applicable`.
+- A model that does not constrain the action (ABAC) needs `--action <name>`.
+- `keyMatch` becomes a `starts_with` condition. `regexMatch` is read only over alternations of literals, expanded over the actions the policy names.
+- A matcher with no faithful translation (`keyMatch2`, `globMatch`, arithmetic, `!=` between request and policy) is an error with the file, line and column and the reason. It is never an approximation that allows more.
+
+## OpenFGA
+
+The DSL and the JSON of the model are read, and the tuples as JSON, CSV, YAML or one per line.
+
+- Types and relations become a `RelationSchema` (`This`, `Computed`, `TupleToUserset`, `Union`, `Intersection`, `Exclusion`).
+- Tuples go to the `TupleStore`, and each relation gets a permission and a grant.
+- Conditions (CEL) are not translated: a model or a tuple that uses one is an error that points at it.
+
+## How it is tested
+
+Each fixture under `crates/strig/tests/fixtures/import/` holds a model, a policy and a table of requests with the answers the source library gives (from its documentation). The tests decide the same requests with the imported policy, in the three syntaxes, and compare.

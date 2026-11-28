@@ -1,0 +1,49 @@
+---
+title: Go
+description: The engine compiled to WebAssembly and run on wazero, with no cgo.
+---
+
+`github.com/The-Hades-Organization/Strig/bindings/go` is the Go binding over the same engine and the same JSON `EngineSpec` as the other APIs. It runs the engine compiled to WebAssembly (`crates/strig-wasi`, a plain C ABI with JSON in and out) on [wazero](https://wazero.io), pure Go with no cgo, and the module is embedded with `go:embed`. Go 1.22 or later.
+
+```sh title="Shell"
+go get github.com/The-Hades-Organization/Strig/bindings/go@<tag>   # a release tag of this repository
+```
+
+## Check and decide
+
+```go title="Go"
+import strig "github.com/The-Hades-Organization/Strig/bindings/go"
+
+engine, err := strig.NewEngine(spec)               // spec: a map, a struct or a json.RawMessage
+defer engine.Close()
+
+ctx, _ := engine.NewContext(map[string]any{"grants": grants, "env": map[string]any{"dept": "eng"}})
+ctx.AddGrant(grant); ctx.RemoveGrant("g1")
+
+request := map[string]any{"subject": subject, "permission": "project.edit", "resource": resource}
+allowed, err := engine.Check(ctx, request)         // (bool, error): an error is never an allow
+decision, err := engine.Decide(ctx, request)       // *Decision{Effect, Reason, Matched, Warnings}
+explanation, err := engine.Explain(ctx, request, strig.WithNow(time.Now()))
+many, err := engine.CheckMany(ctx, []any{request, other})
+policy, err := strig.Compile(text)                 // the policy language, no engine needed
+```
+
+## Rules to know
+
+- **Same JSON, same codes.** Requests and results are the JSON of the JavaScript API with the same camelCase fields. A failure is a `*strig.Error` whose `Code` is the `errorCode` of the JavaScript binding (`INVALID_INPUT`, `UNKNOWN_SUBJECT`, `DSL_PARSE`, ...), with `Diagnostics` for the policy language. Use `strig.CodeOf(err)` or `errors.As`.
+- **Fails closed.** `Check` returns `false` with the error, never `true`. If the module traps, the instance is discarded and every later call returns `strig.ErrBroken`. A closed engine or context, or a context of another engine, is an error.
+- **Concurrency.** An `Engine` is safe for concurrent use, but one WebAssembly instance is single-threaded, so calls are serialized. For parallel throughput give each worker its own `engine.Fork()` (its own instance, same spec, no shared state). A `Context` belongs to the engine that made it.
+- **Time is explicit.** `WithNow(t)` or `ctx.SetNow(t)` set the instant; without one the engine fails closed on validity windows. `Apply`, `Propose`, `Resolve` and `Expire` take the host clock when the input has no `now`.
+
+## Not in this binding yet
+
+Callbacks (the `call` condition, overrides, invariants written in Go), the audit sink and exclusive resources. A spec that needs a callback fails closed.
+
+## Other hosts
+
+The `.wasm` is also a release asset (`strig-<version>.wasm`) for any other host that speaks WebAssembly. To rebuild the embedded module: `sh bindings/scripts/build-wasi.sh`, then `cd bindings/go && go test ./...`.
+
+## Where to go next
+
+- Run decisions as a service instead: [Decision server](/docs/integrations/server).
+- The JVM sibling: [Java and Kotlin](/docs/integrations/jvm).

@@ -1,0 +1,86 @@
+---
+title: Decision server
+description: Answer decisions over HTTP for services that do not embed the engine, with AuthZEN and Envoy ext_authz on the same source.
+---
+
+`strig-server` answers decisions over HTTP, for services that do not embed the engine.
+
+```rust title="Rust"
+let source = Arc::new(MemorySource::new(Snapshot::new(Arc::new(engine), grants)));
+let router = DecisionServer::new(source).router();
+let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;
+axum::serve(listener, router).await?;
+```
+
+The router serves `POST /v1/check`, `/v1/check/batch`, `/v1/list`, `/v1/who` and `/v1/access`, plus `GET /health/live` and `/health/ready`. Grants come from a `DecisionSource`; `MemorySource` holds a `Snapshot` you can `replace`. Decisions use the server's clock. The full contract is in [`API.md`](https://github.com/The-Hades-Organization/Strig/blob/main/crates/strig-server/API.md).
+
+## Call it from a service
+
+The client fails closed. Only a `200` counts as an answer: a timeout, a refused connection, a `503` or an unreadable body becomes `ClientDecision::Denied` with the reason, and a circuit breaker stops calling a server that keeps failing.
+
+```rust title="Rust"
+let config = ClientConfig::default()
+    .with_timeout(Duration::from_millis(250))
+    .with_breaker(BreakerConfig::default().with_failure_threshold(5).with_open_for(Duration::from_secs(10)));
+let client = Client::http("http://127.0.0.1:8080", config);
+
+let request = CheckRequest::new(Subject::user("alice"), "document.view", Resource::new("document", "d1"));
+if client.check(&request).await.is_allowed() {
+    // serve the document
+}
+```
+
+## AuthZEN
+
+`with_authzen` also serves the [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) next to `/v1`, so gateways and platforms that speak the standard query Strig with no adapter.
+
+```rust title="Rust"
+let config = AuthzenConfig::default()
+    .with_issuer("https://pdp.example.com")?
+    .with_path_resolver(Arc::new(MyOrgTree));
+let router = DecisionServer::new(source).with_authzen(config).router();
+```
+
+| Route | Purpose |
+| --- | --- |
+| `POST /access/v1/evaluation` | One decision |
+| `POST /access/v1/evaluations` | Several, with the three `evaluations_semantic`s |
+| `POST /access/v1/search/subject`, `/action`, `/resource` | Searches (resource needs a `ResourceCatalog`) |
+| `GET /.well-known/authzen-configuration` | Discovery (needs an issuer) |
+
+- `subject.properties` become attributes; the `roles` and `principals` properties carry roles and principals.
+- The broader steps of the resource path come from a `path` property, or from a `PathResolver` the server owns.
+- `context` is `env`.
+- It fails closed like `/v1`: a malformed request is a `400`, a permission that is not in the catalog is `{"decision": false}`, and a server that cannot decide answers `500`.
+
+What is left out is listed in [`API.md`](https://github.com/The-Hades-Organization/Strig/blob/main/crates/strig-server/API.md#authzen-authorization-api).
+
+## Envoy
+
+With the `envoy` feature (off by default; no `tonic` or `prost` without it), `envoy_service` serves Envoy's External Authorization (`envoy.service.auth.v3.Authorization/Check`, gRPC) over the same source, so a mesh or a gateway built on Envoy asks Strig before it forwards a request.
+
+```rust title="Rust"
+let envoy = EnvoyConfig::default()
+    .with_subject_header("x-user")?
+    .with_route("GET", "/healthz", RouteRule::public())?
+    .with_route(
+        "GET,HEAD",
+        "/documents/{id}",
+        RouteRule::require("document.view", ResourceTemplate::new("document", "{id}")),
+    )?;
+let service = DecisionServer::new(source).envoy_service(envoy);
+service.serve(TcpListener::bind("127.0.0.1:9191").await?, shutdown).await?;
+```
+
+- The subject comes from a header or from the filter metadata (for example the claims `jwt_authn` validated).
+- Each method and path pattern asks one permission; the resource is a template over the path parameters.
+- `OK` on an allow. `PERMISSION_DENIED` with HTTP 403 on a deny, a path no rule covers, a missing subject, a source that is down or a deadline that passed, with an optional fixed `x-strig-reason`.
+- A path with dot segments or encoded separators matches nothing.
+
+See [`API.md`](https://github.com/The-Hades-Organization/Strig/blob/main/crates/strig-server/API.md#envoy-external-authorization-grpc-feature-envoy) and the sample [`envoy.yaml`](https://github.com/The-Hades-Organization/Strig/blob/main/crates/strig-server/examples/envoy.yaml).
+
+## Where to go next
+
+- Clients that decide locally from the capabilities stream: [JavaScript](/docs/javascript).
+- Trace every request: [Observability](/docs/operations/observability).
+- Walk through a public API end to end: [Public API guide](/docs/guides/public-api).

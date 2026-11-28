@@ -1,0 +1,71 @@
+---
+title: Diff and lint
+description: List the decisions a policy change widens or narrows, and find policy that never acts.
+---
+
+## Diff two versions
+
+Removing the `time_between` condition from a grant looks like a small edit. `strig diff` shows what it does:
+
+```sh title="Shell"
+strig diff before after --fail-on allow
+```
+
+```text title="Output"
+WIDENED  role:admin project.write on project:(any)
+  before: deny (no_applicable_grant)
+  after:  allow (grant, grant `member-writes-in-hours` at after/workspace.strig:44:7)
+WIDENED  role:admin project.write on org:(any) in project:(any)
+  before: deny (no_applicable_grant)
+  after:  allow (grant, grant `member-writes-in-hours` at after/workspace.strig:44:7)
+... (four more lines, the same three for role:member)
+6 changed (6 widened, 0 narrowed); 90 questions over 6 subjects, 3 permissions, 5 resources (derived from the policies)
+```
+
+The exit code is `1`, because `--fail-on allow` fails when any access widened. Without a clock, `before` denies: a validity window never allows without one.
+
+Each line gives who, which permission, on what, whether access `widened` or `narrowed`, and the grant or override responsible on each side. The two arguments are directories or `.strig` files.
+
+Without a fixture the questions are derived from the catalogs and the grants, and bounded by `QueryLimits`. A diff cut by a limit is marked `partial`, and finding no change then is not proof there is none. Pass a fixture to ask your own:
+
+```js title="JavaScript"
+const found = strig.diff(before, after, { fixture: { resources: ['org:1'] } });
+```
+
+In Rust it is `strig::dsl::analysis`. The `strig-test` action takes `diff-base` to diff against the base of the pull request. See [Testing a policy](/docs/tools/testing).
+
+## Lint a policy
+
+`strig lint` finds policy that never acts. Add a role nobody uses:
+
+```sh title="Shell"
+strig lint policies/
+```
+
+```text title="Output"
+policies/workspace.strig:65:6: info L004 [unused-role] role `auditor` is declared and no grant, subject or related role uses it
+  hint: remove the role, or grant something to it
+1 findings (0 errors, 0 warnings, 1 info)
+```
+
+It reports:
+
+- a shadowed grant;
+- an unreachable deny;
+- a permission nobody holds;
+- an unused role;
+- a redundant `implied_by`;
+- a condition that is always false or true;
+- a field never granted;
+- a separation-of-duties set that is already violated (`L009`, see [Separation of duties](/docs/governance/separation-of-duties)).
+
+Codes run `L001` to `L009`. `--json` adds severity, position and hint for each finding. To silence one rule from code:
+
+```js title="JavaScript"
+const findings = strig.lint(policy, { ignore: ['unused-role'] });
+```
+
+## Where to go next
+
+- Run the cases you write against the policy: [Testing a policy](/docs/tools/testing).
+- The syntax these tools read: [Policy language](/docs/policy-language).

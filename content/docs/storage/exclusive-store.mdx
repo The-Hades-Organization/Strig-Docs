@@ -1,0 +1,55 @@
+---
+title: Exclusive resources
+description: Give a resource one holder at a time, and share the lease between processes with a Postgres or Redis store.
+---
+
+With the `exclusive` feature, a resource has one holder at a time. `Terms::new(priority, ttl_ms)` sets how strong the claim is and how long it lasts. A higher priority takes the resource over only when the claimant also holds `exclusive.preempt`. Permissions and time are checked by the same engine as any other decision.
+
+```rust title="Rust"
+let mut registry = ExclusiveRegistry::default();
+let now = 0; // milliseconds since the Unix epoch, passed by the caller
+
+let first = registry.acquire_checked(&engine, &ctx, &ana, &document, Terms::new(1, 60_000), now)?;
+assert_eq!(first, Acquisition::Granted);
+
+let second = registry.acquire_checked(&engine, &ctx, &bob, &document, Terms::new(9, 60_000), now + 10)?;
+assert!(matches!(second, Acquisition::Preempted { .. }));
+```
+
+Ana holds the document for 60 seconds. Bob asks with priority 9 and holds `exclusive.preempt`, so he takes it. Without that permission the answer would be a refusal, however high the priority.
+
+## Across processes
+
+`ExclusiveRegistry::default()` keeps leases in memory, so a resource is exclusive inside one process. To share it between instances, give the registry a store that decides in the database or in Redis.
+
+<Tabs>
+  <Tab label="Postgres">
+
+```rust title="Rust"
+// Run `migrate_with` first: schema version 4 adds `<prefix>_exclusive`.
+let store = PgExclusiveStore::connect(&url, PgTables::default()).await?;
+let mut registry = ExclusiveRegistry::new(store);
+```
+
+  </Tab>
+  <Tab label="Redis">
+
+```rust title="Rust"
+// Every instance that shares the resource uses the same prefix.
+let mut registry = ExclusiveRegistry::new(
+    RedisExclusiveStore::new("redis://127.0.0.1/", "strig:exclusive")?,
+);
+```
+
+  </Tab>
+</Tabs>
+
+Acquire, renew, release and the sweep (`expire`) are one atomic step in each store: a row lock in a transaction for Postgres, `WATCH`/`MULTI`/`EXEC` for Redis. Two instances racing for the same resource have exactly one winner.
+
+| Guarantee | How |
+| --- | --- |
+| Same answers as the in-memory store | `strig::exclusive_conformance::run` (feature `conformance`) is the battery every store passes. Run it against a store of your own. |
+| Time | Whether a lease is active is decided with the `now` you pass, never the clock of the database. |
+| Failure | A timeout or a lost connection is a `StoreError`, and the call fails closed. |
+
+The trait is synchronous, so both stores block the caller for the round trip. Use `spawn_blocking` inside an async task. Both crates have the `exclusive` feature on by default. The JavaScript binding does not expose exclusive stores yet; `Exclusive` there is in-process.

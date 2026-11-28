@@ -1,0 +1,65 @@
+---
+title: Prisma, Drizzle and Kysely
+description: Turn "what can this subject reach" into the where of your ORM, with failing closed on anything it cannot express.
+---
+
+`engine.list(...)` says what a subject can reach in a kind. `/prisma`, `/drizzle` and `/kysely` turn that answer into the `where` of your ORM, with the same meaning as `PgTables` has in Rust. Each takes the `list` result and a mapping of where the resource keeps what the filter reads, and returns `{ permission, where, settled?, residual }`.
+
+## Prisma
+
+```ts title="TypeScript"
+import { toWhere } from '@the-hades-organization/strig/prisma';
+
+const result = engine.list(ctx, subject, 'document.view', 'document', { layout: ['document', 'project', 'org'] });
+const { where, settled, residual } = toWhere(result, {
+  kind: 'document',
+  id: 'id',
+  paths: { project: 'projectId', org: 'project.orgId' }, // a dotted path crosses a to-one relation
+  attrs: { owner: 'ownerId' },
+  optionalRelations: ['project'], // Prisma only: relations that may be absent
+});
+const documents = await prisma.document.findMany({ where });
+```
+
+Prisma needs no peer dependency: the `where` is a plain object.
+
+## Drizzle and Kysely
+
+Drizzle and Kysely are optional peers. Kysely is never imported: its builder arrives as the callback argument.
+
+```ts title="TypeScript"
+import { toWhere } from '@the-hades-organization/strig/drizzle';
+const { where } = toWhere(result, { kind: 'document', id: documents.id, paths: { project: documents.projectId, org: documents.orgId } });
+const rows = await db.select().from(documents).where(where);
+
+import { toWhere as toKyselyWhere } from '@the-hades-organization/strig/kysely'; // columns as strings
+const { where: kyselyWhere } = toKyselyWhere(result, { kind: 'document', id: 'id', paths: { project: 'project_id', org: 'org_id' } });
+const rows2 = await db.selectFrom('document').selectAll().where(kyselyWhere).execute();
+```
+
+## What the filter guarantees
+
+- **Fails closed.** A kind or attribute the filter reads and the mapping lacks, an expression node with no query form, or a filter for another kind than the mapping's all throw `OrmFilterError`. Nothing becomes "all rows"; what is certainly empty becomes an impossible condition.
+
+  | `code` | Cause |
+  | --- | --- |
+  | `UNMAPPED_KIND` | The filter reads a kind the mapping lacks |
+  | `UNMAPPED_ATTRIBUTE` | The filter reads an attribute the mapping lacks |
+  | `UNSUPPORTED_EXPR` | An expression node with no query form |
+  | `UNSUPPORTED_VALUE` | A value the query cannot carry |
+  | `KIND_MISMATCH` | A filter for another kind than the mapping's |
+
+- **A deny reaches only what it names.** Every test is true or false, never `NULL`, so `NOT (project_id = 'p2')` keeps the rows with no project, as `engine.check` does. In Prisma the negation is pushed to the fields: `{ OR: [{ projectId: null }, { projectId: { not: 'p2' } }] }`. A relation that can be absent goes in `optionalRelations`; one left out only costs rows a deny would drop, and never opens access.
+- **A residue is not permission.** A condition over the resource, an override or a strategy the database cannot settle stays in `residual`. `where` is the upper bound (every row that may be allowed). `settled` is the lower bound (rows allowed whatever the residue says), present only with a residue. Check the rows of `where` outside `settled` with `engine.check`. Without a residue, `where` is exact.
+- **One contract.** Each module also exports an object (`prisma`, `drizzle`, `kysely`) with `toWhere(filter, mapping)`, typed over the `PermissionId` from [`strig-types`](/docs/integrations/frontend#catalog-types).
+
+## How it is tested
+
+The unit tests check the object each adapter builds. An oracle runs every scenario (allow by kind, by anchor, by exact id, denies that cut, a condition that stays a residue) against SQLite (Drizzle and Kysely) and an evaluator of the Prisma shape, and compares the rows with the ids `engine.list` resolves.
+
+TypeORM, Sequelize and MikroORM have no adapter yet. The mapping and the compiler (`bounds`, `Emitter`) are what a new one would reuse.
+
+## Where to go next
+
+- Filter in Postgres without an ORM: [Postgres](/docs/storage/postgres).
+- Use it in an app: [Internal dashboard guide](/docs/guides/internal-dashboard).
