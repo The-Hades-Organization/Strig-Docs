@@ -1144,6 +1144,337 @@ The recertification flow over a ``Governance`` and a ``RecertStore``.
 </ApiWide>
 
 
+## Audit
+
+Audit records carry `AUDIT_FORMAT` 1: a hash chain per sink, Merkle proofs over it, optional RFC 3161 timestamps, and a report. Walk-through: [Audit](/docs/audit).
+
+#### `AUDIT_FORMAT`
+
+Version of the audit record format: the canonical form and the hash of the chain fixed in `docs/audit-format.md`.
+
+#### `AuditLevel`
+
+How much of each change is recorded.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `typical_record_bytes` | `pub const fn typical_record_bytes(self) -> u64` |
+| `typical_decision_bytes` | `pub const fn typical_decision_bytes(self) -> u64` |
+| `estimate_decision_bytes` | `pub const fn estimate_decision_bytes(self, records: u64) -> u64` |
+| `estimate_bytes` | `pub const fn estimate_bytes(self, records: u64) -> u64` |
+
+</ApiWide>
+
+#### `AuditAction`
+
+#### `AuditOutcome`
+
+#### `DecisionSummary`
+
+Summary of a decision, kept from ``AuditLevel::Standard`` upward.
+
+#### `GrantSummary`
+
+Summary of a grant, kept from ``AuditLevel::Standard`` upward.
+
+#### `RoleChange`
+
+Recorded role assignment.
+
+#### `PendingRef`
+
+The pending request an approval-flow record is about, kept from ``AuditLevel::Standard`` upward.
+
+#### `RecertRef`
+
+The campaign and item a recertification record is about, kept from ``AuditLevel::Standard`` upward.
+
+#### `AuditRecord`
+
+One record of the trail.
+
+#### `AuditError`
+
+#### `AuditSink`
+
+Destination of the records.
+
+#### `FailMode`
+
+What happens to a change when its audit record cannot be written.
+
+#### `AuditStatus`
+
+Where a record ended up.
+
+#### `DroppedRecord`
+
+A record the retry queue could not keep.
+
+#### `DropHook`
+
+Called, outside any lock, for each record dropped because the queue was full.
+
+#### `RetryPolicy`
+
+Limits of the retry queue that `open` mode feeds.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `with_capacity` | `pub fn with_capacity(mut self, capacity: usize) -> Self` |
+| `with_base_delay_ms` | `pub fn with_base_delay_ms(mut self, base_delay_ms: u64) -> Self` |
+| `with_max_delay_ms` | `pub fn with_max_delay_ms(mut self, max_delay_ms: u64) -> Self` |
+| `with_on_drop` | `pub fn with_on_drop(mut self, on_drop: DropHook) -> Self` |
+
+</ApiWide>
+
+#### `AuditStats`
+
+Counters of the retry queue, for a metric or a health check.
+
+#### `PendingQueue`
+
+The retry queue of `open` mode.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(policy: RetryPolicy) -> Self` |
+| `stats` | `pub fn stats(&self) -> AuditStats` |
+| `pending` | `pub fn pending(&self) -> Vec<AuditRecord>` |
+| `flush` | `pub fn flush(&self, sink: &dyn AuditSink, now: u64, force: bool) -> usize` |
+
+</ApiWide>
+
+#### `Emitted`
+
+A record and where it ended up.
+
+#### `Redactor`
+
+Masks the sensitive parts of a record before it is hashed and written.
+
+#### `Observer`
+
+Called with every record the auditor accepted, written or queued, and where it ended up.
+
+#### `MemoryAuditLog`
+
+In-memory records, for tests and for callers who drain the trail themselves.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `records` | `pub fn records(&self) -> Vec<AuditRecord>` |
+| `drain` | `pub fn drain(&self) -> Vec<AuditRecord>` |
+
+</ApiWide>
+
+#### `JsonLinesAudit`
+
+One JSON record per line on a `Write` (file, socket, stdout).
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(out: W) -> Self` |
+| `into_inner` | `pub fn into_inner(self) -> W` |
+
+</ApiWide>
+
+#### `Clock`
+
+#### `Auditor`
+
+Builds the records at the configured level and hands them to the sink.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(level: AuditLevel, sink: Arc<dyn AuditSink>) -> Self` |
+| `with_fail_mode` | `pub fn with_fail_mode(mut self, mode: FailMode) -> Self` |
+| `with_permission_fail_mode` | `pub fn with_permission_fail_mode(mut self, permission: impl Into<String>, mode: FailMode) -> Self` |
+| `with_retry` | `pub fn with_retry(mut self, policy: RetryPolicy) -> Self` |
+| `with_queue` | `pub fn with_queue(mut self, queue: Arc<PendingQueue>) -> Self` |
+| `with_redactor` | `pub fn with_redactor(mut self, redactor: Redactor) -> Self` |
+| `observe` | `pub fn observe(mut self, observer: impl Fn(&AuditRecord, AuditStatus) + Send + Sync + 'static) -> Self` |
+| `queue` | `pub fn queue(&self) -> &Arc<PendingQueue>` |
+| `stats` | `pub fn stats(&self) -> AuditStats` |
+| `flush` | `pub fn flush(&self) -> usize` |
+| `chain_head` | `pub fn chain_head(&self) -> Option<String>` |
+| `with_clock` | `pub fn with_clock(mut self, clock: impl Fn() -> u64 + Send + Sync + 'static) -> Self` |
+| `resume_chain` | `pub fn resume_chain(self, last_hash: impl Into<String>) -> Self` |
+| `level` | `pub fn level(&self) -> AuditLevel` |
+| `decide` | `pub fn decide( &self, engine: &Engine, ctx: &Context<'_>, request: &Request<'_>, meta: &Attributes) -> (Decision, Result<AuditRecord, AuditError>)` |
+| `decision` | `pub fn decision( &self, request: &Request<'_>, decision: &Decision, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `explained` | `pub fn explained(&self, explanation: &Explanation, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `grant_mutation` | `pub fn grant_mutation( &self, actor: &Subject, mutation: &Mutation, before: &[Grant], result: &Result<Vec<Grant>, Vec<Violation>>, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `grant_mutation_with` | `pub fn grant_mutation_with( &self, actor: &Subject, mutation: &Mutation, before: &[Grant], result: &Result<Vec<Grant>, Vec<Violation>>, meta: &Attributes, call: Option<FailMode>) -> Result<Emitted, AuditError>` |
+| `grant_mutation_impact` | `pub fn grant_mutation_impact( &self, actor: &Subject, mutation: &Mutation, before: &[Grant], result: &Result<Vec<Grant>, Vec<Violation>>, meta: &Attributes, call: Option<FailMode>, impact: Option<&Impact>) -> Result<Emitted, AuditError>` |
+| `tuple_change` | `pub fn tuple_change( &self, actor: &Subject, added: bool, tuple: &Tuple, outcome: AuditOutcome, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `exclusive` | `pub fn exclusive( &self, actor: &Subject, action: AuditAction, resource: &ObjectRef, outcome: AuditOutcome, at: u64, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `role_change` | `pub fn role_change( &self, actor: &Subject, assigned: bool, change: &RoleChange, outcome: AuditOutcome, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+
+</ApiWide>
+
+#### `ChainError`
+
+#### `Hash`
+
+A SHA-256 digest.
+
+#### `MerkleError`
+
+Why a proof was refused.
+
+#### `MerkleTree`
+
+A tree kept in memory, for building proofs over a stretch of the trail.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(leaves: Vec<Hash>) -> Self` |
+| `from_records` | `pub fn from_records(records: &[AuditRecord]) -> Result<Self, AuditError>` |
+| `size` | `pub fn size(&self) -> usize` |
+| `root` | `pub fn root(&self) -> Hash` |
+| `root_at` | `pub fn root_at(&self, size: usize) -> Option<Hash>` |
+| `inclusion_proof` | `pub fn inclusion_proof(&self, index: usize) -> Option<Vec<Hash>>` |
+| `consistency_proof` | `pub fn consistency_proof(&self, first: usize) -> Option<Vec<Hash>>` |
+
+</ApiWide>
+
+#### `TimestampError`
+
+Why a request could not be built or a response was refused.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `code` | `pub fn code(&self) -> &'static str` |
+
+</ApiWide>
+
+#### `HashAlgorithm`
+
+A hash algorithm for the stamped digest.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `name` | `pub fn name(self) -> &'static str` |
+
+</ApiWide>
+
+#### `TimestampRequest`
+
+A `TimeStampReq` (RFC 3161 §2.4.1) to send to a TSA.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(algorithm: HashAlgorithm, digest: Vec<u8>) -> Self` |
+| `for_chain_head` | `pub fn for_chain_head(head: &str, nonce: Option<u64>) -> Result<Self>` |
+| `to_der` | `pub fn to_der(&self) -> Result<Vec<u8>>` |
+
+</ApiWide>
+
+#### `TimestampInfo`
+
+What a verified time stamp states.
+
+#### `VerifyOptions`
+
+What to check besides the signature.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(imprint: Vec<u8>, trusted_roots: Vec<Vec<u8>>) -> Self` |
+| `for_chain_head` | `pub fn for_chain_head(head: &str, trusted_roots: Vec<Vec<u8>>) -> Result<Self>` |
+
+</ApiWide>
+
+#### `LineError`
+
+A line of a JSON Lines trail that is not an audit record.
+
+#### `Period`
+
+The span of time the records cover.
+
+#### `BreakKind`
+
+How a record fails the chain.
+
+#### `ChainBreak`
+
+One place where the chain does not hold.
+
+#### `ChainStatus`
+
+The state of the hash chain.
+
+#### `Anchors`
+
+Anchors known from outside the trail.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `head` | `pub fn head(mut self, head: impl Into<String>) -> Self` |
+| `start` | `pub fn start(mut self, start: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `AnchorCheck`
+
+Outcome of comparing the trail with an anchor.
+
+#### `TimestampCheck`
+
+Result of verifying one time stamp, filled by the caller (see ``timestamp``).
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `verified` | `pub fn verified(label: impl Into<String>, gen_time: i64, policy: String, serial: String) -> Self` |
+| `failed` | `pub fn failed(label: impl Into<String>, error: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ConformanceReport`
+
+The report.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `build` | `pub fn build(records: &[AuditRecord], anchors: &Anchors) -> Self` |
+| `from_json_lines` | `pub fn from_json_lines(text: &str, anchors: &Anchors) -> Self` |
+| `with_timestamps` | `pub fn with_timestamps(mut self, timestamps: Vec<TimestampCheck>) -> Self` |
+| `is_conforming` | `pub fn is_conforming(&self) -> bool` |
+
+</ApiWide>
+
+
 ## Real time: strig-sync
 
 `strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
