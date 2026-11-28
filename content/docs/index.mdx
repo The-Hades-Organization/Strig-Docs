@@ -5,7 +5,7 @@ description: What Strig decides, how it reaches a verdict, and where it runs.
 
 Strig answers one question: may this subject do this to this resource?
 
-You write a policy. You ask questions. Each answer is a verdict and the grant that produced it. The examples on this page run against Strig 1.0.
+You write a policy. You ask questions. Each answer is a verdict and the grant that produced it. The examples on this page run against Strig 0.10.
 
 <BenchRef>The policy, `documents.strig`, is in the bench beside this text.</BenchRef>
 
@@ -127,7 +127,7 @@ Skip it when the check is a single flag on a user and will stay one. A column is
 
 Two limits to know before you start:
 
-- **Stable from 1.0.** A breaking change to the public API, the policy schema, the audit format or the protocol takes a new major version, with a deprecation window first. [Upgrading](/docs/upgrading) lists exactly what that covers.
+- **Stable from 1.0, not yet released.** The current release is 0.10, where a minor version can still break the API. From 1.0, a breaking change to the Rust engine, the JSON spec, the policy language, the audit format or the npm package takes a new major version, with a deprecation window first. The Python, Go and Java and Kotlin packages, the Wasm ABI and the command-line tools are experimental: no semver guarantee until the versioning policy says otherwise. [Upgrading](/docs/upgrading) lists exactly what that covers.
 - **The client does not guard anything.** `PermissionClient` decides locally for the interface. The server still decides on every operation.
 
 ## Where to next

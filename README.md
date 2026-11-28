@@ -7,7 +7,7 @@ The site is static. It is built with [Waku](https://waku.gg) (React Server Compo
 `fumadocs-mdx`, and `fumadocs-core` for the page tree, table of contents and search index. There is
 no `fumadocs-ui`: every component comes from the site's own design system.
 
-The pages under `content/docs` are structural sample content. The real documentation is not written yet.
+The pages under `content/docs` are the documentation of Strig. Install snippets cite the released version (0.10); the pages that describe 1.0 are marked as such.
 
 ## Run it
 
