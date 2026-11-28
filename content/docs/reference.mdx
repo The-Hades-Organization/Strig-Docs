@@ -2911,14 +2911,185 @@ class DslError(StrigError):
     ...
 ```
 
-## Inspector: strig-inspect
+## Go
 
-Not published on crates.io and outside the workspace default members: install it from a clone with `cargo install --path crates/strig-inspect`, or add `--no-default-features` for the terminal commands only. It explains decisions, simulates grants, builds the access matrix and reads an audit trail. Its library API is small and not a stable contract, so only the commands are listed.
+```bash
+go get github.com/The-Hades-Organization/Strig/bindings/go
+```
 
-<ApiGroup>
-  <ApiItem id="inspect-explain" name="strig-inspect explain" pick="inspect" sig={"strig-inspect explain --scenario F --subject S --permission P --resource R\nstrig-inspect matrix  --scenario F --resource R [--disable ID]... [--add GRANT.json]...\nstrig-inspect audit   --audit F [--scenario F]\nstrig-inspect fmt [--check] FILE|DIR"}>
-    `explain` prints the trace of one decision. `matrix` shows who can do what on a resource, and which cells change when you disable or add a grant. `audit` lists a trail, checks the hash chain and re-evaluates the decisions. `fmt` formats `.strig` files; `--check` only lists them and exits with 1 if any would change. With no command, it opens a window.
-  </ApiItem>
-</ApiGroup>
+Go 1.22 or later. The engine is the Wasm module, run on wazero; there is no cgo. `Engine` and `Context` hold module memory, so `Close` them. An `Engine` is single-threaded: `Fork` gives each worker its own. Every error is a `*Error` with a stable `Code`; `errors.Is` matches two of them by `Code`. Walk-through: [Go](/docs/integrations/go).
 
-A scenario is a JSON file with `spec`, `grants`, `tuples`, `env`, `subjects` and `resources`.
+```go
+engine, err := strig.NewEngine(spec)
+if err != nil { return err }
+defer engine.Close()
+
+ctx, _ := engine.NewContext(map[string]any{"grants": grants})
+defer ctx.Close()
+
+ok, err := engine.Check(ctx, map[string]any{
+    "subject":    map[string]any{"kind": "user", "id": "ana"},
+    "permission": "document.view",
+    "resource":   map[string]any{"path": []any{map[string]any{"kind": "document", "id": "d1"}}},
+})
+if strig.CodeOf(err) == "INVALID_GRANT" { /* ... */ }
+```
+
+<ApiWide>
+
+| Item | Signature |
+| --- | --- |
+| `NewEngine` | `func NewEngine(spec any) (*Engine, error)` |
+| `Engine.Fork` | `func (e *Engine) Fork() (*Engine, error)` |
+| `Engine.Close` | `func (e *Engine) Close() error` |
+| `Engine.NewContext` | `func (e *Engine) NewContext(init any) (*Context, error)` |
+| `Engine.Check` | `func (e *Engine) Check(c *Context, request any, opts ...Option) (bool, error)` |
+| `Engine.Decide` | `func (e *Engine) Decide(c *Context, request any, opts ...Option) (*Decision, error)` |
+| `Engine.Explain` | `func (e *Engine) Explain(c *Context, request any, opts ...Option) (map[string]any, error)` |
+| `Engine.CheckMany` | `func (e *Engine) CheckMany(c *Context, requests any, opts ...Option) ([]bool, error)` |
+| `Engine.List` | `func (e *Engine) List(c *Context, subject any, permission, kind string, options any, opts ...Option) (map[string]any, error)` |
+| `Engine.WhoCan` | `func (e *Engine) WhoCan(c *Context, permission string, opts ...Option) ([]map[string]any, error)` |
+| `Engine.Catalog` | `func (e *Engine) Catalog() (map[string]any, error)` |
+| `Engine.Apply`, `Impact`, `ReviewImpact`, `Propose`, `Resolve`, `Expire` | `func (e *Engine) Apply(input any) (map[string]any, error)`, and the same shape for the others |
+| `Context.SetGrants` | `func (c *Context) SetGrants(grants any) error` |
+| `Context.AddGrant` | `func (c *Context) AddGrant(grant any) error` |
+| `Context.RemoveGrant` | `func (c *Context) RemoveGrant(id string) (bool, error)` |
+| `Context.Grants` | `func (c *Context) Grants() ([]map[string]any, error)` |
+| `Context.AddTuple`, `RemoveTuple` | `func (c *Context) AddTuple(tuple any) (bool, error)` |
+| `Context.SetEnv` | `func (c *Context) SetEnv(env any) error` |
+| `Context.SetNow` | `func (c *Context) SetNow(t time.Time) error` |
+| `Context.SetLimits` | `func (c *Context) SetLimits(limits any) error` |
+| `Context.Close` | `func (c *Context) Close() error` |
+| `WithNow` | `func WithNow(t time.Time) Option` |
+| `Compile` | `func Compile(text string, file ...string) (map[string]any, error)` |
+| `Format` | `func Format(text string) (string, error)` |
+| `CodeOf` | `func CodeOf(err error) string` |
+| `Decision` | `struct { Effect string; Reason json.RawMessage; Matched []string; Warnings []string }`, with `Allowed() bool` |
+| `Error` | `struct { Code string; Message string; Diagnostics []any }` |
+| `ErrClosed`, `ErrBroken` | `INVALID_ARGUMENT` after `Close`; `INTERNAL` when the module trapped and was discarded. |
+
+</ApiWide>
+
+## Java
+
+```xml
+<dependency>
+  <groupId>io.github.the-hades-organization</groupId>
+  <artifactId>strig</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+Package `io.github.thehadesorganization.strig`. The engine is the same Wasm module, run on Chicory. `Engine` and `Context` are `AutoCloseable`; use try-with-resources. Failures throw `StrigException` with a stable `code()`; a policy error also carries `diagnostics()`. Walk-through: [Java and the JVM](/docs/integrations/jvm).
+
+```java
+try (Engine engine = new Engine(spec);
+     Context ctx = engine.newContext(Map.of("grants", grants))) {
+    Decision d = engine.decide(ctx, request);
+    if (!d.allowed()) { /* d.reason() */ }
+}
+```
+
+<ApiWide>
+
+| Item | Signature |
+| --- | --- |
+| `Engine` | `public Engine(Object spec)`, `public Engine fork()`, `public synchronized void close()` |
+| `newContext` | `public Context newContext()`, `public Context newContext(Object init)` |
+| `check` | `public boolean check(Context context, Object request)`, and with a trailing `Instant now` |
+| `decide` | `public Decision decide(Context context, Object request)`, and with a trailing `Instant now` |
+| `explain` | `public Map<String, Object> explain(Context context, Object request)`, and with `Instant now` |
+| `checkMany` | `public List<Boolean> checkMany(Context context, Object requests)`, and with `Instant now` |
+| `list` | `public Map<String, Object> list(Context context, Object subject, String permission, String kind, Object options)` |
+| `whoCan` | `public List<Map<String, Object>> whoCan(Context context, String permission)` |
+| `catalog` | `public Map<String, Object> catalog()` |
+| `apply`, `impact`, `reviewImpact`, `propose`, `resolve`, `expire` | `public Map<String, Object> apply(Object input)`, and the same shape for the others |
+| `Context` | `setGrants(Object)`, `addGrant(Object)`, `boolean removeGrant(String id)`, `List<Map<String, Object>> grants()`, `boolean addTuple(Object)`, `boolean removeTuple(Object)`, `setEnv(Object)`, `setNow(Instant)`, `setLimits(Object)`, `close()` |
+| `Strig` | `static Map<String, Object> compile(String text)`, `compile(String text, String file)`, `static String format(String text)` |
+| `Decision` | `record Decision(String effect, JsonNode reason, List<String> matched, List<String> warnings)`, with `boolean allowed()` |
+| `StrigException` | `String code()`, `List<Object> diagnostics()` |
+
+</ApiWide>
+
+<a id="wasm-abi" />
+
+## Wasm ABI
+
+The Go and Java packages call one module, `strig-<version>.wasm`. A host in another language can do the same. The module imports nothing and exports a linear memory and three functions.
+
+<ApiWide>
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `memory` | linear memory | The host writes inputs into it and reads outputs from it. |
+| `strig_alloc` | `(len: usize) -> *mut u8` | Gives the host `len` bytes to write an input into. |
+| `strig_free` | `(ptr: *mut u8, len: usize)` | Releases memory from `strig_alloc` or from a `strig_call` result, once. |
+| `strig_call` | `(op_ptr, op_len, in_ptr, in_len) -> u64` | Runs one operation. `op` is UTF-8 text and the input is a JSON object. The result packs `(ptr << 32) \| len` of a JSON envelope; read it, then free it. |
+
+</ApiWide>
+
+The envelope is one of:
+
+```json
+{"ok": true, "value": {"effect": "allow"}}
+{"ok": false, "code": "INVALID_GRANT", "message": "...", "diagnostics": []}
+```
+
+`code` is the same `errorCode` every binding raises. Input that is not UTF-8 is `INVALID_INPUT`.
+
+The operations, by group:
+
+| Group | Operations |
+| --- | --- |
+| Policy language | `compile`, `format`, `print`, `convert`, `isFormatted`, `loadProject`, `runTests`, `diff`, `lint` |
+| Handles | `engine.new`, `engine.free`, `context.new`, `context.free` |
+| Context | `context.setGrants`, `context.addGrant`, `context.removeGrant`, `context.grants`, `context.addTuple`, `context.removeTuple`, `context.setEnv`, `context.setNow`, `context.setLimits` |
+| Decisions | `check`, `decide`, `explain`, `whyNot`, `checkMany`, `explainMany`, `list`, `whoCan`, `catalog` |
+| Changes | `apply`, `impact`, `reviewImpact`, `propose`, `resolve`, `elevate`, `recertify`, `expire` |
+
+Engines and contexts live inside the module and are named by integer ids. The module is single-threaded: for concurrency, instantiate one module per worker. Callbacks (`call` conditions, overrides, invariants) are not part of the ABI; a request that needs one fails closed with the engine's own error. There is no clock: an operation that needs the instant takes `now` in its input, and the host fills it.
+
+<a id="protocol" />
+
+## Protocol 2
+
+The client protocol of `strig-sync`, `strig-server` and the JavaScript `/protocol` module is version 2 (`PROTOCOL_VERSION`). A peer that sends no `hello.version` is read as version 1; version 2 only adds optional fields and messages, so the two interoperate. Messages are JSON objects tagged by `type`, sent as Server-Sent Events (`event: <type>`, `data: <json>`) or over a WebSocket.
+
+<ApiWide>
+
+| Direction | `type` | Fields | Meaning |
+| --- | --- | --- | --- |
+| Server | `hello` | `origin`, `subject?`, `version` | First message; `version` is 1 when absent. |
+| Server | `capabilities` | `scope`, `set`, `revision?` | The current grants of the subject for a watched scope; replaces the previous set. A client that requires a revision treats a set without it, or behind it, as no decision. |
+| Server | `change` | `change` | A change that affects a watched scope. |
+| Server | `resync` | none | The client lost changes: discard what it has and wait for new `capabilities`. |
+| Server | `error` | `message` | A failure. |
+| Server | `ping` | none | Keep-alive. |
+| Client | `watch`, `unwatch` | `scopes` | Starts or stops watching scopes; `watch` answers with each scope's capabilities. |
+| Client | `refresh` | none | Asks again for the capabilities of every watched scope. |
+| Client | `refresh_at_least` | `revision` | Like `refresh`, but every set must come from data at `revision` or later. A scope that cannot be brought that far gets an `error` whose `message` is `revision_not_reached`, `revision_scope_mismatch` or `revision_untracked`, never an older set. |
+
+</ApiWide>
+
+A scope is text in a query string: steps from the most specific to the broadest, separated by `/`, each `kind:id` or just `kind` (`document:d1/project:p1/org:o1`).
+
+<a id="error-codes" />
+
+## Error codes
+
+Each list is closed: a code is added, never changed or reused. Removing one, or making an existing situation report a different one, is a breaking change. A deprecated code keeps being thrown until the next major version.
+
+**JavaScript, Python, Go, Java and Wasm** raise the same `ErrorCode`. A Rust error variant added later maps to `INTERNAL`, or to the `*_ERROR` code of its family, until it gets a code of its own.
+
+| Family | Codes |
+| --- | --- |
+| Input | `INVALID_ARGUMENT`, `INVALID_INPUT`, `INVALID_SPEC`, `INVALID_GRANT`, `UNKNOWN_SUBJECT`, `UNKNOWN_INVARIANT`, `REENTRANT_CALL` |
+| Queries | `QUERY_LIMIT_EXCEEDED`, `RELATION_DEPTH_EXCEEDED`, `QUERY_ERROR` |
+| Exclusive ownership | `EXCLUSIVE_ZERO_TTL`, `EXCLUSIVE_NOT_HELD`, `EXCLUSIVE_NOT_HOLDER`, `EXCLUSIVE_ANONYMOUS_SUBJECT`, `EXCLUSIVE_UNIDENTIFIED_RESOURCE`, `EXCLUSIVE_TTL_TOO_LONG`, `EXCLUSIVE_DENIED`, `EXCLUSIVE_UNKNOWN_PERMISSION`, `EXCLUSIVE_STORE`, `EXCLUSIVE_ERROR` |
+| Policy language | `DSL_PARSE`, `DSL_VALIDATE`, `DSL_CONFLICT`, `DSL_UNREPRESENTABLE`, `DSL_UNSUPPORTED`, `DSL_LIMIT`, `DSL_DUPLICATE_SOURCE`, `DSL_IO` |
+| Other | `INTERNAL` |
+
+**`strig-server` and the JavaScript `/remote` client** answer with `error.code` in the body: `malformed_json`, `invalid_request`, `batch_too_large`, `too_many_resources`, `not_found`, `method_not_allowed`, `body_too_large`, `unsupported_media_type`, `source_unavailable`, `query_limit_exceeded`, `overloaded`, `relation_depth_exceeded`, `deadline_exceeded`, `clock_unavailable`, `revision_not_reached`, `revision_mismatch`, `internal`. A client treats a code it does not know as `internal`. [Status and meaning of each](#error-codes-server).
+
+**Rust** error enums (`EngineError`, `SpecError`, `PendingError`, `ApprovalError`, `AuditError`, `ChainError`, `ExclusiveError`, `StoreError`, `QueryError` and the others) are `#[non_exhaustive]`; their variants are the codes, and the mapping to the lists above is part of the contract.
+
