@@ -2211,6 +2211,30 @@ Patterns start with `/`; a segment is a literal, `{name}` (one segment, captured
 
 A `public` route decides nothing and does not read the source, so it allows even while the source is down. A message over `max_body_bytes` or a call that outlives `max_timeout` is a gRPC error (`RESOURCE_EXHAUSTED`, `CANCELLED`): leave `failure_mode_allow: false` in the Envoy filter so Envoy denies on those too.
 
+## Command line: strig-cli
+
+`cargo install strig-cli` installs the `strig` binary. Every command exits `0` when it did what you asked, `1` when a case failed, a finding matched or a change has no faithful translation, and `2` when the arguments, the policy or a test file are wrong or there is nothing to run.
+
+```text
+$ strig test policies/
+$ echo $?
+1
+```
+
+<ApiWide>
+
+| Command | What it does |
+| --- | --- |
+| `strig test <dir> [--junit <file>]` | Runs the `*.strig-test.json` files of `<dir>` against its `*.strig` policy. `--junit` also writes JUnit XML. |
+| `strig audit report <trail.jsonl> [--json] [--anchor-head <hash>] [--anchor-start <hash>] [--timestamp <resp.tsr>]... [--root <ca.pem>]...` | Conformance report over an audit trail. Exits `1` when it does not conform. See [Audit](/docs/audit). |
+| `strig import casbin <model.conf> <policy.csv> -o <dir> [--language <l>] [--action <a>]...` | Converts a Casbin model and policy into `<dir>/policy.strig`. Exits `1` when part of it has no faithful translation. |
+| `strig import openfga <model> <tuples> -o <dir> [--language <l>]` | The same for an OpenFGA model and tuples. `--action` is Casbin only. |
+| `strig diff <before> <after> [--fixture <file>] [--now <ms>] [--json] [--fail-on allow\|any] [--max-subjects <n>] [--max-decisions <n>]` | The decisions that change between two versions of a policy (directories or `*.strig` files). Exits `1` when a change matches `--fail-on` (default `any`). |
+| `strig lint <dir> [--json] [--ignore <code>]... [--config <file>] [--fail-on error\|warning\|info\|never]` | Findings about dead or suspicious policy. Exits `1` on a warning or worse. |
+| `strig help` | Prints the usage text. `--help` and `-h` do the same. |
+
+</ApiWide>
+
 ## Policies at compile time: strig-macros
 
 `strig-macros = "0.7"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
