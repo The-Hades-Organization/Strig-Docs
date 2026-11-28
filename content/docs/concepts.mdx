@@ -3,7 +3,7 @@ title: Concepts
 description: The model behind a Strig decision, from the question to the grant that decides it.
 ---
 
-A Strig decision answers one question: may this subject do this permission to this resource? This page takes the question apart, so you can write your first policy. Every answer on it is real output from Strig 0.6.1. Pick a command, and the bench shows the case.
+A Strig decision answers one question: may this subject do this permission to this resource? This page takes the question apart, so you can write your first policy. Every answer on it is real output from the engine. Pick a command, and the bench shows the case.
 
 ## The question
 
@@ -143,6 +143,21 @@ The zone database is the default feature `tz` of the `strig` crate. It adds abou
 
 The catalog refuses a prerequisite that cannot be granted wherever the permission that needs it can, and it refuses a cycle.
 
+## Fields
+
+A grant can cover some fields of the resource. The catalog declares the fields a permission can be narrowed to, and a grant lists the ones it covers:
+
+```text title="Rules"
+permission document.edit on document fields title, body, status
+
+g-edit: allow role editor to document.edit on document
+g-freeze: deny role editor to document.edit on document fields status
+```
+
+Ana is an editor. Asked about `document.edit` on `title`, the answer is `allow`; on `status`, `deny`, by `g-freeze`. Asked about the whole document, the answer is `deny`, because editing the whole resource needs every field. `g-edit` has no `fields`, so it covers all of them, exactly as before. A grant that names a field the permission does not declare is refused when the policy loads, with the declared fields as the hint.
+
+[Field permissions](/docs/modeling/field-permissions) covers how fields combine with `implied_by`, `depends_on` and the strategies.
+
 ## Which grant decides
 
 Several grants can apply to one question. The strategy picks the one that decides. The default, `most_specific`, lets the grant on the closest step decide, and a `deny` beats an `allow` on the same step. An `allow` for one document and a `deny` for the whole project:
@@ -195,21 +210,49 @@ The engine reaches a verdict in four steps:
 
 `matched` lists every grant that applied, in source order, not only the one that decided.
 
+## Separation of duties
+
+Some permissions must not meet in one person. The catalog declares which, and governance refuses the change that would put them together:
+
+```text title="Rules"
+mutually-exclusive payment_duties of roles members [maker, checker] anchor org
+conflicting-actions four_eyes first [payment.create] then [payment.approve] history trail distinct_roles true
+always separation-of-duties
+```
+
+- `payment_duties`: nobody holds `maker` and `checker` in the same org.
+- `four_eyes`: whoever did `payment.create` cannot then do `payment.approve` on the same thing, judged from the audit trail.
+- `always separation-of-duties`: an invariant, so a grant that creates the clash is refused like any other escalation.
+
+A policy that declares them exports `"schema": 5`. See [Separation of duties](/docs/governance/separation-of-duties).
+
+## Reading your own writes
+
+Every accepted change gets a revision for its data scope, a text like `tenant@42`. A decision can name the revision it must not be older than:
+
+```js
+await saveGrant(grant);                       // returns the revision, 'tenant@42'
+client.requireRevision('tenant@42');          // until the grants reach it, every check denies
+```
+
+A reader behind the revision denies instead of answering from older grants. [Consistency](/docs/storage/consistency) covers the stores, the server header `x-strig-min-revision` and the `revision_not_reached` error.
+
 ## What Strig leaves to you
 
 - **Who the subject is.** Strig reads the subject you pass and decides for it. In a browser, `PermissionClient` decides locally to shape the interface, and the server still decides on every operation.
 - **Where grants live.** The engine holds configuration, and the grants arrive with each call. Governance returns the new grant set when a change passes its invariants, and you persist it. Removing expired grants from storage is a job of yours.
 - **The clock.** You supply the instant of the decision. Without it, a grant with a validity window or a time condition never allows.
-- **Anything it has no condition for.** There is no regular-expression condition. Custom condition functions and custom overrides exist only in Rust, not in the Node binding.
+- **Anything it has no condition for.** There is no regular-expression condition. Custom condition functions and overrides are code, not policy text: you register them in Rust, JavaScript or Python, and an exception in one denies.
 - **IO.** The core does no IO and needs no async runtime. Real time, transports and the HTTP server are separate crates.
 
-Three more parts of the model act on the same grants, and this page does not cover them.
+Three more parts of the model act on the same grants.
 
 | Part | What it does |
 | --- | --- |
 | Overrides | Decide before the grants: an owner, a suspended account, a maintenance window. |
-| Governance | A change to the grants is applied only if every invariant passes: no escalation, no lockout, your own rules. |
-| Audit | With the `audit` feature, each change, applied or refused, becomes a record. |
+| Governance | A change to the grants is applied only if every invariant passes: no escalation, no lockout, your own rules. [Impact](/docs/governance/impact) says who gains and who loses access first. |
+| Approvals | A change can wait for an approver, or hold for a limited time as an [elevation](/docs/governance/elevation). |
+| Audit | With the `audit` feature, each change, applied or refused, becomes a record. [Verify it](/docs/audit) without trusting the writer. |
 
 ## Next steps
 
