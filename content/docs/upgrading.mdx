@@ -226,14 +226,14 @@ match record.action { AuditAction::Apply => .., AuditAction::Check => .., _ => .
 **Before.**
 
 ```rust title="Rust"
-let req = PendingRequest { id, author, change, status, expires_at, .. };
+let req = PendingRequest { id, actor, mutation, requested_at, status, expires_at, .. };
 let AuditRecord { id, action, .. } = record;
 ```
 
 **After.**
 
 ```rust title="Rust"
-let req = PendingRequest::new(id, author, change).expiring_at(at).with_impact(impact);
+let req = PendingRequest::new(id, actor, mutation, requested_at).expiring_at(Some(at)).with_impact(impact);
 let AuditRecord { id, action, .. } = record;
 ```
 
