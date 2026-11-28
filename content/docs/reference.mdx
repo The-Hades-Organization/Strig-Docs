@@ -249,7 +249,7 @@ A field permission narrows what a subject may use inside a resource; a revision 
 
 #### `FieldSet`
 
-The fields of a resource a subject may use for a permission, as ``Engine::allowed_fields`` answers.
+The fields of a resource a subject may use for a permission, as `Engine::allowed_fields` answers.
 
 <ApiWide>
 
@@ -267,7 +267,7 @@ Why one field came out allowed or denied.
 
 #### `FieldExplanation`
 
-The per-field trace of ``Engine::explain_fields``.
+The per-field trace of `Engine::explain_fields`.
 
 #### `Revision`
 
@@ -312,7 +312,7 @@ Where revisions come from: the store that persists the changes of one data scope
 
 #### `MemoryRevisions`
 
-A ``RevisionSource`` that counts in memory, for the memory and file stores and for tests.
+A `RevisionSource` that counts in memory, for the memory and file stores and for tests.
 
 <ApiWide>
 
@@ -356,7 +356,7 @@ Proposed change to the grant set or to a subject's roles.
 
 #### `MutationKind`
 
-The kind of a ``Mutation``, without its payload.
+The kind of a `Mutation`, without its payload.
 
 <ApiWide>
 
@@ -386,7 +386,7 @@ What an invariant sees: who changes, what, and the set before and after.
 
 #### `Suggestion`
 
-Compensating change proposed with a ``Violation``.
+Compensating change proposed with a `Violation`.
 
 <ApiWide>
 
@@ -413,7 +413,7 @@ Rule that every grant or role change must respect.
 
 #### `AppliedWithImpact`
 
-A change applied together with what it does to access, from ``Governance::apply_with_impact``.
+A change applied together with what it does to access, from `Governance::apply_with_impact`.
 
 #### `Governance`
 
@@ -440,7 +440,7 @@ Applies grant and role changes only after they pass every invariant and, with th
 
 #### `GovernanceAt`
 
-``Governance`` judging every change at one instant; see ``Governance::at``.
+`Governance` judging every change at one instant; see `Governance::at`.
 
 <ApiWide>
 
@@ -507,7 +507,7 @@ Holding a permission requires holding its `depends_on` prerequisites on the same
 
 #### `NonDelegable`
 
-A permission marked ``PermissionDef::non_delegable``(crate::PermissionDef::non_delegable) is only granted by an actor who holds `manager` on the resource: having the permission is not enough to pass it on.
+A permission marked `PermissionDef::non_delegable`(crate::PermissionDef::non_delegable) is only granted by an actor who holds `manager` on the resource: having the permission is not enough to pass it on.
 
 <ApiWide>
 
@@ -519,7 +519,7 @@ A permission marked ``PermissionDef::non_delegable``(crate::PermissionDef::non_d
 
 #### `ManagementOnly`
 
-A permission marked ``PermissionDef::management_only``(crate::PermissionDef::management_only) is only granted to the management `roles`: never straight to a user, a principal or an ordinary role.
+A permission marked `PermissionDef::management_only`(crate::PermissionDef::management_only) is only granted to the management `roles`: never straight to a user, a principal or an ordinary role.
 
 <ApiWide>
 
@@ -531,7 +531,7 @@ A permission marked ``PermissionDef::management_only``(crate::PermissionDef::man
 
 #### `Bypass`
 
-Permission that exempts its holder from ``NoEscalation`` on `resource`.
+Permission that exempts its holder from `NoEscalation` on `resource`.
 
 <ApiWide>
 
@@ -634,7 +634,7 @@ The impact of a change as the audit trail keeps it: counts and a bounded list of
 
 #### `WhyNotOptions`
 
-Bounds of a ``Engine::why_not`` call.
+Bounds of a `Engine::why_not` call.
 
 <ApiWide>
 
@@ -663,7 +663,7 @@ A verified remedy.
 
 #### `Remedies`
 
-The answer of ``Engine::why_not``: what denied and what would allow.
+The answer of `Engine::why_not`: what denied and what would allow.
 
 #### More on `Engine`
 
@@ -681,7 +681,7 @@ Prefix of the name a dynamic rule has as an override (`separation:&lt;rule>`), i
 
 #### `Clash`
 
-Two members of a ``MutualExclusion`` that one subject holds in the same scope.
+Two members of a `MutualExclusion` that one subject holds in the same scope.
 
 <ApiWide>
 
@@ -693,7 +693,7 @@ Two members of a ``MutualExclusion`` that one subject holds in the same scope.
 
 #### `SeparationOfDuties`
 
-Nobody accumulates two members of a ``MutualExclusion`` of the catalog in the same scope.
+Nobody accumulates two members of a `MutualExclusion` of the catalog in the same scope.
 
 <ApiWide>
 
@@ -773,7 +773,7 @@ Where the requests are kept.
 
 #### `MemoryPendingStore`
 
-``PendingStore`` in memory.
+`PendingStore` in memory.
 
 <ApiWide>
 
@@ -802,19 +802,19 @@ What a change is judged against: the grants as they are now, the tuples, the ins
 
 #### `Proposed`
 
-The outcome of ``Approvals::propose``.
+The outcome of `Approvals::propose`.
 
 #### `Approved`
 
-A request approved and applied: the grants to persist (unchanged for a role change; the subject to write comes from ``Mutation::subject_after`` of the request) and the request as it now stands.
+A request approved and applied: the grants to persist (unchanged for a role change; the subject to write comes from `Mutation::subject_after` of the request) and the request as it now stands.
 
 #### `ImpactReview`
 
-The impact of a pending request as proposed and as it would be now, from ``Approvals::review_impact``.
+The impact of a pending request as proposed and as it would be now, from `Approvals::review_impact`.
 
 #### `Approvals`
 
-The approval flow over a ``Governance``, an ``ApprovalPolicy`` and a ``PendingStore``.
+The approval flow over a `Governance`, an `ApprovalPolicy` and a `PendingStore`.
 
 <ApiWide>
 
@@ -902,7 +902,7 @@ A request for an elevation.
 
 #### `ElevationInfo`
 
-What a ``PendingRequest`` says about the elevation it carries.
+What a `PendingRequest` says about the elevation it carries.
 
 <ApiWide>
 
@@ -930,7 +930,7 @@ An elevation taken back before its time.
 
 #### `Elevated`
 
-The outcome of ``Elevations::request``.
+The outcome of `Elevations::request`.
 
 #### `Revoked`
 
@@ -938,7 +938,7 @@ An elevation revoked and the grants to persist.
 
 #### `Elevations`
 
-The elevation flow over a ``Governance``, an ``ElevationPolicy`` and a ``PendingStore``.
+The elevation flow over a `Governance`, an `ElevationPolicy` and a `PendingStore`.
 
 <ApiWide>
 
@@ -1094,7 +1094,7 @@ What each reviewer did.
 
 #### `CampaignReport`
 
-A campaign counted by outcome and by reviewer, from ``Campaign::report``.
+A campaign counted by outcome and by reviewer, from `Campaign::report`.
 
 #### `RecertDecision`
 
@@ -1114,7 +1114,7 @@ Where the campaigns are kept.
 
 #### `MemoryRecertStore`
 
-``RecertStore`` in memory.
+`RecertStore` in memory.
 
 <ApiWide>
 
@@ -1126,7 +1126,7 @@ Where the campaigns are kept.
 
 #### `Recertifications`
 
-The recertification flow over a ``Governance`` and a ``RecertStore``.
+The recertification flow over a `Governance` and a `RecertStore`.
 
 <ApiWide>
 
@@ -1173,11 +1173,11 @@ How much of each change is recorded.
 
 #### `DecisionSummary`
 
-Summary of a decision, kept from ``AuditLevel::Standard`` upward.
+Summary of a decision, kept from `AuditLevel::Standard` upward.
 
 #### `GrantSummary`
 
-Summary of a grant, kept from ``AuditLevel::Standard`` upward.
+Summary of a grant, kept from `AuditLevel::Standard` upward.
 
 #### `RoleChange`
 
@@ -1185,11 +1185,11 @@ Recorded role assignment.
 
 #### `PendingRef`
 
-The pending request an approval-flow record is about, kept from ``AuditLevel::Standard`` upward.
+The pending request an approval-flow record is about, kept from `AuditLevel::Standard` upward.
 
 #### `RecertRef`
 
-The campaign and item a recertification record is about, kept from ``AuditLevel::Standard`` upward.
+The campaign and item a recertification record is about, kept from `AuditLevel::Standard` upward.
 
 #### `AuditRecord`
 
@@ -1448,7 +1448,7 @@ Outcome of comparing the trail with an anchor.
 
 #### `TimestampCheck`
 
-Result of verifying one time stamp, filled by the caller (see ``timestamp``).
+Result of verifying one time stamp, filled by the caller (see `timestamp`).
 
 <ApiWide>
 
@@ -1511,7 +1511,7 @@ Why a source could not be formatted.
 
 #### `Built`
 
-The policy a ``Project`` builds and where each of its elements was declared.
+The policy a `Project` builds and where each of its elements was declared.
 
 #### `Project`
 
@@ -1539,7 +1539,7 @@ The most bytes all the sources of a project may hold together.
 
 #### `MAX_FIXTURE_BYTES`
 
-The largest fixture ``DiffFixture::parse`` reads.
+The largest fixture `DiffFixture::parse` reads.
 
 #### `DiffFixture`
 
@@ -1669,7 +1669,7 @@ What an import did: what was converted, what had no faithful translation and wha
 
 #### `ImportError`
 
-An import that could not be completed: the ``Report`` holds what was converted and what was not.
+An import that could not be completed: the `Report` holds what was converted and what was not.
 
 
 ## Exclusive ownership
@@ -1725,7 +1725,7 @@ Request to own `resource` on behalf of `holder`.
 
 #### `Preemption`
 
-Whether ``ExclusiveRegistry::acquire`` may take a resource from a lower-priority holder.
+Whether `ExclusiveRegistry::acquire` may take a resource from a lower-priority holder.
 
 #### `Acquisition`
 
@@ -1741,7 +1741,7 @@ Outcome of an acquisition.
 
 #### `OwnedChange`
 
-Outcome of a change only the holder can make: ``ExclusiveStore::renew_lease`` and ``ExclusiveStore::release_lease``.
+Outcome of a change only the holder can make: `ExclusiveStore::renew_lease` and `ExclusiveStore::release_lease`.
 
 <ApiWide>
 
