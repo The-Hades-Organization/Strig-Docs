@@ -1,0 +1,87 @@
+---
+title: Testing a policy
+description: Write check and mutation cases beside the policy, run them with strig test, and gate pull requests with JUnit and a GitHub Action.
+---
+
+<VersionBadge version="0.10.0" />
+
+Tests sit beside the policy, in `*.strig-test.json` files. `examples/policy-tests/` in the repository is a project that passes:
+
+```sh title="Shell"
+cargo install strig-cli --locked
+strig test examples/policy-tests/
+```
+
+```text title="Output"
+./workspace.strig-test.json
+  PASS an admin reaches the org settings
+  PASS a member does not
+  PASS a member reads a project
+  PASS a member writes during working hours in Sao Paulo
+  PASS and not at night
+  PASS without a clock the window never allows
+  PASS someone with no role gets nothing
+  PASS an admin may grant what they hold to someone else
+  PASS a member cannot grant what they lack
+  PASS nobody promotes themselves
+
+10 passed, 0 failed, 0 errors
+```
+
+## A check case
+
+A `check` case asks one decision. This one is the second case of that file:
+
+```json title="workspace.strig-test.json"
+{
+  "kind": "check",
+  "name": "a member does not",
+  "subject": "user:bruno",
+  "permission": "org.settings",
+  "resource": { "path": [{ "kind": "org", "id": "acme" }] },
+  "expect": "deny",
+  "reason": "no_applicable_grant"
+}
+```
+
+`expect` is `allow` or `deny`. Optionally a case names the instant and the environment, the `reason`, and the deciding `grant` (the first case of the file pins `admin-settings`).
+
+## A mutation case
+
+A `mutation` case gives an actor and a change, and says whether the governance accepts or refuses it, optionally by which invariant. That is how "nobody promotes themselves" is tested against the `no_self_management` invariant.
+
+## Exit codes
+
+| Exit | Meaning |
+| --- | --- |
+| `0` | Every case passed |
+| `1` | At least one case failed |
+| `2` | Bad input |
+
+An error in the test itself (a missing fixture, a subject that does not exist) is never a pass: it is counted under `errors` and exits `2`.
+
+## In CI
+
+`--junit` writes a report that any CI reads:
+
+```sh title="Shell"
+strig test policies/ --junit test-results/strig.xml
+```
+
+The GitHub Action installs the CLI and runs it:
+
+```yaml title=".github/workflows/policy.yml"
+- uses: The-Hades-Organization/Strig/.github/actions/strig-test@v0.10.0
+  with: { path: policies, version: 0.10.0 }
+```
+
+The action also takes `diff-base`, to run [`strig diff`](/docs/tools/diff-lint) against the base of the pull request.
+
+## From code
+
+The same runner is `strig::dsl::testing` in Rust, `strig.runTests(policy, tests)` in JavaScript and `strig.dsl.run_tests(policy, tests)` in Python.
+
+## Where to go next
+
+- Find policy that never acts: [Diff and lint](/docs/tools/diff-lint).
+- See why a case came out as it did: [Inspector](/docs/tools/inspector).

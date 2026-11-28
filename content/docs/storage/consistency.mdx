@@ -1,0 +1,94 @@
+---
+title: Revisions and real time
+description: Push grant changes to every instance and client as they happen, and make a read after a write see that write.
+---
+
+<VersionBadge version="0.10.0" />
+
+A grant change has to reach every instance and every browser session. Strig does it in two parts: a `Hub` that publishes change notices, and a **revision** that lets a reader refuse to decide from state older than a write it just made.
+
+## Real time
+
+```text title="Flow"
+grant change ──► Hub::publish ──► local sessions (SSE/WebSocket) and CapabilityCache
+                      │
+                      └─► Transport (Redis, Postgres, your own) ──► Hub on the other instances
+```
+
+```rust title="Rust"
+let hub = Hub::builder()
+    .transport(RedisTransport::new("redis://127.0.0.1/", "strig:changes")?)
+    .build();
+let _relay = hub.spawn_relay();
+
+let cache = Arc::new(CapabilityCache::new(Duration::from_secs(30), 10_000));
+hub.on_change(cache.clone());
+let provider = EngineProvider::new(engine, my_grant_loader).with_cache(cache);
+let realtime = strig_axum::Realtime::new(hub).with_provider(Arc::new(provider));
+// in the routes: realtime.sse(subject, scopes) or realtime.websocket(upgrade, subject, scopes)
+```
+
+A change notice (`Change`) says what kind of change happened and on which step, without the grants. Receivers reload from their own source, so any transport can carry it.
+
+A session watches scopes, that is, anchors such as `org:acme`. With a `CapabilityProvider` it sends its client the capabilities (the permissions the subject holds) of each affected scope, and changes that arrive together are recomputed once. When the transport drops and comes back, or a client falls behind, the hub emits `Resync` and everything is reloaded.
+
+| Transport | Crate | Notes |
+| --- | --- | --- |
+| Redis | `strig-redis` | Pub/sub. Publishing reconnects on its own. See [Redis](/docs/storage/redis). |
+| Postgres | `strig-postgres` | `LISTEN/NOTIFY`. Call `strig_postgres::notify(&tx, channel, &change)` inside the transaction that writes the grant, and the notice goes out only on commit. TLS through `PgTransport::with_tls`. |
+| Your own | | Implement `Transport` (`publish` and `subscribe`). |
+
+The client protocol is JSON and identical over SSE and WebSocket. The server sends `hello`, `capabilities`, `change`, `resync`, `error` and `ping`. The client sends `watch`, `unwatch`, `refresh` and `refresh_at_least` (WebSocket only). For a web framework other than axum, forward the stream from `Session::open` and write each message with `ServerMessage::to_sse` or `to_json`.
+
+## Reading your own writes
+
+Ana removes a deny and reloads the page. The instance that answers the reload may not have seen the change yet. A revision closes that gap.
+
+Each accepted change gets a revision: an opaque text `scope@value` that only grows within a data scope (the scope names what a counter orders, for example a tenant). The store hands it out:
+
+- `Governance::with_revisions(Arc<dyn RevisionSource>)` for the memory and file stores (`MemoryRevisions`).
+- `strig_postgres::next_revision(&tx, "my_sequence", "tenant")` inside the transaction that writes the change, so the revision commits with it.
+
+```rust title="Rust"
+let applied = governance.apply_revised(&engine, &actor, &grants, &mutation, None, &Attributes::new())?;
+let revision = applied.revision.expect("a source was configured"); // "tenant@42"
+// hand it to whoever reads next: a header, a cookie, the response of the write
+
+let provider = EngineProvider::new(engine, loader)
+    .with_cache(cache)
+    .with_consistency(ConsistencyOptions::default().timeout(Duration::from_secs(1)));
+// provider.evaluate_revised(&subject, &scope, Some(&revision)) reloads, or waits for the Change, up to the timeout
+```
+
+An instance that is behind reloads, or waits for the `Change`, until the timeout. If it still has not reached the revision, it **denies with its own reason** and never decides from older state:
+
+| Reason | Meaning |
+| --- | --- |
+| `revision_not_reached` | The instance has not caught up within the timeout. |
+| `revision_scope_mismatch` | The token belongs to another data scope. |
+| `revision_untracked` | The source cannot tell its own revision. |
+| `source_unavailable` | The source could not be read. |
+
+### Over the wire
+
+- **Client protocol (version 2, additive).** `hello` carries `version`, `capabilities` carries the `revision` of the data the set was computed from, `change` carries the write's `revision`, and the client may send `refresh_at_least` with a revision. A scope that cannot be brought that far gets an `error`, never an older set. Over SSE, which has no upstream channel, the client reconnects with `?min_revision=`.
+- **Decision server.** `/v1` accepts the token in the `x-strig-min-revision` header on every route, and in the `min_revision` field of `check` and `check/batch`. A source behind it answers `503` with `revision_not_reached` (or `revision_mismatch` for another scope), and answers carry the `revision` they were made from. These refusals do not count against the client's circuit breaker. In Rust: `Client::check_at_least` and `check_batch_at_least`.
+
+### In JavaScript
+
+After a write, give the client the revision the write returned:
+
+```ts title="TypeScript"
+import { PermissionClient } from '@the-hades-organization/strig/client';
+
+const client = new PermissionClient({ /* url, scopes, engine */ minRevision: 'tenant@42' });
+
+// or after a write, on a client that is already running:
+client.requireRevision('tenant@42'); // every decision denies until the capabilities reach it
+client.behind();                     // true while it has not
+client.revision('org:acme');         // the revision of the last capabilities for that scope
+```
+
+React exposes the same state as `useStrigStatus().behind` and `useRequireRevision()`; Angular as `StrigService.status().behind` and `requireRevision()`. See [Frontend](/docs/integrations/frontend).
+
+`RemoteClient` takes `minRevision` in its options, per `check`, or per `checkBatch(requests, { minRevision })`. It sends the header and denies an answer that does not prove the revision, so a server that ignores the header cannot talk the client past it.

@@ -1,0 +1,80 @@
+---
+title: Why not?
+description: Ask what would turn a denial into an allow. Every suggestion is applied to a copy and decided again before it is returned.
+---
+
+<VersionBadge version="0.10.0" />
+
+`explain` says why a decision came out as it did. When that decision is a denial, `why_not` adds what would turn it into an `allow`: the smallest changes, smallest and most specific first. It returns nothing when the request is already allowed.
+
+## Ask
+
+```ts title="TypeScript"
+const answer = engine.whyNot(ctx, {
+  subject: { kind: 'user', id: 'bruno' },
+  permission: 'org.settings',
+  resource: scopeFromString('org:acme'),
+});
+```
+
+Bruno is a member of `org:acme`, and only admins reach the org settings. The answer, with the grant abridged:
+
+```json title="Example result"
+{
+  "cause": { "kind": "no_applicable_grant" },
+  "remedies": [
+    { "kind": "assign_role", "role": "admin", "scope": { "kind": "org", "id": "acme" }, "rank": 0, "caveats": ["affects_others"] },
+    { "kind": "add_grant", "grant": { "id": "…", "effect": "allow", "permission": "org.settings" }, "rank": 0 }
+  ]
+}
+```
+
+`cause` is what denied it. `remedies` are the changes that fix it. The shape is typed as `Remedies` in `index.d.ts`; the exact fields of each remedy differ by kind.
+
+In Rust:
+
+```rust title="Rust"
+let answer = engine.why_not(&ctx, &request, &WhyNotOptions::default()).expect("denied");
+println!("{:?}", answer.cause);
+for remedy in &answer.remedies {
+    println!("{:?} {:?}", remedy.change, remedy.caveats);
+}
+```
+
+In Python: `engine.why_not(ctx, request, now=None, options=None)`. The Wasm ABI has the `whyNot` operation, and `strig-inspect explain` prints the remedies after a denial.
+
+## Causes
+
+| Cause | Meaning |
+| --- | --- |
+| `no_applicable_grant` | Nothing allows it. |
+| `deny` | A `deny` grant decided; it names the grant, the permission and the target. |
+| `override` | An override ruled before the grants (a suspended account, for example). |
+| `unknown_permission` | The permission is not in the catalog. |
+| `override_only_permission` | The permission is `override_only`, so only an override can allow it. |
+| `missing_prerequisite` | A `depends_on` permission is missing. The cause says which, with the cause of the prerequisite, and the remedies are for the prerequisite. |
+
+## Remedies
+
+| Change | Meaning |
+| --- | --- |
+| `satisfy_condition` | An otherwise applicable `allow` has a condition that failed (`failed`, with the values the engine saw) or could not be evaluated (`unresolved`, a missing attribute for example). No value is invented: it names what has to hold. |
+| `add_grant` | An `allow` for the subject on the most specific step of the path, checked with `validate_grant`, so it respects the catalog's `targets` and `fields`. A field question asks for that field only. The grant `id` is a placeholder. |
+| `narrow_deny` | Take the asked field out of the `fields` of the `deny` that decided. |
+| `assign_role` | A role that has an applicable `allow`, scoped to the narrowest step of the path. |
+| `remove_deny` | Remove the `deny` that decided. |
+
+## What you can trust
+
+**Every remedy is verified.** The engine applies it alone to a copy of the subject or of the grants and decides the request again. Only a change that comes out as `allow` is returned, so a suggestion that would not work (a role blocked by a deny, a grant a `DenyOverrides` strategy still beats) does not appear. Nothing is written.
+
+- A denial by an **override** comes back with no remedy: no change of grants or roles undoes it. The same goes for `unknown_permission` and `override_only_permission`.
+- Each remedy carries `caveats` for the governance the catalog knows (`management_only`, `non_delegable`, `override_only`) and `affects_others` when the change edits a grant that is not the subject's own. The invariants of a `Governance` are not consulted, so the change may still be refused when you apply it.
+- Grants of other subjects are never listed: only the `deny` that decided is named, and only a role's `allow` is used to suggest that role.
+- Changes are single. A denial that needs two changes at once (an allow that is also beaten by a deny) shows the deny's removal only if that alone is enough.
+
+## Bound the work
+
+`options = { maxDecisions, maxRemedies }` caps the verifications and the list (16 remedies by default). The engine has no clock, so the bound on work is a count, as in the reverse queries; the limits of the `Context` apply by default. When either cuts the answer, `partial` is `true`: there may be more.
+
+To check a remedy against the invariants before you offer it, run it through [`impact`](/docs/governance/impact), which judges it as `apply` does.

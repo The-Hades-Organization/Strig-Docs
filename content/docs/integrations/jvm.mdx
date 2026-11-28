@@ -1,0 +1,56 @@
+---
+title: Java and Kotlin
+description: The same WebAssembly module on Chicory, pure JVM with no native code.
+---
+
+`io.github.the-hades-organization:strig` is the JVM binding: the same WebAssembly module as the [Go binding](/docs/integrations/go), run on [Chicory](https://github.com/dylibso/chicory) (pure JVM, no native code), with the same JSON `EngineSpec`. Java 17 or later; Kotlin uses the same classes.
+
+```xml title="pom.xml"
+<dependency>
+  <groupId>io.github.the-hades-organization</groupId>
+  <artifactId>strig</artifactId>
+  <version>${strig.version}</version>
+</dependency>
+```
+
+Publishing to Maven Central is not enabled yet (it needs the project's account and signing key). Until then, build the jar from the repository: `sh bindings/scripts/build-wasi.sh jvm && cd bindings/jvm && mvn verify`.
+
+## Check and decide
+
+```java title="Java"
+import io.github.thehadesorganization.strig.*;
+
+try (Engine engine = new Engine(spec);                 // spec: a Map, a record or a JsonNode
+     Context ctx = engine.newContext(Map.of("grants", grants))) {
+  ctx.addGrant(grant);
+  boolean allowed = engine.check(ctx, request);        // an exception is never an allow
+  Decision decision = engine.decide(ctx, request, Instant.now());
+  Map<String, Object> explanation = engine.explain(ctx, request);
+  List<Boolean> many = engine.checkMany(ctx, List.of(request, other));
+} catch (StrigException e) {
+  e.code();                                            // INVALID_INPUT, UNKNOWN_SUBJECT, DSL_PARSE, ...
+}
+Map<String, Object> policy = Strig.compile(text);      // the policy language, no engine needed
+```
+
+```kotlin title="Kotlin"
+Engine(spec).use { engine ->
+    engine.newContext(mapOf("grants" to grants)).use { ctx -> engine.check(ctx, request) }
+}
+```
+
+## Rules to know
+
+- **Same JSON, same codes.** `StrigException.code()` is the `errorCode` of the JavaScript binding; `diagnostics()` carries the policy-language positions.
+- **Fails closed.** `check` throws instead of returning `true` when it cannot decide. A trapped instance is discarded and every later call throws `INTERNAL`.
+- **Concurrency.** An `Engine` is safe for concurrent use with serialized calls; give each worker `engine.fork()` for parallel throughput. A `Context` belongs to its engine. Close both.
+- **Time is explicit.** Every deciding method has an overload taking an `Instant`; without one the engine fails closed on validity windows.
+
+## Not in this binding yet
+
+Callbacks (the `call` condition, overrides, invariants written in Java), the audit sink and exclusive resources.
+
+## Where to go next
+
+- Run decisions as a service instead: [Decision server](/docs/integrations/server).
+- Check the codes you will match on: [Reference](/docs/reference).

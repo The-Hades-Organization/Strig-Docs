@@ -1,0 +1,89 @@
+---
+title: Field permissions
+description: Let a grant cover some fields of a resource, ask which fields a subject may touch, and mask a response to match.
+---
+
+<VersionBadge version="0.9.0" />
+
+A grant can name the fields of the resource it covers: "`document.edit` only on `title` and `body`". A grant without fields covers the whole resource, exactly as before.
+
+## The decision, field by field
+
+An editor may change `title`, `body` and `status`, except that `status` is frozen:
+
+```rust title="Rust"
+let catalog = Catalog::builder()
+    .target_kinds(["document"])
+    .permission(PermissionDef::new("document.edit").targets(["document"]).fields(["title", "body", "status"]))
+    .build()?;
+let engine = Engine::builder(catalog).build()?;
+
+let grants = vec![
+    Grant::allow("edit", SubjectMatcher::role("editor"), "document.edit", TargetSelector::kind("document")),
+    Grant::deny("freeze", SubjectMatcher::role("editor"), "document.edit", TargetSelector::kind("document"))
+        .fields(["status"]),
+];
+let ana = Subject::user("ana").with_role("editor");
+let doc = Resource::new("document", "d1");
+let ctx = Context::new(&grants);
+
+engine.allowed_fields(&ctx, &ana, "document.edit", &doc);                          // FieldSet::Only { title, body }
+engine.check(&ctx, &Request::new(&ana, "document.edit", &doc).field("title"));      // true
+engine.check(&ctx, &Request::new(&ana, "document.edit", &doc).field("status"));     // false
+```
+
+The same in the policy language, where `fields` is a field of `permission` and of `grant` in all three syntaxes:
+
+```blocks title="Blocks"
+permission document.edit {
+  targets = [document]
+  fields = [title, body, status]
+}
+
+grant editors-freeze-status {
+  effect = deny
+  subject = role editor
+  permission = document.edit
+  target = document
+  fields = [status]
+}
+```
+
+In Rules and Actors it is `fields title, body`.
+
+## In JavaScript: mask a response
+
+`engine.allowedFields` answers which fields; `pickAllowed` keeps only those on an object before it leaves your API.
+
+```ts title="TypeScript"
+import { pickAllowed } from '@the-hades-organization/strig';
+
+const fields = engine.allowedFields(ctx, { subject, permission: 'document.edit', resource });
+// { kind: 'only', fields: ['title', 'body'] }
+
+res.json(pickAllowed(document, fields)); // title and body leave; status does not
+```
+
+`kind` is `'all'`, `'all_except'`, `'only'` or `'none'`. Pass `field` in the request to ask about one field: `engine.check(ctx, { subject, permission, resource, field: 'status' })`. In the browser, `PermissionClient.allowedFields(permission, resource)` and `can(permission, resource, field)` decide locally.
+
+## How the pieces combine
+
+- **One field is one decision.** A question about a field uses the same strategy (`MostSpecific`, `DenyOverrides`, `PermitOverrides`, `FirstApplicable`) over the grants that cover that field. A `deny` with fields takes away only those fields; an `allow` with fields gives only those. Each field is judged as if the grants that do not name it did not exist.
+- **The whole resource needs every field.** A question without a field is allowed only by a grant without fields, and a `deny` with fields blocks it as soon as the strategy would deny any of its fields. So `check` stays safe as a gate: a field-restricted `allow` never opens the resource. `allowed_fields` answers "which fields".
+- **`implied_by` carries the fields.** A grant of `document.manage` restricted to `title` gives `document.edit` on `title` only.
+- **`depends_on` is judged on the same field.** `document.edit` on `body` needs `document.view` on `body`, or on the whole resource.
+- **The catalog can declare the fields** of a permission. Then a grant that names another field is refused by `validate_grant` and by the policy validator (with the line and a hint), and a request for an undeclared field is denied. Without a declaration the engine trusts the names the grants use, and `allowed_fields` can answer `AllExcept` ("everything but `status`"), since it cannot list the rest.
+- **It fails closed.** A condition that cannot be evaluated drops an `allow` and keeps a `deny`, field by field. An override that allows gives every field.
+- **A policy without fields decides as it always did.**
+
+## See why a field was refused
+
+`Engine::explain_fields` returns, for each field, the grants that gave it and the ones that took it away. `Engine::explain` of a request with a field marks the grants that do not cover it (`FieldNotCovered`). In JavaScript: `engine.explainFields(ctx, request)`.
+
+Listings (`list`) and `who_can` answer for the whole resource: a field-restricted `allow` is left out and a field-restricted `deny` counts as a plain one.
+
+## Governance and older readers
+
+- `NoEscalation` refuses to hand out a field the actor does not hold, and a whole-resource grant to someone who holds only some fields. `CatalogConformance` validates the fields against the catalog. See [Governance](/docs/approvals).
+- A policy that uses fields exports `"schema": 4`, so a reader of an older schema refuses it instead of reading a field-restricted grant as a whole-resource one.
+- Capabilities that carry field-restricted grants are sent in two forms: `grants` for older readers (which never see a restricted `allow` and read a restricted `deny` as whole) and `withFields` with the real ones. An older client fails closed.

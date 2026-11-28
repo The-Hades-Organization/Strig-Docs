@@ -1,0 +1,157 @@
+---
+title: Migrating from Casbin / OpenFGA
+description: Convert a Casbin or OpenFGA model, read the report, prove the result decides as the old one did, and switch over.
+---
+
+A migration is done when the new policy answers the same requests as the old one, and you can show it. `strig import` converts; `strig test` proves. This guide runs both on a Casbin RBAC-with-domains model.
+
+## 1. Convert
+
+```text title="model.conf"
+[request_definition]
+r = sub, dom, obj, act
+[policy_definition]
+p = sub, dom, obj, act
+[role_definition]
+g = _, _, _
+[policy_effect]
+e = some(where (p.eft == allow))
+[matchers]
+m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act
+```
+
+```text title="policy.csv"
+p, admin, acme, data1, read
+p, admin, acme, data1, write
+g, alice, admin, acme
+```
+
+```sh title="Shell"
+strig import casbin model.conf policy.csv -o ./policy
+```
+
+```text title="Output"
+wrote policy/policy.strig
+converted:
+  2 policy lines (`p`)
+  2 grants
+  1 role assignments (`g`, as subjects)
+  1 matcher alternative(s)
+  2 permissions, one per action
+```
+
+The domain became a scope, and `alice`'s `g` line became a role assignment in `domain:acme`:
+
+```blocks title="policy/policy.strig"
+language blocks
+
+target_kinds = [domain, object]
+
+permission object.read {
+  targets = [object]
+}
+
+permission object.write {
+  targets = [object]
+}
+
+role admin {
+}
+
+subject user:alice {
+  assign admin {
+    scope = domain:acme
+  }
+}
+
+grant casbin_1 {
+  effect = allow
+  subject = role admin
+  permission = object.read
+  target = object:data1
+  scope = domain:acme
+}
+
+grant casbin_2 {
+  effect = allow
+  subject = role admin
+  permission = object.write
+  target = object:data1
+  scope = domain:acme
+}
+```
+
+## 2. Read what could not be converted
+
+A matcher with no faithful translation stops the import and writes nothing. Here is a model that uses `keyMatch2`:
+
+```text title="Output"
+converted:
+  nothing
+not converted:
+  bad.conf:8:23: `keyMatch2` has no faithful translation: conditions have no regular expressions, path parameters or globs
+  hint: only `keyMatch` (a `*` suffix) and `regexMatch` over alternations of literals are read
+```
+
+Exit is `1`. Strig never approximates a matcher into one that allows more. Rewrite the rule (a `keyMatch` with a `*` suffix, or one policy line per resource) and import again. See [Importing Casbin and OpenFGA](/docs/tools/importers) for what each source reads.
+
+## 3. Turn your old decisions into tests
+
+The old system's answers are the specification. Take a list of real requests with the answers Casbin gives, and write each as a case.
+
+```json title="policy/policy.strig-test.json"
+{
+  "name": "migrated from casbin",
+  "cases": [
+    {
+      "kind": "check",
+      "name": "alice reads data1 in acme",
+      "subject": "user:alice",
+      "permission": "object.read",
+      "resource": { "path": [{ "kind": "object", "id": "data1" }, { "kind": "domain", "id": "acme" }] },
+      "expect": "allow"
+    },
+    {
+      "kind": "check",
+      "name": "alice reads data1 in globex",
+      "subject": "user:alice",
+      "permission": "object.read",
+      "resource": { "path": [{ "kind": "object", "id": "data1" }, { "kind": "domain", "id": "globex" }] },
+      "expect": "deny"
+    }
+  ]
+}
+```
+
+```sh title="Shell"
+strig test policy/
+```
+
+Cases the old library denies and the new one allows are the ones that matter. Run them from a recorded sample of production requests if you have one.
+
+## 4. Lint, then review the diff
+
+```sh title="Shell"
+strig lint policy/
+```
+
+```text title="Output"
+0 findings (0 errors, 0 warnings, 0 info)
+```
+
+Lint finds roles nobody uses and grants that never act, which imported policies often carry. See [Diff and lint](/docs/tools/diff-lint).
+
+## 5. Switch over
+
+1. Run both engines side by side and log every disagreement. The migrated engine is the one under test; the old one still decides.
+2. When the log stays empty for a period you trust, let Strig decide. Keep the old engine logging for one more release.
+3. Move the data. For OpenFGA, tuples go to the `TupleStore`: [Postgres](/docs/storage/postgres) keeps them across instances.
+4. From now on change access through the governance, with [audit](/docs/audit) and [impact](/docs/governance/impact), rather than by editing a policy file.
+
+## OpenFGA
+
+```sh title="Shell"
+strig import openfga model.fga tuples.csv -o ./policy
+```
+
+The DSL and the JSON of the model are read, with tuples as JSON, CSV, YAML or one per line. A model or tuple that uses a condition (CEL) is an error that points at it: express the condition in Strig's [policy language](/docs/policy-language) and drop it from the model before importing.
