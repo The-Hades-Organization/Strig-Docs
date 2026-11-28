@@ -1672,6 +1672,145 @@ What an import did: what was converted, what had no faithful translation and wha
 An import that could not be completed: the ``Report`` holds what was converted and what was not.
 
 
+## Exclusive ownership
+
+Needs the `exclusive` feature. One holder per resource, with priority, preemption and a deadline. Walk-through: [Exclusive store](/docs/storage/exclusive-store).
+
+#### `DEFAULT_HOLD_PERMISSION`
+
+Permission that allows holding a resource exclusively, unless configured otherwise.
+
+#### `DEFAULT_PREEMPT_PERMISSION`
+
+Permission that allows taking a resource from a lower-priority holder, unless configured otherwise.
+
+#### `Lease`
+
+Active or expired ownership of a resource.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(resource: ObjectRef, holder: ObjectRef, priority: i64, acquired_at: u64, expires_at: u64) -> Self` |
+| `is_active` | `pub fn is_active(&self, now: u64) -> bool` |
+| `granted` | `pub fn granted(claim: &Claim, now: u64) -> Self` |
+| `renewed` | `pub fn renewed(&self, now: u64, ttl_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `Terms`
+
+Priority and duration of a claim.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(priority: i64, ttl_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `Claim`
+
+Request to own `resource` on behalf of `holder`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(resource: ObjectRef, holder: ObjectRef, terms: Terms) -> Self` |
+
+</ApiWide>
+
+#### `Preemption`
+
+Whether ``ExclusiveRegistry::acquire`` may take a resource from a lower-priority holder.
+
+#### `Acquisition`
+
+Outcome of an acquisition.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `decide` | `pub fn decide(current: Option<Lease>, claim: &Claim, now: u64, preemption: Preemption) -> Self` |
+
+</ApiWide>
+
+#### `OwnedChange`
+
+Outcome of a change only the holder can make: ``ExclusiveStore::renew_lease`` and ``ExclusiveStore::release_lease``.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `decide` | `pub fn decide(current: Option<Lease>, holder: &ObjectRef, now: u64) -> Self` |
+
+</ApiWide>
+
+#### `StoreError`
+
+Failure to read or write the lease store.
+
+#### `ExclusiveError`
+
+#### `ExclusiveStore`
+
+Persistence of the leases, one per resource.
+
+#### `MemoryExclusiveStore`
+
+Leases in memory.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+
+</ApiWide>
+
+#### `ExclusivePermissions`
+
+Names of the permissions the checked acquisition asks the engine for.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(hold: impl Into<String>, preempt: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ExclusiveRegistry`
+
+Exclusive ownership of resources over a store.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(store: S) -> Self` |
+| `with_permissions` | `pub fn with_permissions(mut self, permissions: ExclusivePermissions) -> Self` |
+| `with_max_ttl` | `pub fn with_max_ttl(mut self, max_ttl_ms: u64) -> Self` |
+| `with_audit` | `pub fn with_audit(mut self, auditor: Arc<Auditor>) -> Self` |
+| `permissions` | `pub fn permissions(&self) -> &ExclusivePermissions` |
+| `store` | `pub fn store(&self) -> &S` |
+| `validate` | `pub fn validate(&self, engine: &Engine) -> Result<(), ExclusiveError>` |
+| `holder` | `pub fn holder(&self, resource: &ObjectRef, now: u64) -> Result<Option<Lease>, ExclusiveError>` |
+| `acquire` | `pub fn acquire(&mut self, claim: &Claim, now: u64, preemption: Preemption) -> Result<Acquisition, ExclusiveError>` |
+| `acquire_checked` | `pub fn acquire_checked( &mut self, engine: &Engine, ctx: &Context<'_>, subject: &Subject, resource: &Resource, terms: Terms, now: u64) -> Result<Acquisition, ExclusiveError>` |
+| `release` | `pub fn release(&mut self, resource: &ObjectRef, holder: &ObjectRef, now: u64) -> Result<Lease, ExclusiveError>` |
+| `renew` | `pub fn renew( &mut self, resource: &ObjectRef, holder: &ObjectRef, now: u64, ttl_ms: u64) -> Result<Lease, ExclusiveError>` |
+| `renew_checked` | `pub fn renew_checked( &mut self, engine: &Engine, ctx: &Context<'_>, subject: &Subject, resource: &Resource, now: u64, ttl_ms: u64) -> Result<Lease, ExclusiveError>` |
+| `expire` | `pub fn expire(&mut self, now: u64) -> Result<Vec<Lease>, ExclusiveError>` |
+
+</ApiWide>
+
+
 ## Real time: strig-sync
 
 `strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
