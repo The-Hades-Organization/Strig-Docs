@@ -16,6 +16,52 @@ engine.check(ctx, { subject, permission: 'document.view', resource });
 engine.apply({ actor, current, mutation: { add: grant }, invariants, audit: { level: 'standard' } });
 ```
 
+## Entry points
+
+Each subpath is its own import, so a browser bundle takes only what it uses.
+
+| Import | For | Page |
+| --- | --- | --- |
+| `@the-hades-organization/strig` | the engine, `Context`, `compile`, `diff`, `lint`, the audit and Merkle verifiers | this page |
+| `.../client`, `.../react`, `.../angular` | a client that decides locally for the interface | [Frontend](/docs/integrations/frontend) |
+| `.../server`, `.../remote` | a hub that pushes changes, and the client of a decision server | [Server](/docs/integrations/server) |
+| `.../express`, `.../fastify`, `.../nestjs` | route guards | [Web frameworks](/docs/web-frameworks) |
+| `.../prisma`, `.../drizzle`, `.../kysely` | a list of allowed rows as a `where` | [ORMs](/docs/integrations/orms) |
+| `.../approvals` | approvals, elevation, recertification | [Approvals](/docs/approvals) |
+| `.../store` | grants and roles in a JSON file | [below](#grants-and-roles-in-a-json-file) |
+| `.../testing` | check that every route has a rule | [Web frameworks](/docs/web-frameworks#test-the-table) |
+| `.../types` | permission ids as a TypeScript union | [below](#catalog-types-for-the-frontend) |
+
+Every signature is in the [reference](/docs/reference#javascript-the-npm-package).
+
+## What the engine answers beyond a verdict
+
+```js
+engine.allowedFields(ctx, { subject, permission: 'document.edit', resource });
+// { kind: 'only', fields: ['title', 'body'] }
+
+engine.whyNot(ctx, { subject, permission: 'document.edit', resource });
+// the cause of the denial and what would change it, or null when it is allowed
+
+engine.impact({ actor, current: grants, mutation: { add: grant }, invariants });
+// who gains and who loses access if this change were applied; nothing is applied
+```
+
+- [Field permissions](/docs/modeling/field-permissions) for `allowedFields` and `explainFields`.
+- [Why not](/docs/governance/why-not) for `whyNot`, [Impact](/docs/governance/impact) for `impact` and `reviewImpact`.
+- `engine.elevate(input)` and the `Elevations` and `Recertifications` classes of `.../approvals` are in [Elevation](/docs/governance/elevation) and [Recertification](/docs/governance/recertification).
+
+Two functions work on policies, not on decisions. `strig.diff(before, after)` lists the decisions that change between two versions of a policy, and `strig.lint(policy)` reports findings such as a set already violated. [Diff and lint](/docs/tools/diff-lint) has the options and the CI use.
+
+After a write, hold the client back until it has seen the change:
+
+```js
+client.requireRevision('tenant@42');   // until the capabilities reach it, every decision denies
+client.behind();                       // true while it is behind
+```
+
+The audit verifiers `verifyMerkleInclusion`, `verifyMerkleConsistency` and `verifyTimestamp` run offline, on both backends: see [Audit](/docs/audit).
+
 ## Install by platform
 
 <VersionBadge version="0.7.0" kind="changed" />
