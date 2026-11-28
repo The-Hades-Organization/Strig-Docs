@@ -30,7 +30,7 @@ public/fonts/        self-hosted fonts (OFL), with their licenses
 src/pages/           routes: home, 404, /docs/*, /design-system, search API
 src/ds/              the design system: components, highlighting, tokens data
 src/styles/          tokens.css and the CSS of each area
-src/lib/             page source and the code-fence meta plugin
+src/lib/             page source, the page list, site URL and description, code-fence meta plugin
 DESIGN.md            visual rules of the site
 PRODUCT.md           audience, purpose and constraints
 ```

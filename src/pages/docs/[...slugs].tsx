@@ -1,13 +1,20 @@
 import { unstable_notFound } from 'waku/router/server';
 import { benchFor } from '../../content/bench/registry';
 import { DocPage } from '../../ds/DocPage';
+import { Seo } from '../../ds/Seo';
 import { source } from '@/lib/source';
 
 export default async function DocRoute({ slugs }: { slugs: string[] }) {
   const page = source.getPage(slugs);
   if (!page) unstable_notFound();
   return (
-    <DocPage
+    <>
+      <Seo
+        title={page.data.title}
+        description={page.data.description ?? ''}
+        path={page.url}
+      />
+      <DocPage
       tree={source.getPageTree()}
       url={page.url}
       title={page.data.title}
@@ -16,7 +23,8 @@ export default async function DocRoute({ slugs }: { slugs: string[] }) {
       Body={page.data.body}
       bench={benchFor(page.slugs)}
       withSyntaxPanel={page.slugs[0] === 'policy-language'}
-    />
+      />
+    </>
   );
 }
 
