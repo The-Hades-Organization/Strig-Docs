@@ -1971,7 +1971,7 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 ### Postgres stores
 
-`strig-postgres = "1.0"`. Every store is built from a `PgTables` and a connection URL; each has a `connect_with_tls` twin that takes a TLS connector, and `with_timeout` bounds every statement. A store that cannot reach the database returns its error type; it never answers from stale state without `is_stale` saying so.
+`strig-postgres = "1.0"`. Every store is built from a `PgTables` and a connection URL; each has a `connect_with_tls` twin that takes a TLS connector, and `with_timeout` bounds every statement.
 
 <ApiWide>
 
@@ -1983,9 +1983,9 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 | `schema_version` | `pub async fn schema_version(client: &Client, tables: &PgTables) -> Result<Option<u32>, PgQueryError>` | The version in the ledger, or `None` before the first migration. |
 | `PgStore::load` | `pub async fn load<C: GenericClient>(client: &C, tables: PgTables) -> Result<Self, PgQueryError>` | Reads grants and tuples into memory. |
 | `PgStore::reload` | `pub async fn reload<C: GenericClient>(&self, client: &C) -> Result<(), PgQueryError>` | Reads both again; `reload_grants` and `reload_tuples` read one. |
-| `PgStore::is_stale` | `pub fn is_stale(&self) -> bool` | True after a change notice arrived that the snapshot has not absorbed. |
+| `PgStore::is_stale` | `pub fn is_stale(&self) -> bool` | True when the last reload failed; cleared by the next one that succeeds. |
 | `PgStore::grants` | `pub fn grants(&self) -> PgGrants` | A `GrantSource` and `GrantIndex` over the snapshot; `tuples` gives the `TupleStore` and `TupleIndex`. |
-| `PgStore::follow` | `pub fn follow<F, Fut, E>(&self, changes: broadcast::Receiver<Change>, connect: F, retry: Duration) -> JoinHandle<()>` | Reloads when a `Change` arrives, reconnecting every `retry`. |
+| `PgStore::follow` | `pub fn follow<F, Fut, E>(&self, changes: broadcast::Receiver<Change>, connect: F, retry: Duration) -> JoinHandle<()>` | Reloads on every `Change`; a failed reload is retried every `retry` and the store reads as stale meanwhile. |
 | `PgTables::assign_role` | `pub async fn assign_role<C: GenericClient>(&self, client: &C, subject: &Subject, role: &RoleAssignment) -> Result<(), PgQueryError>` | Stores a role assignment; `revoke_role`, `roles_of` and `subject` are the siblings. |
 | `PgTables::commit_mutation` | `pub async fn commit_mutation<C: GenericClient + Sync>(&self, client: &C, channel: &str, mutation: &Mutation) -> Result<Option<Change>, PgQueryError>` | Applies a governed `Mutation` and notifies on `channel`, in one transaction under `lock_governance`. |
 | `PgPendingStore` | `connect(url: &str, tables: PgTables) -> Result<Self, PgQueryError>` | A `PendingStore` in a table; `due(now)` lists requests past their deadline. |
@@ -2002,10 +2002,10 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 | Item | Signature | What it does |
 | --- | --- | --- |
-| `new` | `pub fn new(url: &str, prefix: impl Into<String>) -> Result<Self, StoreError>` | Connects lazily; `prefix` namespaces every key. |
+| `new` | `pub fn new(url: &str, prefix: impl Into<String>) -> Result<Self, StoreError>` | Does not connect yet; fails if the URL does not parse or the prefix is empty. `prefix` namespaces every key. |
 | `from_client` | `pub fn from_client(client: Client, prefix: impl Into<String>) -> Result<Self, StoreError>` | Reuses a client you already have. |
 | `with_timeout` | `pub fn with_timeout(mut self, timeout: Duration) -> Self` | Bounds every command. |
-| `with_retention` | `pub fn with_retention(mut self, retention: Duration) -> Self` | How long a released lease stays readable. |
+| `with_retention` | `pub fn with_retention(mut self, retention: Duration) -> Self` | How long a lease that ran out stays in Redis for the sweep to find. Default one hour. |
 
 </ApiWide>
 
