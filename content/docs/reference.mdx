@@ -1969,6 +1969,46 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 `PgQueryError` is `#[non_exhaustive]` and prints English: `InvalidIdentifier`, `UnmappedAttribute`, `UnmappedKind`, `UnsupportedExpr`, `EmptyUsersetRelation`, `Residual`, `InstantOutOfRange`, `Database`, `Decode`. A listing that reads an attribute or a path kind with no column fails loudly, because reading it as "no row" would open access under a deny.
 
+### Postgres stores
+
+`strig-postgres = "1.0"`. Every store is built from a `PgTables` and a connection URL; each has a `connect_with_tls` twin that takes a TLS connector, and `with_timeout` bounds every statement. A store that cannot reach the database returns its error type; it never answers from stale state without `is_stale` saying so.
+
+<ApiWide>
+
+| Item | Signature | What it does |
+| --- | --- | --- |
+| `connect` | `pub async fn connect(url: &str) -> Result<Client, tokio_postgres::Error>` | Opens a plain connection and spawns its driver task. |
+| `migrate` | `pub async fn migrate(client: &Client) -> Result<Vec<u32>, PgQueryError>` | Brings the default tables up to `LATEST_VERSION` and returns the versions it applied. Additive and idempotent. |
+| `migrate_with` | `pub async fn migrate_with(client: &Client, tables: &PgTables) -> Result<Vec<u32>, PgQueryError>` | The same, for custom table names. |
+| `schema_version` | `pub async fn schema_version(client: &Client, tables: &PgTables) -> Result<Option<u32>, PgQueryError>` | The version in the ledger, or `None` before the first migration. |
+| `PgStore::load` | `pub async fn load<C: GenericClient>(client: &C, tables: PgTables) -> Result<Self, PgQueryError>` | Reads grants and tuples into memory. |
+| `PgStore::reload` | `pub async fn reload<C: GenericClient>(&self, client: &C) -> Result<(), PgQueryError>` | Reads both again; `reload_grants` and `reload_tuples` read one. |
+| `PgStore::is_stale` | `pub fn is_stale(&self) -> bool` | True after a change notice arrived that the snapshot has not absorbed. |
+| `PgStore::grants` | `pub fn grants(&self) -> PgGrants` | A `GrantSource` and `GrantIndex` over the snapshot; `tuples` gives the `TupleStore` and `TupleIndex`. |
+| `PgStore::follow` | `pub fn follow<F, Fut, E>(&self, changes: broadcast::Receiver<Change>, connect: F, retry: Duration) -> JoinHandle<()>` | Reloads when a `Change` arrives, reconnecting every `retry`. |
+| `PgTables::assign_role` | `pub async fn assign_role<C: GenericClient>(&self, client: &C, subject: &Subject, role: &RoleAssignment) -> Result<(), PgQueryError>` | Stores a role assignment; `revoke_role`, `roles_of` and `subject` are the siblings. |
+| `PgTables::commit_mutation` | `pub async fn commit_mutation<C: GenericClient + Sync>(&self, client: &C, channel: &str, mutation: &Mutation) -> Result<Option<Change>, PgQueryError>` | Applies a governed `Mutation` and notifies on `channel`, in one transaction under `lock_governance`. |
+| `PgPendingStore` | `connect(url: &str, tables: PgTables) -> Result<Self, PgQueryError>` | A `PendingStore` in a table; `due(now)` lists requests past their deadline. |
+| `PgRecertStore` | `connect(url: &str, tables: PgTables) -> Result<Self, PgQueryError>` | A `RecertStore` in a table. |
+| `PgExclusiveStore` | `connect(url: &str, tables: PgTables) -> Result<Self, PgQueryError>` | An `ExclusiveStore` in a table. Needs the `exclusive` feature. |
+
+</ApiWide>
+
+### Redis store
+
+`strig-redis = "1.0"` has one public type, `RedisExclusiveStore`, an `ExclusiveStore` for a resource held across processes.
+
+<ApiWide>
+
+| Item | Signature | What it does |
+| --- | --- | --- |
+| `new` | `pub fn new(url: &str, prefix: impl Into<String>) -> Result<Self, StoreError>` | Connects lazily; `prefix` namespaces every key. |
+| `from_client` | `pub fn from_client(client: Client, prefix: impl Into<String>) -> Result<Self, StoreError>` | Reuses a client you already have. |
+| `with_timeout` | `pub fn with_timeout(mut self, timeout: Duration) -> Self` | Bounds every command. |
+| `with_retention` | `pub fn with_retention(mut self, retention: Duration) -> Self` | How long a released lease stays readable. |
+
+</ApiWide>
+
 ## Decision server: strig-server
 
 `strig-server = "0.7"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
