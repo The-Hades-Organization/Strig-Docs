@@ -1475,6 +1475,203 @@ The report.
 </ApiWide>
 
 
+## Policy language and tooling
+
+Needs the `dsl` feature (`dsl-fs` adds the file store, `import` the Casbin and OpenFGA importers). The DSL schema is `DSL_SCHEMA` 5. Walk-throughs: [Policy language](/docs/policy-language), [Diff and lint](/docs/tools/diff-lint) and [Importers](/docs/tools/importers).
+
+#### `MAX_SOURCE_BYTES`
+
+The largest source accepted: input is external and unbounded.
+
+#### `DSL_SCHEMA`
+
+The version of the canonical JSON that `Policy::from_json` reads, frozen as stable from 1.0: it only grows, and a reader refuses a document newer than it.
+
+#### `Parsed`
+
+One source read and validated.
+
+#### More on `Policy`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `validate` | `pub fn validate(&self) -> Result<(), Diagnostics>` |
+
+</ApiWide>
+
+#### `ConvertError`
+
+Why a source could not be converted.
+
+#### `FormatError`
+
+Why a source could not be formatted.
+
+#### `Built`
+
+The policy a ``Project`` builds and where each of its elements was declared.
+
+#### `Project`
+
+Several sources, each in its own syntax, gathered into one policy.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `len` | `pub fn len(&self) -> usize` |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `add_source` | `pub fn add_source(&mut self, name: &str, text: &str) -> Result<Language, Diagnostics>` |
+| `build` | `pub fn build(&self) -> Result<Built, Diagnostics>` |
+
+</ApiWide>
+
+#### `MAX_SOURCES`
+
+The most sources a project takes.
+
+#### `MAX_PROJECT_BYTES`
+
+The most bytes all the sources of a project may hold together.
+
+#### `MAX_FIXTURE_BYTES`
+
+The largest fixture ``DiffFixture::parse`` reads.
+
+#### `DiffFixture`
+
+The data a diff asks its questions about, besides the two policies.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `parse` | `pub fn parse(file: &str, text: &str) -> Result<Self, DiffError>` |
+
+</ApiWide>
+
+#### `DiffError`
+
+Why a diff could not be made.
+
+#### `DiffOptions`
+
+What bounds the work of a diff.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `with_limits` | `pub fn with_limits(mut self, limits: QueryLimits) -> Self` |
+
+</ApiWide>
+
+#### `DiffSide`
+
+One version of a policy and, when it came from sources, where its elements are written.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(policy: &'a Policy) -> Self` |
+| `with_origins` | `pub fn with_origins(mut self, origins: &'a Origins) -> Self` |
+
+</ApiWide>
+
+#### `ChangeKind`
+
+Which way a decision moved.
+
+#### `Responsible`
+
+What decided on one side.
+
+#### `DecisionChange`
+
+A question whose answer differs between the two versions.
+
+#### `Universe`
+
+The questions a diff asked.
+
+#### `PolicyDiff`
+
+The decisions that differ between two versions.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `count` | `pub fn count(&self, kind: ChangeKind) -> usize` |
+
+</ApiWide>
+
+#### `Severity`
+
+How much a finding matters.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `name` | `pub const fn name(self) -> &'static str` |
+
+</ApiWide>
+
+#### `LintCode`
+
+The kinds of finding.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `code` | `pub const fn code(self) -> &'static str` |
+| `name` | `pub const fn name(self) -> &'static str` |
+| `severity` | `pub const fn severity(self) -> Severity` |
+| `parse` | `pub fn parse(text: &str) -> Option<LintCode>` |
+
+</ApiWide>
+
+#### `Finding`
+
+One thing the lint found.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `lint_code` | `pub fn lint_code(&self) -> Option<LintCode>` |
+| `position` | `pub fn position(&self) -> Option<String>` |
+
+</ApiWide>
+
+#### `LintOptions`
+
+What to leave out.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `ignoring` | `pub fn ignoring(mut self, code: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `Report`
+
+What an import did: what was converted, what had no faithful translation and what was converted with a narrower reach.
+
+#### `ImportError`
+
+An import that could not be completed: the ``Report`` holds what was converted and what was not.
+
+
 ## Real time: strig-sync
 
 `strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
