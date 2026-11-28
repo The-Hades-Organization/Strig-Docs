@@ -1,0 +1,80 @@
+---
+title: React and Angular
+description: Show and hide UI from the real-time capabilities stream, and deny whenever there are none.
+---
+
+`/react` and `/angular` put the real-time `PermissionClient` (`/client`, see [JavaScript](/docs/javascript)) behind the usual UI primitives. The decision is local, on the capabilities the stream delivers, and the answer is **deny** whenever there is none: before the first capabilities, after a disconnect, during a resync, on the server (SSR) and for a scope the grants do not cover.
+
+React 18 and 19, Angular 17+ (standalone, signals).
+
+## React
+
+```tsx title="React"
+import { PermissionClient } from '@the-hades-organization/strig/client';
+import { StrigProvider, useCan, Can, useStrigStatus } from '@the-hades-organization/strig/react';
+import type { PermissionId } from './permissions.generated';
+
+const client = new PermissionClient<PermissionId>({ url: '/strig/stream', scopes: [project], strig, engine });
+
+<StrigProvider client={client}>
+  <Can<PermissionId> permission="document.edit" resource={doc} fallback={<ReadOnly />}>
+    <Editor />
+  </Can>
+</StrigProvider>;
+
+const canEdit = useCan<PermissionId>('document.edit', doc); // re-renders when capabilities arrive
+const { connected, resyncing, error } = useStrigStatus();
+```
+
+`StrigProvider` opens the stream on mount and closes it on unmount (`connect={false}` leaves that to you), and never connects on the server. Without a provider every hook denies.
+
+## Angular
+
+```ts title="Angular"
+// app.config.ts
+import { provideStrig } from '@the-hades-organization/strig/angular';
+providers: [provideStrig(client)]; // { connect: false } to open the stream yourself
+
+// component
+import { StrigCanDirective, StrigService, strigCanActivate } from '@the-hades-organization/strig/angular';
+// template: <button *strigCan="'document.edit'; resource: doc; else readOnly">Edit</button>
+canEdit = inject(StrigService<PermissionId>).can('document.edit', this.doc); // Signal<boolean>; arguments may be signals
+
+// routes
+{ path: 'doc/:id', canActivate: [strigCanActivate<PermissionId>('document.view', (route) => resourceOf(route))] }
+```
+
+The route guard waits for the first capabilities (`waitMs`, default 5000 ms), so a deep link is not refused while the stream opens. It then decides locally. A timeout or a deny returns `false`, or whatever `onDeny` returns; `onDeny` runs in the injection context, so it can return a `UrlTree`.
+
+## Peer dependencies
+
+React and Angular are optional peers, imported statically, so your bundler resolves its own copy (a copy loaded behind its back could be a second React and break the hooks). A missing peer fails at module resolution with the loader's own error naming the package, not with `MissingPeerError` as the Express, Fastify and NestJS integrations do.
+
+The package ships Angular as partial Ivy output for the Angular linker. Vue and Svelte can follow the same way: the bridge in `client-bridge.ts` is framework-neutral and each binding is about a hundred lines.
+
+## Catalog types
+
+A permission can carry its display name and description per locale (`labels` / `descriptions`, next to `label` / `description`; in Rust `PermissionDef::localized_label("pt-BR", "Editar")`). They are optional and not declared in the policy language, only in the catalog export (JSON) or the builder.
+
+`strig-types` turns an exported catalog into one `.ts` file: the `PermissionId` union, a `PERMISSIONS` constant with the metadata, and the helpers `isPermissionId`, `permissionLabel` and `permissionDescription` (locale with fallback to the default text). The output is sorted, so it changes only when the catalog does.
+
+```sh title="Shell"
+npx strig-types catalog.json -o src/permissions.generated.ts
+```
+
+```ts title="TypeScript"
+import { generateTypes } from '@the-hades-organization/strig/types'; // same thing, as a function
+import type { PermissionId } from './permissions.generated';
+
+const engine = new strig.Engine<PermissionId>(spec); // strict: check, explain, list, whoCan... take only the ids
+const client = new PermissionClient<PermissionId>(/* ... */);
+client.can('users:read', resource); // only ids of the union compile; narrow a plain string with isPermissionId first
+```
+
+Without the type parameter, any string is accepted.
+
+## Where to go next
+
+- Field-level UI (`pickAllowed`): [Permission by field](/docs/modeling/field-permissions).
+- Building the client by hand: [JavaScript](/docs/javascript).
+- Filtering lists on the server: [Prisma, Drizzle and Kysely](/docs/integrations/orms).

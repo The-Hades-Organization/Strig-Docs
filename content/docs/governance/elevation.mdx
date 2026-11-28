@@ -1,0 +1,76 @@
+---
+title: Temporary elevation and break-glass
+description: Hold a role or a permission for a few hours, approved by someone else or taken in an emergency, and let it expire without a job.
+---
+
+<VersionBadge version="0.10.0" />
+
+Ana needs `project.edit` on `p1` for an incident. She asks for two hours, Caio approves, and the grant disappears on its own.
+
+```rust title="Rust"
+let target = ElevationTarget::permission("project.edit", TargetSelector::exact("project", "p1")).scoped(org());
+let policy = ElevationPolicy::new().with(
+    ElevationRule::new(target.key(), 4 * HOUR, "org.approve", org_resource)
+        .requiring_justification()
+        .allowing_break_glass(HOUR), // never longer than the rule's own maximum
+);
+let flow = Elevations::new(&governance, &policy, &store); // + .with_impact(&options)
+
+// Ana asks; it waits for an approver.
+let Elevated::Pending(request) = flow.request(&review, &ElevationRequest::new("e1", ana, target, 2 * HOUR).justified("incident 42"), None)? else { unreachable!() };
+// Caio approves: the window is [approval, approval + 2h), never past the maximum.
+let approved = flow.approve(&review, &caio, "e1")?; // persist approved.grants
+flow.revoke(&review, &ana, "e1", Some("done"))?;    // early, by the actor or by an approver
+```
+
+The policy lists, per role or permission, the longest window, who approves, whether a justification is required and whether break-glass is allowed. A role or permission the policy does not list is refused.
+
+## The same flow in JavaScript
+
+`Elevations` is in `@the-hades-organization/strig/approvals`. It keeps requests in a `PendingStore` that has `annotate` (`MemoryPendingStore` and `JsonFileStore.pendingStore` do).
+
+```js title="JavaScript"
+const flow = new Elevations(engine, store.pendingStore, {
+  elevation: [{ key: { permission: 'project.edit' }, maxDurationMs: 4 * HOUR, approverPermission: 'org.approve', approverResource: orgResource, requireJustification: true, breakGlass: { maxDurationMs: HOUR } }],
+  invariants,
+  audit: { level: 'forensic' },
+});
+await flow.request({ id: 'e1', actor: ana, target, durationMs: 2 * HOUR, justification: 'incident 42' }, grants);
+await flow.approve('e1', caio, grants, { persist: (r) => saveGrants(r.grants) });
+await flow.revoke('e1', ana, grants, { reason: 'done', persist: (r) => saveGrants(r.grants) });
+await flow.closeReview('e2', caio, 'legitimate use', grants); // after a break-glass
+```
+
+`engine.elevate(input)` is also in Python and in the Wasm ABI (`elevate`).
+
+## What approval does
+
+- The elevation becomes an allow grant `elevation:<id>`, or a role assignment with `valid_from` and `valid_until`. The engine drops it at the instant; nothing has to run.
+- The author never approves their own request. The invariants run again over `current`, and the impact (`with_impact`) is stored in the request, as for any change. See [Impact before apply](/docs/governance/impact).
+- A duration over the maximum, a missing justification and a target the policy does not list are refused when asked.
+- A policy tightened after the request refuses an approval that would go past the new maximum.
+
+## Break-glass
+
+`ElevationRequest::break_glass()` works only where the rule has `allowing_break_glass`, with its own, shorter maximum and a justification.
+
+- The actor approves it themselves: it is in force at once, marked `break_glass`, with a review `pending`.
+- It needs an auditor at `forensic`. Its records are written with `FailMode::Closed` whatever the call, the permission or the auditor say: if the sink fails, the elevation is denied.
+- Another actor who holds the approver permission closes the review with `close_review`, which writes an `elevation_review` record (also forensic and closed). `pending_reviews()` lists what is open. The actor cannot close their own.
+
+## Revoke, renew, list
+
+`revoke` takes the grant or the role back through the governance and keeps the `Revocation` in the request. Renewing is a new request. `Elevations::active(now)` lists what is in force.
+
+## Where it is kept
+
+The elevation is the `elevation` field of the `PendingRequest`, so the stores need no schema change. A decided request is annotated with the revocation or the review through `PendingStore::annotate`; implement it in your own store, because the default refuses. See [Approvals](/docs/approvals) for the stores.
+
+In `strig-sync`, `hub.elevation_approved(&request, now)` publishes the `Change` and schedules the expiry notice at `valid_until`; `hub.elevation_revoked(&request)` publishes the revocation.
+
+## Choices to know
+
+- Revocation is judged by the invariants as the one who revokes, so an invariant such as `NoSelfManagement` can refuse a self-revocation.
+- A request for a target the policy does not list is an attempt to escalate. It is refused with the violation `not_in_policy` and audited (`mutation_propose`, outcome `rejected`, `refusal: not_in_policy` in the metadata) at the auditor's level. A failing sink in `closed` mode turns it into an `audit` refusal.
+- A refused `revoke` on a request that is not an elevation, not approved, already revoked or already over leaves no record.
+- `annotate` runs after the grant was applied. If it fails, the grant is already gone and the request lacks the mark, so keep the grants the call returned.

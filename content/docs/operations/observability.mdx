@@ -1,0 +1,87 @@
+---
+title: Observability
+description: Turn on spans and metrics with the tracing feature, pick your own backend, and know that no label ever carries a subject or resource id.
+---
+
+Every crate has an optional `tracing` feature, off by default. It adds spans through [`tracing`](https://docs.rs/tracing) and metrics through the [`metrics`](https://docs.rs/metrics) facade. You pick the backend: Prometheus, OpenTelemetry or your own recorder.
+
+```toml title="Cargo.toml"
+strig = { version = "1", features = ["tracing"] }
+strig-server = { version = "1", features = ["tracing"] }
+```
+
+The features chain: `strig-sync/tracing` turns on `strig/tracing`; `strig-postgres/tracing` and `strig-redis/tracing` turn on `strig-sync/tracing`; `strig-server/tracing` turns on `strig/tracing`.
+
+## What it costs
+
+With the feature off, nothing is compiled in. With it on and no subscriber or recorder installed, a decision costs about 110 ns more:
+
+| `decide/simple` | Time |
+| --- | --- |
+| Before the feature existed | 517 ns |
+| Feature off | 518 ns |
+| Feature on, nothing installed | 630 ns |
+
+The bigger operations are within noise. The core still does no IO and still compiles to WebAssembly with and without the feature; there, the decision latency histogram is not recorded, because `std::time::Instant` is not available on `wasm32-unknown-unknown`. The JavaScript binding is not instrumented.
+
+## Export over OpenTelemetry
+
+`crates/strig-server/examples/otlp.rs` exports spans and metrics over OTLP/HTTP with `tracing-opentelemetry` and `metrics-exporter-opentelemetry`:
+
+```text title="Terminal"
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+  cargo run -p strig-server --features tracing --example otlp
+```
+
+Point the endpoint at your collector. Decision and query spans are `debug`; the rest are `info`, so set the filter to see them. Events (a dropped audit record, a lost `LISTEN` connection, a breaker changing phase) go out at `warn` or `info`.
+
+## No personal data
+
+A metric label is one of: operation, permission (only a permission the catalog knows; anything else is `unknown`), effect, reason kind, invariant name, step, outcome, status, change kind, transport name, route, error code, breaker phase. Never a subject id, a resource id, an attribute or a request body. Spans carry the same fields.
+
+Tests in each crate run a scenario with recognizable ids and fail if one shows up in a label or a span. An invariant you write labels the metric with the name you gave it, so keep that name a constant.
+
+A decision made by a custom invariant or override while governance judges a change belongs to that change. Only the outermost operation on a thread feeds the metrics, so `strig_decisions_total` counts what your application asked for. Spans nest either way.
+
+## Metrics
+
+| Metric | Type | Labels |
+| --- | --- | --- |
+| `strig_decisions_total` | counter | `operation` (`decide`, `explain`), `effect`, `reason`, `permission` |
+| `strig_decision_duration_seconds` | histogram | `operation` |
+| `strig_query_duration_seconds` | histogram | `operation` (`list`, `who_can`, `who_can_on`) |
+| `strig_mutations_total` | counter | `outcome` (`applied`, `refused`) |
+| `strig_mutation_violations_total` | counter | `invariant` |
+| `strig_approvals_total` | counter | `step` (`propose`, `approve`, `reject`, `expire`), `outcome` |
+| `strig_audit_writes_total` | counter | `status` (`written`, `pending`, `dropped`, `refused`) |
+| `strig_audit_pending` | gauge | none. Depth of the retry queue. |
+| `strig_audit_write_failures_total` | counter | none |
+| `strig_audit_dropped_total` | counter | none |
+| `strig_sync_changes_total` | counter | `kind`, `direction` (`published`, `received`) |
+| `strig_sync_publish_errors_total` | counter | `transport` |
+| `strig_sync_sessions_open` / `strig_sync_sessions_opened_total` | gauge / counter | none |
+| `strig_sync_resyncs_total` | counter | `reason` (`reconnect`, `lagged`, `notice`) |
+| `strig_sync_transport_reconnects_total` | counter | `transport` |
+| `strig_sync_transport_failures_total` | counter | `transport`, `stage` (`subscribe`, `stream`) |
+| `strig_server_requests_total` | counter | `route`, `status` |
+| `strig_server_request_duration_seconds` | histogram | `route` |
+| `strig_server_errors_total` | counter | `code` |
+| `strig_client_calls_total` | counter | `route`, `outcome` |
+| `strig_client_call_duration_seconds` | histogram | `route` |
+| `strig_client_breaker_transitions_total` | counter | `to` (`closed`, `half_open`, `open`) |
+| `strig_client_breaker_state` | gauge | none. `0` closed, `1` half open, `2` open. |
+
+Two worth an alert: `strig_audit_pending` growing means the audit sink is failing and records are queuing, and `strig_client_breaker_state` at `2` means a client has stopped calling a decision server that keeps failing.
+
+## Spans
+
+| Span | Where | Fields |
+| --- | --- | --- |
+| `strig.decision` | `decide`, `check`, `explain` | `operation`, `permission`, `effect`, `reason` |
+| `strig.query` | `list`, `who_can`, `who_can_on` | `operation`, `permission`, `kind` |
+| `strig.governance.apply` | `Governance::apply` and `GovernanceAt` | `outcome` |
+| `strig.approval` | `propose`, `approve`, `reject`, `expire_due` | `step`, `outcome` |
+| `strig.audit.write` | each audit record sent to the sink | `mode` |
+| `strig.sync.publish`, `strig.sync.relay`, `strig.sync.session` | hub publish, transport relay, one client session | `transport` on publish |
+| `strig.postgres.publish`, `strig.postgres.subscribe`, `strig.postgres.store.load`, `strig.postgres.store.reload`, `strig.postgres.store.commit_mutation`, `strig.redis.publish`, `strig.redis.subscribe` | the transports | none |
+| `strig.server.request`, `strig.client.call` | the decision server and its client | `route`, `status` or `outcome` |

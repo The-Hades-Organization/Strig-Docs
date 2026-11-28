@@ -1,0 +1,96 @@
+---
+title: Separation of duties
+description: Declare what nobody may accumulate and what nobody may do twice on the same resource, and have the engine and the governance enforce it.
+---
+
+<VersionBadge version="0.10.0" />
+
+Whoever creates a payment does not approve it, and nobody is both `maker` and `checker` in the same org. Both rules live in the catalog.
+
+```rust title="Rust"
+let catalog = Catalog::builder()
+    .target_kinds(["org", "payment"])
+    .permission(PermissionDef::new("payment.create").targets(["payment"]))
+    .permission(PermissionDef::new("payment.approve").targets(["payment"]))
+    // static: nobody holds both roles inside the same org
+    .mutually_exclusive(MutualExclusion::new("payment_duties", ExclusiveKind::Roles, ["maker", "checker"]).per_anchor("org"))
+    // dynamic: whoever created a payment does not approve it
+    .conflicting_actions(ActionConflict::new("four_eyes", ["payment.create"], ["payment.approve"]))
+    .build()?;
+let governance = Governance::new().with(SeparationOfDuties::new());
+```
+
+## Static: what nobody holds together
+
+A `mutually_exclusive` set lists roles or permissions, with a name and a scope: global, or `per_anchor("org")` to clash only inside the same anchor.
+
+The `SeparationOfDuties` invariant refuses a change that would create an accumulation that did not exist. It sees every way a member is reached: a direct role, an inherited one (`RoleGraph`), a grant or a temporary elevation. The `Violation` names the set and both sides.
+
+- Removing and revoking never create a clash, so a set that is already violated can always be repaired. A `deny` is never read as taking a member away.
+- `with_subjects` adds subjects whose holdings an added grant is also judged against.
+- `Impact` lists the clashes a change would create in `separation`, whether or not the invariant is on. See [Impact before apply](/docs/governance/impact).
+- `strig lint` reports the sets already violated (`L009`). See [Diff and lint](/docs/tools/diff-lint).
+
+## Dynamic: what nobody does twice
+
+A `conflicting_actions` rule says that whoever did a `first` action on a resource does not do a `then` action on it. The engine evaluates it on every decision, before the overrides, with no IO.
+
+The history is an attribute of the resource (`history` by default, or the one the rule names) or of `env`: a list of `"<permission>:<actor>"` entries.
+
+```json title="resource attributes"
+{ "history": ["payment.create:ana"] }
+```
+
+Ana asks for `payment.approve` on that resource and the denial reads `Reason::Override`, named `separation:four_eyes`.
+
+- With `distinct_roles`, an entry also carries the roles the author acted with (`"payment.create:ana|maker"`), and a subject who holds one of them is refused too.
+- An entry with no roles refuses, and so does a history that cannot be read: the rule fails closed.
+- A listing or a reverse query never lets the rule open anything. For a permission in `then` the answer stays a residue.
+
+## In an approval flow
+
+`Approvals::with_distinct_roles()` also refuses an approver who shares a role with the author, on top of the rule that the author never approves their own request. See [Approvals](/docs/approvals).
+
+## In the policy language
+
+It is `mutually_exclusive` and `conflicting_actions` in the catalog and the `separation_of_duties` invariant. A policy that uses them exports `"schema": 5`. See the [policy language](/docs/policy-language).
+
+## Other catalog rules
+
+Some rules belong to one permission, so they sit on its `PermissionDef`:
+
+| Flag | Effect |
+| --- | --- |
+| `depends_on` | Holding the permission requires holding each listed one on the same resource (checked by `Prerequisites`). |
+| `non_delegable` | Only a manager hands it out, not whoever merely holds it. |
+| `management_only` | Grantable only to management roles. |
+| `override_only` | Valid only through an override; a plain grant of it does not count. |
+
+`NoEscalation` keeps an actor from handing out what they do not hold. An `allow` grant or a role assignment is refused unless the actor holds every permission it confers and every permission those imply, wherever it would apply. Holding `org.roles.edit` is not a way to give someone a stronger role than your own.
+
+```rust title="Rust"
+let catalog = Catalog::builder()
+    .target_kind("project")
+    .permission(PermissionDef::new("project.view").targets(["project"]))
+    .permission(PermissionDef::new("project.edit").targets(["project"]).depends_on(["project.view"]))
+    .permission(PermissionDef::new("project.share").targets(["project"]).non_delegable())
+    .permission(PermissionDef::new("project.purge").targets(["project"]).override_only())
+    .build()?;
+let engine = Engine::builder(catalog).build()?;
+
+let governance = Governance::new()
+    .with(CatalogConformance)
+    .with(Prerequisites)
+    .with(NoEscalation::new());
+
+// `lead` holds `project.edit` only, so handing out `project.view` is an escalation.
+let current = vec![Grant::allow("l", SubjectMatcher::user("lead"), "project.edit", TargetSelector::kind("project"))];
+let handout = Mutation::Add(Grant::allow("a", SubjectMatcher::user("ana"), "project.view", TargetSelector::kind("project")));
+let refused = governance.apply(&engine, &Subject::user("lead"), &current, &handout, None).unwrap_err();
+assert_eq!(refused[0].invariant, "no_escalation");
+```
+
+Two more tools:
+
+- **Lockout reserve.** `NoLockout::with_reserve` names who should take over a critical permission. When a change would leave it with no holder, the `Violation` carries a `Suggestion` with the role assignment that fixes it. Nothing is applied; the suggestion is also written to the audit record.
+- **Role templates.** `RoleTemplate::materialize` turns a template into ordinary grants. The template id and version go into the change metadata; the grants keep no link to the template.

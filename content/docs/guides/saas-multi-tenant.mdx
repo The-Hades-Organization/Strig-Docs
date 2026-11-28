@@ -1,0 +1,189 @@
+---
+title: A multi-tenant SaaS
+description: Isolate tenants with one policy, filter lists in the database, keep grants in Postgres, audit every change and test the isolation in CI.
+---
+
+A tenant is an `org`. Its members read and write its projects, its admins manage its members, and nobody reaches into another org. This guide builds that, from the policy to the pipeline.
+
+## 1. Model: the org is the anchor
+
+Every project lives under an org, so a resource path is `project:p1 → org:acme`. A role assigned with `scope = org:acme` holds only inside that org. That one line is the tenant boundary.
+
+```blocks title="policies/saas.strig"
+language blocks
+
+target_kinds = [org, project]
+
+permission project.read {
+  targets = [project]
+}
+
+permission project.write {
+  targets = [project]
+  depends_on = [project.read]
+}
+
+permission org.members.manage {
+  targets = [org]
+}
+
+role member {
+}
+
+role admin {
+  inherits = [member]
+}
+
+subject user:ana {
+  assign admin {
+    scope = org:acme
+  }
+}
+
+subject user:bruno {
+  assign member {
+    scope = org:acme
+  }
+}
+
+subject user:dora {
+  assign admin {
+    scope = org:globex
+  }
+}
+
+grant member-reads {
+  effect = allow
+  subject = role member
+  permission = project.read
+  target = project
+}
+
+grant member-writes {
+  effect = allow
+  subject = role member
+  permission = project.write
+  target = project
+}
+
+grant admin-manages-members {
+  effect = allow
+  subject = role admin
+  permission = org.members.manage
+  target = org
+}
+
+invariant no_self_management {
+}
+
+invariant no_escalation {
+}
+```
+
+The `subject` blocks are seed data for this example. In production the assignments live in the store (step 4).
+
+`no_escalation` keeps an admin from handing out more than they hold; `no_self_management` keeps anyone from changing their own access. See [Separation of duties](/docs/governance/separation-of-duties) for the rest of the catalog rules.
+
+## 2. Test the isolation before anything else
+
+The cases that matter most for a tenant are the ones that must deny.
+
+```json title="policies/saas.strig-test.json"
+{
+  "name": "saas policy",
+  "cases": [
+    {
+      "kind": "check",
+      "name": "the same member gets nothing in globex",
+      "subject": "user:bruno",
+      "permission": "project.read",
+      "resource": { "path": [{ "kind": "project", "id": "g1" }, { "kind": "org", "id": "globex" }] },
+      "expect": "deny",
+      "reason": "no_applicable_grant"
+    },
+    {
+      "kind": "check",
+      "name": "an admin of globex does not manage acme",
+      "subject": "user:dora",
+      "permission": "org.members.manage",
+      "resource": { "path": [{ "kind": "org", "id": "acme" }] },
+      "expect": "deny",
+      "reason": "no_applicable_grant"
+    }
+  ]
+}
+```
+
+```sh title="Shell"
+strig test policies/
+```
+
+```text title="Output"
+./saas.strig-test.json
+  PASS a member of acme reads an acme project
+  PASS the same member gets nothing in globex
+  PASS an admin of globex does not manage acme
+  PASS an admin of acme manages acme
+  PASS an admin cannot promote themselves further
+
+5 passed, 0 failed, 0 errors
+```
+
+The file above shows the two cases that must deny; the run also covers the two allows and a refused promotion. See [Testing a policy](/docs/tools/testing).
+
+## 3. Where decisions run
+
+Two decisions happen in a SaaS, and they run in different places.
+
+- **One resource** (open project `p1`): `engine.check` in the API process, from the user's roles and the resource path.
+- **A list** (all projects I can see): `engine.list` returns a filter, and your ORM runs it, so the database returns only the rows that may be allowed.
+
+```ts title="TypeScript"
+import { toWhere } from '@the-hades-organization/strig/prisma';
+
+const result = engine.list(ctx, subject, 'project.read', 'project', { layout: ['project', 'org'] });
+const { where, residual } = toWhere(result, { kind: 'project', id: 'id', paths: { org: 'orgId' } });
+const projects = await prisma.project.findMany({ where });
+```
+
+Because the role is scoped to `org:acme`, the `where` carries `orgId = 'acme'` for Bruno. A `residual` means the database could not settle some condition: check those rows with `engine.check`. See [Prisma, Drizzle and Kysely](/docs/integrations/orms).
+
+The UI follows the same decisions: [`<Can>` and `useCan`](/docs/integrations/frontend) deny until the capabilities arrive.
+
+## 4. Store: Postgres, written with its notice
+
+Keep grants, tuples and role assignments in Postgres so every API instance reads the same data. Apply a governed change and notify the other instances in one transaction, so the notice leaves if, and only if, the change commits.
+
+```rust title="Rust"
+let tx = client.transaction().await?;
+lock_governance(&tx).await?;
+let current = all_grants(&tx).await?;
+let actor = tables.subject(&tx, "user", "ana").await?;
+
+let next = governance.apply(&engine, &actor, &current, &mutation, None)?;
+commit_mutation(&tx, "strig:changes", &mutation).await?;
+tx.commit().await?;
+```
+
+Put `is_stale()` in the readiness probe. See [Postgres](/docs/storage/postgres) and, for reading your own writes right after a change, [Revisions and real time](/docs/storage/consistency).
+
+## 5. Audit
+
+Every call to `governance.apply` can write an audit record: who changed what, and with what outcome. For a SaaS that answers customer security questionnaires, use `forensic` and keep the chain. See [Audit](/docs/audit).
+
+## 6. Deploy
+
+- **Policy in CI.** `strig test policies/` and `strig lint policies/` on every pull request; the [GitHub Action](/docs/tools/testing#in-ci) runs both with a `diff-base` so a change that widens access shows up in the review.
+- **Observability.** Turn on `tracing` to get a span per decision and per change. See [Observability](/docs/operations/observability).
+- **Recertify.** Run a [campaign](/docs/governance/recertification) each quarter over the admin role.
+- **Support access.** Give support staff a time-boxed [elevation](/docs/governance/elevation) instead of a standing role.
+
+## What you built
+
+| Concern | Where it lives |
+| --- | --- |
+| Tenant boundary | `scope = org:<id>` on the role assignment |
+| Who reads a list | `engine.list` and the ORM filter |
+| Who changes access | `governance.apply` with `no_escalation` and `no_self_management` |
+| Data | Postgres, committed with its notice |
+| Proof | Audit records and the policy tests |

@@ -1,0 +1,121 @@
+---
+title: A public API
+description: Put the decision at the gateway with Envoy ext_authz, give API keys roles scoped to an account, and fail closed when the decision service is down.
+---
+
+A public API has one question at the edge: may this key do this method on this path? This guide answers it at the gateway, so no service has to remember to ask.
+
+## 1. Model: keys are subjects, roles are scoped to an account
+
+An API key is a `user` subject whose id is the key id. Its role is assigned with the account as scope, so a key of `acme` reads only documents under `acme`.
+
+```blocks title="policies/api.strig"
+language blocks
+
+target_kinds = [account, document]
+
+permission document.view {
+  targets = [document]
+}
+
+permission document.edit {
+  targets = [document]
+  depends_on = [document.view]
+}
+
+role reader {
+}
+
+role editor {
+  inherits = [reader]
+}
+
+grant reader-views {
+  effect = allow
+  subject = role reader
+  permission = document.view
+  target = document
+}
+
+grant editor-edits {
+  effect = allow
+  subject = role editor
+  permission = document.edit
+  target = document
+}
+
+invariant no_escalation {
+}
+```
+
+A key is created by assigning it a role through the governance, so `no_escalation` stops a key manager from minting a key stronger than their own.
+
+## 2. Test the keys
+
+The fixture gives two keys: `key_r1` is a `reader` of `account:acme`, and `key_none` has no role.
+
+```json title="policies/api.fixture.json"
+{
+  "subjects": [
+    { "kind": "user", "id": "key_r1", "roles": [{ "role": "reader", "scope": { "kind": "account", "id": "acme" } }] },
+    { "kind": "user", "id": "key_none" }
+  ]
+}
+```
+
+```sh title="Shell"
+strig test policies/
+```
+
+```text title="Output"
+./api.strig-test.json
+  PASS a reader key views a document
+  PASS a reader key cannot edit
+  PASS a key with no role gets nothing
+
+3 passed, 0 failed, 0 errors
+```
+
+See [Testing a policy](/docs/tools/testing).
+
+## 3. Where decisions run: at the gateway
+
+Run the [decision server](/docs/integrations/server) with the `envoy` feature. Envoy asks it before it forwards each request, so the services behind it receive only requests that were allowed.
+
+```rust title="Rust"
+let envoy = EnvoyConfig::default()
+    .with_subject_header("x-api-key-id")?
+    .with_route("GET", "/healthz", RouteRule::public())?
+    .with_route(
+        "GET,HEAD",
+        "/documents/{id}",
+        RouteRule::require("document.view", ResourceTemplate::new("document", "{id}")),
+    )?
+    .with_route(
+        "PUT,PATCH",
+        "/documents/{id}",
+        RouteRule::require("document.edit", ResourceTemplate::new("document", "{id}")),
+    )?;
+let service = DecisionServer::new(source).envoy_service(envoy);
+service.serve(TcpListener::bind("127.0.0.1:9191").await?, shutdown).await?;
+```
+
+- The subject header must be set by an earlier filter that verified the key, never copied from the client.
+- A path no rule covers is a `403`. So is a missing subject, a source that is down and a deadline that passed.
+- A path with dot segments or encoded separators matches nothing, so `/documents/../admin` cannot borrow another rule.
+
+Services that are not behind Envoy, or partners that speak the standard, can call `/v1/check` or the [AuthZEN](/docs/integrations/server#authzen) routes on the same server.
+
+## 4. Store: one source for every replica
+
+The server reads grants from a `DecisionSource`. For one replica, `MemorySource` is enough; for several, load a `PgStore` snapshot and let each replica follow changes. See [Postgres](/docs/storage/postgres). Put the server's `/health/ready` in the gateway's health check.
+
+## 5. Audit
+
+Log the decisions that matter to your customers: key creation and role changes, with `detailed` records and `redact` for fields such as `ip`. See [Audit](/docs/audit) and, to verify a chain later, the inspector's Audit tab ([Inspector](/docs/tools/inspector)).
+
+## 6. Deploy and watch
+
+- **Timeouts.** The client's default fails closed on a timeout; set it from your latency budget (the example in the server page uses 250 ms), and keep the circuit breaker on.
+- **Tracing.** Turn on `tracing` for a span per decision. See [Observability](/docs/operations/observability).
+- **Policy changes.** `strig diff` in the pull request shows who gains access before the change ships. See [Diff and lint](/docs/tools/diff-lint).

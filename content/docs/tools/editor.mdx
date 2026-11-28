@@ -1,0 +1,43 @@
+---
+title: Language server and VS Code
+description: Diagnostics, formatting, completion, hover and go to definition for .strig files.
+---
+
+`strig-lsp` is a language server for `.strig` files, and `editors/vscode` is the VS Code extension that uses it. Both read the project the way [`strig test`](/docs/tools/testing) does: every `*.strig` file in the directory of the open file is one policy, in any mix of the three syntaxes, and every `*.strig-test.json` beside it is a test file. Unsaved buffers count.
+
+## Install
+
+```sh title="Shell"
+cargo install --git https://github.com/The-Hades-Organization/Strig strig-lsp --locked   # the server
+cargo install strig-cli --locked                                                            # `strig test`, for the command below
+```
+
+The extension finds `strig-lsp` and `strig` on `PATH`, or at the settings `strig.server.path` and `strig.cli.path`, and says how to install them when they are missing.
+
+To build the extension from the repository:
+
+```sh title="Shell"
+cd editors/vscode && npm ci && npm test && npx vsce package
+```
+
+Publishing it to the Marketplace and Open VSX is not set up yet.
+
+## What it gives you
+
+- **Diagnostics while you type**, with the position and the hint of the validator. They include clashes between files (the other side is a related location) and the errors of a `*.strig-test.json`.
+- **Format document**, the same layout as `strig::dsl::format`. A source that does not compile is left alone.
+- **Completion** of permission ids, kinds, roles, subjects and condition operators from the project, narrowed by the line (`depends_on = [`, `inherits `, `when = ...`).
+- **Hover** on a permission, with its targets, `implied_by`, `depends_on`, fields and labels per locale; and on a role or a kind.
+- **Go to definition** of a permission, role, grant or subject, across files.
+- **Code action** "Convert to rules/actors/blocks syntax" for the whole file.
+
+The command "Strig: Run policy tests" runs `strig test .` in the folder of the open file.
+
+## Other editors
+
+Any editor that speaks LSP can run `strig-lsp` directly. It talks over stdio and takes no arguments.
+
+## Where to go next
+
+- Check a change before review: [Diff and lint](/docs/tools/diff-lint).
+- The syntaxes the server reads: [Policy language](/docs/policy-language).

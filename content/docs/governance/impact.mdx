@@ -1,0 +1,71 @@
+---
+title: Impact before apply
+description: See who gains and who loses access from a change before you apply it, and show the approver both the proposed and the current impact.
+---
+
+<VersionBadge version="0.10.0" />
+
+`Governance::apply` says whether a change passes the invariants. It does not say what the change does to access. `impact` answers that without applying anything: it judges the change as `apply` does (a refused change returns its violations), then asks the same questions over the grants before and after.
+
+## Ask what a change does
+
+```ts title="TypeScript"
+const preview = engine.impact({
+  actor: ana,
+  current: grants,
+  mutation: { add: grant },
+  impact: { source: { kind: 'sample', subjects: [bob], resources: [project] } },
+});
+
+if (preview.ok) {
+  console.log(preview.impact.gained);        // AccessChange[]: who gains, which permission, on which resource
+  console.log(preview.impact.lost);
+  console.log(preview.impact.indeterminate);
+  console.log(preview.impact.partial);
+}
+```
+
+`preview.ok` is `false` when the invariants refuse the change, with `violations`. An entry of `gained` has this shape:
+
+```json title="AccessChange"
+{ "subject": "user:bob", "permission": "project.edit", "resource": { "path": [{ "kind": "project", "id": "p1" }] }, "before": "denied", "after": "allowed" }
+```
+
+`subject` reads `user:bob`, `role:editor` or `anyone`; `before` and `after` are `allowed`, `denied` or `indeterminate`.
+
+In Rust:
+
+```rust title="Rust"
+let options = ImpactOptions::new(ImpactSource::sample(
+    SampleSpec::new().subject(bob).resource(project),
+)); // or ImpactSource::derived()
+let impact = governance.impact(&engine, &ana, &current, &Mutation::Add(grant), &options)?;
+for change in &impact.gained { /* change.subject, change.permission, change.resource */ }
+```
+
+## Where the questions come from
+
+| Source | What it asks |
+| --- | --- |
+| **Sample** (`kind: 'sample'`) | Yours: subjects × resources × permissions (and fields). Leave resources or permissions empty and they are the ones the change reaches and touches. |
+| **Derived** (`ImpactSource::derived()`) | The reverse queries (`who_can_on`, `list`, `access_of`), restricted to the permissions the change touches, plus the ones that imply them (`implied_by`) and the ones that depend on them (`depends_on`). |
+
+A deny that cuts, an override and a field count as they do in `check`. `ImpactOptions` takes the tuples, the `env`, the `QueryLimits` and an instant.
+
+## Read the answer carefully
+
+- **`partial` is `true` when a limit cut the work**, and `notes` says which limit. Absence from the list is then not proof.
+- **`indeterminate` holds what could not be settled**: a condition or an override that cannot be evaluated. It never counts as a gain. A change is a gain only when the answer was a certain deny and is now an allow.
+- **`separation`** lists the separation-of-duties clashes the change would create, whether or not the invariant is on. See [Separation of duties](/docs/governance/separation-of-duties).
+
+## Apply and keep the impact
+
+- `Governance::apply_with_impact` applies the change and returns the grants with the impact. With an auditor at `detailed` or `forensic`, the audit record carries `impact`: counts and up to 10 examples. See the [audit format](/docs/audit).
+- `Approvals::with_impact(&options)` stores the impact in the pending request when it is proposed. When the approver decides, `approve` recomputes it over the grants of that moment, and `Approved::proposed_impact` keeps the first one.
+- `review_impact` shows the approver both impacts and whether they differ, before they decide:
+
+```ts title="TypeScript"
+const review = await flow.reviewImpact('req-1', grants);
+```
+
+The JSON store keeps the request whole, so existing stores open unchanged. In Python it is `engine.impact` and `engine.review_impact`; in Go and the JVM, `Impact` and `ReviewImpact`.

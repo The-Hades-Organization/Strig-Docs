@@ -1,0 +1,42 @@
+---
+title: Redis
+description: Carry change notices between instances over Redis pub/sub, and share exclusive leases with WATCH/MULTI/EXEC.
+---
+
+`strig-redis` does two jobs: it is a `Transport` that tells every instance a grant changed, and it is a store for [exclusive leases](/docs/storage/exclusive-store). It does not store grants; for that use [Postgres](/docs/storage/postgres) or your own `GrantSource`.
+
+## Tell the other instances
+
+```rust title="Rust"
+let hub = Hub::builder()
+    .transport(RedisTransport::new("redis://127.0.0.1/", "strig:changes")?)
+    .build();
+let _relay = hub.spawn_relay();
+
+let cache = Arc::new(CapabilityCache::new(Duration::from_secs(30), 10_000));
+hub.on_change(cache.clone());
+```
+
+When an instance calls `hub.publish(change)`, the notice goes to the `strig:changes` channel. The hub of every other instance receives it and clears the cache entries it covers. A `Change` says what kind of change happened and on which step, never the grants: receivers reload from their own source.
+
+Publishing reconnects on its own. If the subscription drops and comes back, or a client falls behind, the hub emits `Resync` and everything is reloaded.
+
+## Share a lease
+
+```rust title="Rust"
+let mut registry = ExclusiveRegistry::new(
+    RedisExclusiveStore::new("redis://127.0.0.1/", "strig:exclusive")?,
+);
+```
+
+Every instance that shares the resource uses the same prefix. Acquire, renew, release and the sweep each run as one atomic `WATCH`/`MULTI`/`EXEC` step. The semantics are in [Exclusive resources](/docs/storage/exclusive-store).
+
+## What to plan for
+
+| Piece | Behavior |
+| --- | --- |
+| Lease key expiry | Redis expiry only reclaims memory, after the lease lifetime plus a retention (one hour by default). Whether a lease is active is decided with the `now` you pass, never the Redis clock. |
+| Connection | The synchronous connection of the `redis` crate, with timeouts. A timeout or a lost connection is a `StoreError`, and the call fails closed. |
+| Blocking | Each call blocks for one round trip. Use `spawn_blocking` inside an async task. |
+
+For NATS, Kafka or any other broker, implement `Transport` (`publish` and `subscribe`).

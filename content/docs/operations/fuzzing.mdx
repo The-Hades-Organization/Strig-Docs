@@ -1,0 +1,46 @@
+---
+title: Fuzzing
+description: The fuzz targets that run on engine changes and every night, what they cover, and how to reproduce a crash.
+---
+
+`fuzz/` holds [`cargo-fuzz`](https://rust-fuzz.github.io/book/cargo-fuzz.html) (libFuzzer) targets, kept outside the default workspace. They feed random bytes to the parts of Strig that read input you do not control.
+
+## What is covered
+
+| Target | Covers | Property checked |
+| --- | --- | --- |
+| `dsl_parse` | The policy-language parser | Arbitrary text. |
+| `dsl_format` | The policy formatter | Idempotent: formatting twice gives what formatting once gives. |
+| `dsl_convert` | Conversion between Blocks, Rules and Actors | Round trip between the three syntaxes. |
+| `spec_json` | `EngineSpec` JSON | Arbitrary JSON. |
+| `condition_eval` | Condition evaluation | Arbitrary conditions and values. |
+| `decide` | Decisions | Never an allow without a candidate grant. |
+| `sync_protocol` | Real-time protocol messages | Arbitrary messages. |
+| `server_wire` | Decision-server messages | Arbitrary messages. |
+| `audit_chain` | Audit chain verification | Arbitrary records. |
+
+## Run one
+
+You need the nightly toolchain and `cargo-fuzz`:
+
+```text title="Terminal"
+rustup toolchain install nightly
+cargo install cargo-fuzz
+./fuzz/run.sh dsl_convert 120     # one target for 120 seconds, seeded from fuzz/seeds
+```
+
+The seeds in `fuzz/seeds` are versioned. The corpus libFuzzer grows (`fuzz/corpus`), `fuzz/artifacts` and `fuzz/target` are not.
+
+## When it finds a crash
+
+libFuzzer writes the input to `fuzz/artifacts/<target>/`. Reproduce it with:
+
+```text title="Terminal"
+cargo +nightly fuzz run <target> fuzz/artifacts/<target>/<file>
+```
+
+Fix it with a regression test in the ordinary suite, and mention the crash in the pull request.
+
+## In CI
+
+The `fuzz` workflow runs a short round on pull requests that touch the engine, sync, server or `fuzz/`, and a long one every night, keeping the crash as an artifact.

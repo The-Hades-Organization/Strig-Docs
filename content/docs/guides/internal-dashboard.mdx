@@ -1,0 +1,134 @@
+---
+title: An internal dashboard
+description: Department roles, a four-eyes rule on approvals, temporary access for exports, and a support answer for "why can't I?".
+---
+
+An internal tool has few tenants and many rules about who sees what and who signs off. This guide builds reports that analysts view, leads export and approve, with a rule that the author of a report does not approve it.
+
+## 1. Model: department as the anchor
+
+```blocks title="policies/dashboard.strig"
+language blocks
+
+target_kinds = [dept, report]
+
+permission report.view {
+  targets = [report]
+}
+
+permission report.export {
+  targets = [report]
+  depends_on = [report.view]
+}
+
+permission report.approve {
+  targets = [report]
+  depends_on = [report.view]
+}
+
+role analyst {
+}
+
+role finance_lead {
+  inherits = [analyst]
+}
+
+grant analyst-views {
+  effect = allow
+  subject = role analyst
+  permission = report.view
+  target = report
+}
+
+grant lead-exports {
+  effect = allow
+  subject = role finance_lead
+  permission = report.export
+  target = report
+}
+
+grant lead-approves {
+  effect = allow
+  subject = role finance_lead
+  permission = report.approve
+  target = report
+}
+
+invariant no_self_management {
+}
+
+invariant no_escalation {
+}
+```
+
+`depends_on` means nobody holds `report.export` without `report.view` on the same report. Roles are assigned with `scope = dept:sales`, so an analyst of `sales` sees nothing in `hr`.
+
+## 2. Test who may and who may not
+
+```sh title="Shell"
+strig test policies/
+```
+
+```text title="Output"
+./dashboard.strig-test.json
+  PASS an analyst views a report in their department
+  PASS an analyst cannot export
+  PASS an analyst sees nothing in another department
+  PASS a lead approves
+
+4 passed, 0 failed, 0 errors
+```
+
+Each name is a sentence a reviewer can read as a requirement. See [Testing a policy](/docs/tools/testing).
+
+## 3. Four eyes: the author does not approve
+
+Declare the rule in the catalog, so it holds in every decision and not only in the approve screen.
+
+```rust title="Rust"
+let catalog = Catalog::builder()
+    .target_kinds(["dept", "report"])
+    .permission(PermissionDef::new("report.create").targets(["report"]))
+    .permission(PermissionDef::new("report.approve").targets(["report"]))
+    .conflicting_actions(ActionConflict::new("four_eyes", ["report.create"], ["report.approve"]))
+    .build()?;
+```
+
+Record who acted in the report's `history` attribute (`"report.create:mara"`). When Mara asks for `report.approve` on it, the decision is a denial named `separation:four_eyes`, and a history the engine cannot read denies too. See [Separation of duties](/docs/governance/separation-of-duties).
+
+## 4. Temporary access instead of standing access
+
+An analyst needs one export for an audit. Do not grant `report.export` for good; let the lead approve a window.
+
+```js title="JavaScript"
+await flow.request({ id: 'e1', actor: lia, target, durationMs: 2 * HOUR, justification: 'Q3 audit' }, grants);
+await flow.approve('e1', mara, grants, { persist: (r) => saveGrants(r.grants) });
+```
+
+The access ends at the instant the window closes, with no job to run. See [Temporary elevation](/docs/governance/elevation).
+
+## 5. Show and hide in the UI
+
+The buttons follow the same rules as the API. With React:
+
+```tsx title="React"
+<Can<PermissionId> permission="report.export" resource={report} fallback={null}>
+  <ExportButton />
+</Can>
+```
+
+`<Can>` denies until the first capabilities arrive, so a slow connection never flashes a button the user may not press. See [React and Angular](/docs/integrations/frontend).
+
+## 6. Answer "why can't I?"
+
+When Lia asks why she cannot export, support does not read the policy. `why_not` returns the shortest change that would allow it, and the inspector shows the full trace.
+
+- [Why not](/docs/governance/why-not) for the answer from code.
+- [Inspector](/docs/tools/inspector) for the trace, the matrix of permissions and the audit trail.
+
+## 7. Run and prove
+
+- **Where decisions run.** In the dashboard's own API process with `engine.check`; no separate server is needed for one app. If other services also need the answer, run the [decision server](/docs/integrations/server).
+- **Store.** Postgres, if more than one instance runs; the JSON file store is enough for a single process. See [Postgres](/docs/storage/postgres).
+- **Audit.** Write `detailed` records for exports and approvals, `forensic` for elevations. See [Audit](/docs/audit).
+- **Review.** Run a quarterly [recertification](/docs/governance/recertification) over `finance_lead`.
