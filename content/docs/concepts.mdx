@@ -220,9 +220,9 @@ conflicting-actions four_eyes first [payment.create] then [payment.approve] hist
 always separation-of-duties
 ```
 
-- `payment_duties`: nobody holds `maker` and `checker` in the same org.
-- `four_eyes`: whoever did `payment.create` cannot then do `payment.approve` on the same thing, judged from the audit trail.
-- `always separation-of-duties`: an invariant, so a grant that creates the clash is refused like any other escalation.
+- `payment_duties`: nobody holds `maker` and `checker` in the same org, whether directly, by inheritance, by a grant or by an elevation.
+- `four_eyes`: whoever did `payment.create` on a resource cannot do `payment.approve` on it. The engine reads the history from the `trail` attribute of the resource, a list such as `["payment.create:ana"]`, in every decision. A history it cannot read denies.
+- `always separation-of-duties`: an invariant, so governance refuses a grant that would create a clash.
 
 A policy that declares them exports `"schema": 5`. See [Separation of duties](/docs/governance/separation-of-duties).
 
