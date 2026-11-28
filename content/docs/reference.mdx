@@ -2055,6 +2055,162 @@ The body is `{"error": {"code": "...", "message": "..."}}`. `code` is stable; `m
   </ApiItem>
 </ApiGroup>
 
+## HTTP API
+
+`strig-server` speaks JSON over HTTP. A request and its answer:
+
+```bash
+curl -s localhost:8080/v1/check \
+  -H 'content-type: application/json' \
+  -H 'x-strig-timeout-ms: 500' \
+  -d '{"subject":{"kind":"user","id":"ana"},"permission":"document.view","resource":{"kind":"document","id":"d1"}}'
+```
+
+```json
+{"decision": {"effect": "allow"}, "evaluated_at": 1700000000000, "requested_at": 1700000000000}
+```
+
+All times are milliseconds since the Unix epoch, UTC. The server decides with its own clock: `at` in a body is echoed for audit and never used to decide. There is no authentication and no rate limiting; put the server behind your gateway.
+
+**Fail closed.** Only `200` from a decision route is a success. A network error, a timeout, any other status and an unreadable `200` all mean no access. A deny is a normal `200` with `effect: "deny"`.
+
+### Routes
+
+<ApiWide>
+
+| Route | Body | Answer |
+| --- | --- | --- |
+| `POST /v1/check` | `subject`, `permission`, `resource`, optional `env`, `at`, `min_revision` | `decision`, `evaluated_at`, `requested_at`, and `revision` when the source tracks one. |
+| `POST /v1/check/batch` | `{"checks": [...]}` | `{"results": [...]}` in request order. All or nothing: a failure is one error, never partial results. |
+| `POST /v1/list` | `subject`, `permission`, `kind`, optional `layout`, `resources`, `env`, `at` | `kind`, `permission`, `exact`, `shape`, `residual`, `warnings`, `evaluated_at`, and `ids` when `resources` was sent. Never read `residual` as an allow. |
+| `POST /v1/who` | `permission`, optional `resource`, `env`, `at` | `entries` (each with a typed `subject` and the `via` that grants it), `except`, `evaluated_at`. |
+| `POST /v1/access` | `resource`, `env`, `at` | Who holds which permission on the resource, with the path that decided each. |
+| `GET /health/live` | none | `200 {"status":"live"}` while the process runs. |
+| `GET /health/ready` | none | `200 {"status":"ready"}` when the grant source answers; otherwise `503`, so the instance leaves the pool. |
+
+</ApiWide>
+
+`shape.type` in a list answer is `nothing`, `kind` (with `except`), `ids`, `within` (with `anchors`) or `compound` (with `expr`).
+
+### Headers
+
+| Header | Effect |
+| --- | --- |
+| `x-strig-timeout-ms: <n>` | Deadline of this request, capped at the server's ceiling (default 10 s; default deadline 2 s). `0`, a negative number or text is `400 invalid_request`. A passed deadline is `503 deadline_exceeded`. |
+| `x-strig-min-revision: <scope>@<value>` | Answer only from data at that revision or later (any route; `check` and `check/batch` also take `min_revision`). A source that is behind is polled until the deadline, then `503 revision_not_reached`. Another scope, or no revision at all, is `503 revision_mismatch` at once. A malformed token is `400 invalid_request`. |
+| `x-strig-reason: true` | On the AuthZEN and Envoy routes with `with_reasons(true)`: adds a fixed reason code to the answer. |
+
+### Limits
+
+| Limit | Default | Past it |
+| --- | --- | --- |
+| Body | 1 MiB | `413 body_too_large` |
+| Batch | 256 checks | `400 batch_too_large` |
+| Candidate resources in a list | 1000 | `400 too_many_resources` |
+| Work (checks × grants) | 1 000 000 | `503 query_limit_exceeded` |
+| `QueryLimits` for `list`, `who`, `access` | 1000 and 100 000 | `503 query_limit_exceeded` |
+| Work slots | one per CPU | `503 overloaded` |
+
+<a id="error-codes-server" />
+
+### Errors
+
+```json
+{"error": {"code": "source_unavailable", "message": "the grant source is unavailable; access is denied"}}
+```
+
+`code` is stable and safe to branch on. `message` is fixed per code and never carries table names, paths or driver text. `4xx` means the request is wrong and retrying it unchanged fails again; `503` means the server could not decide: deny, and retry later.
+
+<ApiWide>
+
+| Status | `error.code` | Meaning |
+| --- | --- | --- |
+| 400 | `malformed_json` | The body is not JSON. |
+| 400 | `invalid_request` | Valid JSON that does not fit the route, an unknown field, a `layout` that does not fit `kind`, a bad deadline header or a malformed revision token. |
+| 400 | `batch_too_large`, `too_many_resources` | Over the batch or the candidate limit. |
+| 404, 405 | `not_found`, `method_not_allowed` | No such route, or the wrong method. |
+| 413, 415 | `body_too_large`, `unsupported_media_type` | Body over the limit, or not `application/json`. |
+| 503 | `source_unavailable` | The grants or the policy could not be loaded. |
+| 503 | `query_limit_exceeded`, `overloaded`, `relation_depth_exceeded`, `deadline_exceeded` | A limit, the work slots, a relation chain too deep to read a deny, or the deadline. |
+| 503 | `revision_not_reached`, `revision_mismatch` | The source is behind the required revision, or tracks another scope. |
+| 503 | `clock_unavailable`, `internal` | No usable instant, or anything else inside the server, including a caught panic. |
+
+</ApiWide>
+
+### AuthZEN
+
+`DecisionServer::with_authzen(AuthzenConfig)` also serves the OpenID AuthZEN Authorization API 1.0 next to `/v1`; without it these routes answer `404`. Same body limit, deadline, work budget and absence of authentication.
+
+```bash
+curl -s localhost:8080/access/v1/evaluation \
+  -H 'content-type: application/json' \
+  -d '{"subject":{"type":"user","id":"ana"},"action":{"name":"document.view"},"resource":{"type":"document","id":"d1"}}'
+```
+
+```json
+{"decision": true}
+```
+
+<ApiWide>
+
+| Route | Notes |
+| --- | --- |
+| `POST /access/v1/evaluation` | `{subject, action, resource, context?}` answers `{decision, context?}`. |
+| `POST /access/v1/evaluations` | Top-level `subject`, `action`, `resource`, `context` are defaults an item overrides. `options.evaluations_semantic` is `execute_all` (default), `deny_on_first_deny` or `permit_on_first_permit`; anything else is `400`. |
+| `POST /access/v1/search/subject` | Subjects of `subject.type` that hold `action.name` on `resource`. |
+| `POST /access/v1/search/action` | The permissions of the catalog that `subject` holds on `resource`. |
+| `POST /access/v1/search/resource` | Only with `AuthzenConfig::with_resource_catalog`; otherwise `404`. |
+| `GET /.well-known/authzen-configuration` | Only with `AuthzenConfig::with_issuer` (an `https` URL); otherwise `404`. |
+
+</ApiWide>
+
+| AuthZEN | Strig |
+| --- | --- |
+| `subject.type`, `subject.id` | `Subject.kind`, `Subject.id`. Kinds in `authenticated_kinds` (default `user`) also carry the `authenticated` principal. |
+| `subject.properties` | Attributes. `roles` (default name) holds the roles, as strings or `{role, scope?, valid_from?, valid_until?}`; `principals` holds principal names. Neither becomes an attribute. |
+| `resource.type`, `resource.id` | The first step of the path, `type:id`. |
+| `resource.properties` | Attributes. `path` (default name) holds the broader steps, most specific first. With a `PathResolver` the server's answer is used instead; a resource it does not know is a deny with `context.error.status` `404`. |
+| `action.name` | The permission. `action.properties` is not read. |
+| `context` | `env`. The server replaces `now` with its clock. |
+
+`decision` is `true` only for an allow; a permission outside the catalog is `200 {"decision": false}`. With `with_reasons(true)` and the header `x-strig-reason: true`, `context.reason` is one of `override`, `grant`, `no_applicable_grant`, `unknown_permission`, `missing_prerequisite`; it never names a grant, role or permission. Errors use the `/v1` error body with the statuses of the spec: `400` for a request that does not fit, `500` for everything the server could not decide.
+
+Searches are sorted and take `page: {token?, limit?}` (`limit` defaults to and is capped by `with_max_page_size`, 1000); the answer carries `page: {next_token, count, total}`, and `next_token` is `""` on the last page. A token is bound to its request: change the entity, the context or the limit and it is `400`. Subject search sets `context.incomplete` to `true` when a party that is not a subject of a type (role, principal, userset, wildcard, `anyone`) was left out. `signed_metadata`, `capabilities`, tenant suffixes of the well-known URI, `action.properties` and `page.properties` are not read.
+
+### Envoy external authorization
+
+With the `envoy` feature, `DecisionServer::envoy_service(EnvoyConfig)` builds the `envoy.service.auth.v3.Authorization` gRPC service over the same source, clock, limits and work slots as the HTTP routes. Take it before `router()`, which consumes the server. Without the feature the crate has no `tonic` or `prost` in its build.
+
+<ApiWide>
+
+| `CheckRequest` | Strig |
+| --- | --- |
+| `attributes.request.http.method` and `path` | The first route whose methods and pattern match decides. A path with dot segments, an empty middle segment, an encoded `/`, `\` or NUL, invalid UTF-8 or more than 64 segments matches no route. |
+| A header (`with_subject_header`) or filter metadata (`with_subject_metadata`) | The subject id, of the kind `with_subject_kind` (default `user`), with the `authenticated` principal. A value that is empty, over 512 bytes or holds a comma is no subject. |
+| A header (`with_roles_header`), comma-separated | The roles, up to 64 of at most 512 bytes; past that there is no subject. |
+| `RouteRule::require(permission, ResourceTemplate::new(kind, id))` | The permission and the resource; `{param}` is filled from the path. A template naming a parameter the pattern lacks fails at configuration. |
+| `with_path_resolver` | The broader steps of the resource, as for AuthZEN. |
+
+</ApiWide>
+
+Patterns start with `/`; a segment is a literal, `{name}` (one segment, captured), `*` (one segment) or, last, `**` (the rest). Methods are `*` or a list such as `GET,HEAD`. Rules are tried in the order they were added. The adapter trusts the subject and roles it reads: Envoy must set those headers itself and overwrite what the client sent.
+
+<ApiWide>
+
+| Case | `status.code` | HTTP | `x-strig-reason` (with `with_reasons(true)`) |
+| --- | --- | --- | --- |
+| The engine allows, or the route is `public` | `OK` (0) | | |
+| The engine denies | `PERMISSION_DENIED` (7) | 403 | `denied` |
+| No route matches | same | 403 | `no_route` |
+| No usable subject on a route that needs one | same | 403 | `no_subject` |
+| The resolver does not know the resource | same | 403 | `unknown_resource` |
+| Source down, deadline passed, no work slot, clock or work failed | same | 403 | `unavailable` |
+| No HTTP attributes, or a template that cannot be filled | same | 403 | `bad_request` |
+
+</ApiWide>
+
+A `public` route decides nothing and does not read the source, so it allows even while the source is down. A message over `max_body_bytes` or a call that outlives `max_timeout` is a gRPC error (`RESOURCE_EXHAUSTED`, `CANCELLED`): leave `failure_mode_allow: false` in the Envoy filter so Envoy denies on those too.
+
 ## Policies at compile time: strig-macros
 
 `strig-macros = "0.7"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
