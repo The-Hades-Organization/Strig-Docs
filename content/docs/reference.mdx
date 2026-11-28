@@ -2252,7 +2252,7 @@ The expansion embeds the validated policy as JSON and reads that JSON back on ea
 
 ## JavaScript: the npm package
 
-`npm install @the-hades-organization/strig`, version 0.7.0, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
+`npm install @the-hades-organization/strig`, version 1.0.0-rc.1, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
 
 `call` condition functions, your own overrides and your own invariants are synchronous callbacks passed to `new Engine(spec, hooks)`; see [JavaScript](/docs/javascript#rules-written-in-javascript). The JSON spec covers the built-in `resource_owner` and `permission_holder`.
 
@@ -2297,6 +2297,423 @@ Every error the binding throws has a stable `error.code`, the same on both backe
     `RemoteOptions` is `{ url, timeoutMs?, fetch?, headers?, breaker? }`. The timeout is 2000 ms by default; the breaker opens after 5 failures for 30 000 ms. `allowed` is true only for a `200` whose effect is `allow`; a failure carries `failure`.
   </ApiItem>
 </ApiGroup>
+
+### Type declarations by subpath
+
+Copied from the `.d.ts` files the package ships: the root, then one block per subpath of `exports`. `strig-types` is the package's one binary and writes the output of `generateTypes`.
+
+### Package root: `@the-hades-organization/strig`
+
+```ts title="TypeScript"
+function load(options: { backend: 'native' }): Promise<NativeStrig>
+function load(options?: { backend?: 'auto' | 'native' | 'wasm'; wasm?: unknown }): Promise<Strig>
+class Context {
+  constructor(init?: { grants?: Grant[]; tuples?: unknown[]; env?: Record<string, unknown>; now?: number | bigint | null; limits?: QueryLimits });
+  setGrants(grants: Grant[]): void;
+  addGrant(grant: Grant): void;
+  removeGrant(id: string): boolean;
+  grants(): Grant[];
+  readonly size: number;
+  addTuple(tuple: unknown): boolean;
+  removeTuple(tuple: unknown): boolean;
+  setEnv(env: Record<string, unknown>): void;
+  loadCapabilities(set: CapabilitySet): Subject;
+  setNow(now: number | bigint | null): void;
+  setLimits(limits: QueryLimits | null): void;
+}
+class Engine<P extends string = string> {
+  constructor(spec: unknown, hooks?: EngineHooks);
+  decide(context: Context, request: DecisionRequest<P>, now?: number | bigint): Decision;
+  check(context: Context, request: DecisionRequest<P>, now?: number | bigint): boolean;
+  explain(context: Context, request: DecisionRequest<P>, now?: number | bigint): Explanation;
+  allowedFields(context: Context, request: DecisionRequest<P>, now?: number | bigint): FieldSet;
+  whyNot(context: Context, request: DecisionRequest<P>, now?: number | bigint, options?: WhyNotOptions): Remedies | null;
+  explainFields(context: Context, request: DecisionRequest<P>, now?: number | bigint): FieldExplanation;
+  checkMany(context: Context, requests: readonly DecisionRequest<P>[], now?: number | bigint): boolean[];
+  explainMany(context: Context, requests: readonly DecisionRequest<P>[], now?: number | bigint): Explanation[];
+  capabilities(context: Context, subject: Subject, scope: Resource, now?: number | bigint): CapabilitySet;
+  validateGrant(grant: Grant): void;
+  catalog(): unknown;
+  apply(input: ApplyInput): ApplyResult;
+  materialize(input: MaterializeInput): Materialized;
+  applyTemplate(input: ApplyTemplateInput): ApplyTemplateResult;
+  impact(input: ApplyInput): ImpactResult;
+  reviewImpact(input: ReviewImpactInput): ReviewImpactResult;
+  propose(input: ProposeInput): ProposeResult;
+  resolve(input: ResolveInput): ResolveResult;
+  elevate(input: ElevateInput): ElevateResult;
+  recertify(input: RecertifyInput): RecertifyResult;
+  expire(input: ExpireInput): ExpireResult;
+  flushAudit(): AuditStats;
+  auditStats(): AuditStats;
+  list(context: Context, subject: Subject, permission: PermissionArg<P>, kind: string, options?: ListOptions, now?: number | bigint): ListResult;
+  whoCan(context: Context, permission: PermissionArg<P>, now?: number | bigint): SubjectRef[];
+  whoCanOn(context: Context, permission: PermissionArg<P>, resource: Resource, now?: number | bigint): WhoCanOnResult;
+  accessOf(context: Context, resource: Resource, now?: number | bigint): Array<{ subject: SubjectRef; permissions: string[] }>;
+  checkFor(context: Context, subject: SubjectRef, permission: PermissionArg<P>, resource: Resource, subjects: Subject[], now?: number | bigint): CheckForResult;
+}
+class Exclusive {
+  constructor(options?: ExclusiveOptions);
+  validate(engine: Engine): void;
+  acquire(engine: Engine, context: Context, subject: Subject, resource: Resource, terms: { priority: number; ttlMs: number }, now?: number | bigint,): Acquisition;
+  holder(resource: ObjectRef, now?: number | bigint): Lease | null;
+  release(resource: ObjectRef, holder: ObjectRef, now?: number | bigint): Lease;
+  renew(engine: Engine, context: Context, subject: Subject, resource: Resource, ttlMs: number, now?: number | bigint,): Lease;
+  expire(now?: number | bigint): Lease[];
+}
+```
+
+Types: `AuditLevel`, `AuditFailMode`, `AuditDelivery`, `AuditRedaction`, `Subject`, `SubjectMatcher`, `ObjectRef`, `ErrorCode`, `BindingError`, `ConditionOperand`, `Weekday`, `Condition`, `Grant`, `Reason`, `Verdict`, `Decision`, `Explanation`, `ConditionTrace`, `CapabilitySet`, `FieldSet`, `FieldVerdict`, `FieldExplanation`, `WhyNotCause`, `WhyNotChange`, `WhyNotCaveat`, `Remedy`, `Remedies`, `WhyNotOptions`, `PermissionArg`, `DecisionRequest`, `RoleAssignment`, `Bypass`, `InvariantSpec`, `ImpactSource`, `ImpactOptions`, `Access`, `AccessChange`, `Impact`, `SeparationClash`, `PotentialClash`, `ApplyInput`, `TemplateGrant`, `RoleTemplate`, `MaterializeInput`, `Materialized`, `ApplyTemplateInput`, `ApplyTemplateResult`, `Violation`, `AccessVia`, `SubjectRef`, `FilterExpr`, `FilterShape`, `FilterResidual`, `ListOptions`, `ListResult`, `WhoCanOnResult`, `CheckForResult`, `QueryLimits`, `Lease`, `Acquisition`, `ExclusiveOptions`, `Suggestion`, `ApplyResult`, `ImpactResult`, `ApprovalRule`, `PendingStatus`, `PendingRequest`, `ElevationTarget`, `ElevationRule`, `ElevationRequest`, `ReviewState`, `ElevationInfo`, `ElevateInput`, `ElevateResult`, `ReviewerRule`, `ReviewerRoute`, `RecertScope`, `RecertDefaultAction`, `CampaignSpec`, `RecertDecision`, `RecertItemState`, `RecertItem`, `Campaign`, `CampaignReport`, `RecertifyInput`, `RecertifyResult`, `ApprovalFlowInput`, `ProposeInput`, `ResolveInput`, `ReviewImpactInput`, `ReviewImpactResult`, `ExpireInput`, `ProposeResult`, `ResolveResult`, `ExpireResult`, `AuditStats`, `AuditPolicy`, `ChainAnchors`, `ChainVerification`, `MerkleVerification`, `MerkleInclusionInput`, `MerkleConsistencyInput`, `TimestampInput`, `TimestampVerification`, `HostCondition`, `HostOverrideRequest`, `HostOverrideOutcome`, `HostOverride`, `HostProposal`, `HostInvariantResult`, `EngineHooks`, `PolicyLanguage`, `DslErrorCode`, `DslPlace`, `DslDiagnostic`, `DslError`, `PolicyPermission`, `MutuallyExclusive`, `ConflictingActions`, `PolicyCatalog`, `PolicyStrategy`, `PolicyDocument`, `PolicyNote`, `PolicySource`, `PolicyTestFixture`, `PolicyTestFile`, `PolicyTestCase`, `PolicyTestOutcome`, `PolicyTestResult`, `PolicyTestReport`, `PolicyDiffResponsible`, `PolicyDecisionChange`, `PolicyDiffUniverse`, `PolicyDiff`, `PolicyDiffFixture`, `PolicyDiffOptions`, `PolicyLintFinding`, `PolicyLintOptions`, `PolicyLanguageApi`, `NativePolicyLanguageApi`, `Strig`, `NativeStrig`.
+
+### `/protocol`
+
+```ts title="TypeScript"
+function parseRevision(text: string): { scope: string; value: bigint; } | undefined
+function revisionReached(required: string, have: string | undefined): Reached
+function anchorToString(anchor: Anchor): string
+function scopeToString(scope: Resource): string
+function scopeFromString(text: string): Resource
+function sameAnchor(a: Anchor, b: Anchor): boolean
+function resourceContains(resource: Resource, anchor: Anchor): boolean
+function changeAffects(change: Change, subjectId: string | null, scope: Resource): boolean
+function resourceWithin(resource: Resource, scope: Resource): boolean
+function encodeSse(message: ServerMessage): string
+function readSse(body: ReadableStream<Uint8Array>, onMessage: (message: ServerMessage) => void): Promise<void>
+const GLOBAL = "global"
+const PROTOCOL_VERSION = 2
+```
+
+Types: `Anchor`, `Resource`, `ChangeKind`, `Change`, `ServerMessage`, `ClientMessage`, `Reached`.
+
+### `/client`
+
+```ts title="TypeScript"
+class PermissionClient<P extends string = string> {
+  readonly url: string | URL;
+  readonly transport: 'sse' | 'websocket';
+  scopes: Resource[];
+  readonly strig: Pick<Strig, 'Context'>;
+  readonly engine: Engine<string>;
+  readonly headers: Record<string, string>;
+  readonly fetch: typeof fetch;
+  readonly WebSocket: typeof WebSocket;
+  readonly minDelay: number;
+  readonly maxDelay: number;
+  private entries;
+  private listeners;
+  private required?;
+  private closed;
+  private abort?;
+  private socket?;
+  constructor(options: PermissionClientOptions);
+}
+```
+
+Types: `PermissionClientOptions`.
+
+### `/server`
+
+```ts title="TypeScript"
+function change(kind: ChangeKind, scope: Anchor, extra?: Partial<Change>): Change
+function openSession({ hub, subject, scopes, provider, heartbeatMs, revision, minRevision, send, }: SessionOptions & { send: (message: ServerMessage) => void; }): Session
+function sseResponse(options: SessionOptions): Response
+function pipeSse(res: ServerResponse, options: SessionOptions): Session
+function engineProvider({ engine, Context, loadGrants, }: { engine: Engine; Context: typeof ContextClass; loadGrants: (subject: Subject, scope: Resource) => Promise<Grant[]> | Grant[]; }): Provider
+function memoryTransport(): Transport
+function redisTransport({ publisher, subscriber, channel, }: { publisher: RedisPublisher; subscriber: RedisSubscriber; channel?: string; }): Transport
+function ioredisTransport({ publisher, subscriber, channel, }: { publisher: RedisPublisher; subscriber: IoredisSubscriber; channel?: string; }): Transport
+function pgTransport({ client, listener, channel, }: { client: Queryable; listener: PgListener; channel?: string; }): Transport
+function notify(queryable: Queryable, channel: string, item: Change): Promise<void>
+class Hub {
+  readonly origin: string;
+  private readonly transport;
+  private seq;
+  private readonly listeners;
+  private stopRelay;
+  constructor(options?: { origin?: string; transport?: Transport; });
+}
+```
+
+Types: `Transport`, `Provider`, `SessionOptions`, `Session`, `RedisPublisher`, `RedisSubscriber`, `IoredisSubscriber`, `Queryable`, `PgListener`.
+
+### `/remote`
+
+```ts title="TypeScript"
+function messageFor(code: string): string
+function parseErrorCode(value: unknown): ErrorCode | { unknown: string; }
+const ERROR_MESSAGES: Readonly<Record<string, string>>
+class CircuitBreaker {
+  #private;
+  readonly failureThreshold: number;
+  readonly waitMs: number;
+}
+class RemoteClient {
+  #private;
+  private readonly base;
+  private readonly timeoutMs;
+  private readonly fetch;
+  private readonly headers;
+  private readonly minRevision?;
+  readonly breaker: CircuitBreaker;
+  constructor(options: RemoteOptions);
+  check(request: CheckInput): Promise<RemoteResult>;
+  checkBatch(requests: CheckInput[], options?: { minRevision?: string; }): Promise<RemoteResult[]>;
+}
+```
+
+Types: `ErrorCode`, `FailureReason`, `Failure`, `CheckInput`, `RemoteResult`, `BreakerOptions`, `RemoteOptions`.
+
+### `/express`
+
+```ts title="TypeScript"
+function authorize<Req = any>(options: AuthorizerOptions<Req>): Handler<Req>
+function createCan<Req = any>(options: AuthorizerOptions<Req>): (permission: string, resource?: Resource | ((req: Req) => Resource)) => Handler<Req>
+function authorizeRoutes<Req = any>(options: RouteTableOptions<Req>): Handler<Req>
+```
+
+### `/fastify`
+
+```ts title="TypeScript"
+function authorize<Req = any>(options: AuthorizerOptions<Req>): PreHandler<Req>
+function createCan<Req = any>(options: AuthorizerOptions<Req>): (permission: string, resource?: Resource | ((request: Req) => Resource)) => PreHandler<Req>
+function authorizeRoutes<Req = any>(options: RouteTableOptions<Req>): PreHandler<Req>
+function plugin(fastify: FastifyInstanceLike, options: AuthorizerOptions): Promise<void>
+```
+
+### `/nestjs`
+
+```ts title="TypeScript"
+function Can(permission: string, resolver?: (request: any) => Resource): MethodDecorator & ClassDecorator
+const STRIG_CAN: string
+class StrigGuard {
+  #private;
+  private readonly options;
+  private readonly decide;
+  constructor(options: AuthorizerOptions);
+  canActivate(context: ExecutionContextLike): Promise<boolean>;
+}
+class StrigRouteGuard {
+  #private;
+  private readonly options;
+  private readonly byTable;
+  private readonly byCan;
+  constructor(options: RouteTableOptions);
+  canActivate(context: ExecutionContextLike): Promise<boolean>;
+}
+```
+
+### `/approvals`
+
+```ts title="TypeScript"
+function checkRecertUpdate(stored: Campaign | undefined, next: Campaign): void
+class PendingStoreError extends Error {
+  readonly code: PendingStoreErrorCode;
+  constructor(code: PendingStoreErrorCode, message: string);
+}
+class MemoryPendingStore implements PendingStore {
+  private readonly requests;
+  get(id: string): PendingRequest | undefined;
+  put(request: PendingRequest): void;
+  update(request: PendingRequest): void;
+  annotate(request: PendingRequest): void;
+  list(): PendingRequest[];
+}
+class Approvals {
+  private readonly engine;
+  readonly store: PendingStore;
+  private readonly options;
+  private head;
+  constructor(engine: ApprovalEngine, store: PendingStore, options: ApprovalsOptions);
+  propose(actor: Subject, mutation: ApplyInput['mutation'], current: Grant[], options?: ProposeOptions): Promise<ProposeResult>;
+  pending(now?: number): Promise<PendingRequest[]>;
+  approve(id: string, approver: Subject, current: Grant[], options?: DecideOptions): Promise<ResolveResult>;
+  reject(id: string, approver: Subject, reason: string, current?: Grant[], options?: DecideOptions): Promise<ResolveResult>;
+  reviewImpact(id: string, current: Grant[], options?: CallOptions): Promise<ReviewImpactResult>;
+  expire(options?: CallOptions): Promise<ExpireResult>;
+  private decide;
+  private close;
+  private common;
+  private follow;
+  private clock;
+}
+class Elevations {
+  private readonly engine;
+  readonly store: PendingStore;
+  private readonly options;
+  private head;
+  constructor(engine: ElevationEngine, store: PendingStore, options: ElevationsOptions);
+  request(request: ElevationRequest, current: Grant[], options?: ElevationPersistOptions & { expiresAt?: number; }): Promise<ElevateResult>;
+  approve(id: string, approver: Subject, current: Grant[], options?: ElevationPersistOptions): Promise<ElevateResult>;
+  reject(id: string, approver: Subject, reason: string, current: Grant[], options?: CallOptions): Promise<ElevateResult>;
+  revoke(id: string, by: Subject, current: Grant[], options?: ElevationPersistOptions & { reason?: string; }): Promise<ElevateResult>;
+  closeReview(id: string, reviewer: Subject, note: string, current: Grant[], options?: CallOptions): Promise<ElevateResult>;
+  active(now?: number): Promise<PendingRequest[]>;
+  pendingReviews(): Promise<PendingRequest[]>;
+  private step;
+  private load;
+  private requireStore;
+  private annotate;
+  private clock;
+}
+class RecertStoreError extends Error {
+  readonly code: RecertStoreErrorCode;
+  constructor(code: RecertStoreErrorCode, message: string);
+}
+class MemoryRecertStore implements RecertStore {
+  private readonly campaigns;
+  get(id: string): Campaign | undefined;
+  put(campaign: Campaign): void;
+  update(campaign: Campaign): void;
+  list(): Campaign[];
+}
+class Recertifications {
+  private readonly engine;
+  readonly store: RecertStore;
+  private readonly options;
+  private head;
+  constructor(engine: RecertEngine, store: RecertStore, options?: RecertificationsOptions);
+  open(spec: CampaignSpec, opener: Subject, subjects: Subject[], current: Grant[], options?: CallOptions): Promise<RecertifyResult>;
+  decide(id: string, item: string, decision: RecertDecision, reviewer: Subject, current: Grant[], options?: RecertPersistOptions & { reason?: string; }): Promise<RecertifyResult>;
+  close(id: string, closer: Subject, current: Grant[], options?: RecertPersistOptions): Promise<RecertifyResult>;
+  report(id: string): Promise<CampaignReport>;
+  openCampaigns(): Promise<Campaign[]>;
+  private step;
+  private load;
+}
+```
+
+Types: `PendingStoreErrorCode`, `PendingStore`, `ApprovalEngine`, `ApprovalsOptions`, `CallOptions`, `ProposeOptions`, `DecideOptions`, `ElevationEngine`, `ElevationsOptions`, `ElevationPersistOptions`, `RecertStoreErrorCode`, `RecertStore`, `RecertEngine`, `RecertificationsOptions`, `RecertPersistOptions`.
+
+### `/store`
+
+```ts title="TypeScript"
+function openJsonStore(options: JsonFileStoreOptions): Promise<JsonFileStore>
+const STORE_VERSION = 1
+class JsonStoreError extends Error {
+  readonly code: StoreErrorCode;
+  constructor(code: StoreErrorCode, message: string, options?: { cause?: unknown; });
+}
+class JsonFileStore {
+  readonly path: string;
+  private readonly lockPath;
+  private readonly options;
+  private data;
+  private queue;
+  private readonly listeners;
+  private readonly errorListeners;
+  private watcher;
+  private debounce;
+  constructor(options: JsonFileStoreOptions);
+  load(): Promise<this>;
+  reload(): Promise<StoreData>;
+}
+```
+
+Types: `StoreErrorCode`, `StoreData`, `JsonFileStoreOptions`, `ApplyMutation`, `Governance`.
+
+### `/testing`
+
+```ts title="TypeScript"
+function auditRoutes<Req = any>(routes: readonly RouteInfo[], table: readonly RouteRule<Req>[], options?: { caseSensitive?: boolean; }): RouteAudit<Req>
+function assertRoutesCovered<Req = any>(routes: readonly RouteInfo[], table: readonly RouteRule<Req>[], options?: { caseSensitive?: boolean; }): void
+function expressRoutes(app: unknown, prefix?: string): RouteInfo[]
+function collectFastifyRoutes(fastify: FastifyRouteHooks): RouteInfo[]
+function nestRoutes(app: { getHttpAdapter(): { getInstance(): unknown; }; }): RouteInfo[]
+class RouteTableAuditError extends Error {
+  readonly audit: RouteAudit;
+  constructor(audit: RouteAudit);
+}
+```
+
+Types: `RouteInfo`, `RouteAudit`.
+
+### `/react`
+
+```ts title="TypeScript"
+function StrigProvider<P extends string = string>({ client, connect, children }: StrigProviderProps<P>): ReactNode
+function useCan<P extends string = string>(permission: PermissionArg<P>, resource: Resource): boolean
+function useStrigStatus(): StrigStatus
+function useRequireRevision(): (revision: string) => void
+function Can<P extends string = string>({ permission, resource, fallback, children }: CanProps<P>): ReactNode
+```
+
+Types: `StrigProviderProps`, `CanProps`.
+
+### `/angular`
+
+```ts title="TypeScript"
+function provideStrig<P extends string>(client: PermissionClient<P>, options?: StrigOptions): EnvironmentProviders
+function strigCanActivate<P extends string = string>(permission: PermissionArg<P>, resource: Resource | ((route: any, state: any) => Resource), options?: StrigGuardOptions): (route: any, state: any) => Promise<any>
+const STRIG_CLIENT: InjectionToken<PermissionClient<any>>
+const STRIG_OPTIONS: InjectionToken<StrigOptions>
+class StrigService<P extends string = string> {
+  private readonly bridge;
+  private readonly server;
+  private readonly tick;
+  private readonly state;
+  readonly status: Signal<StrigStatus>;
+  constructor();
+  can(permission: Reactive<PermissionArg<P> | null | undefined>, resource: Reactive<Resource | null | undefined>): Signal<boolean>;
+  settled(timeoutMs?: number): Promise<boolean>;
+  requireRevision(revision: string): void;
+  check(permission: PermissionArg<P>, resource: Resource): boolean;
+  static ɵfac: i0.ɵɵFactoryDeclaration<StrigService<any>, never>;
+  static ɵprov: i0.ɵɵInjectableDeclaration<StrigService<any>>;
+}
+class StrigCanDirective<P extends string = string> {
+  private readonly template;
+  private readonly container;
+  private readonly permission;
+  private readonly resource;
+  private readonly fallback;
+  private view?;
+  private shown?;
+  set strigCan(value: PermissionArg<P> | null | undefined);
+  set strigCanResource(value: Resource | null | undefined);
+  set strigCanElse(value: TemplateRef<unknown> | null | undefined);
+  constructor();
+  static ɵfac: i0.ɵɵFactoryDeclaration<StrigCanDirective<any>, never>;
+  static ɵdir: i0.ɵɵDirectiveDeclaration<StrigCanDirective<any>, "[strigCan]", never, { "strigCan": { "alias": "strigCan"; "required": true; }; "strigCanResource": { "alias": "strigCanResource"; "required": false; }; "strigCanElse": { "alias": "strigCanElse"; "required": false; }; }, {}, never, never, true, never>;
+}
+```
+
+Types: `StrigOptions`, `StrigGuardOptions`.
+
+### `/prisma`
+
+```ts title="TypeScript"
+function toWhere<P extends string>(filter: ListFilter<P>, mapping: PrismaMapping): OrmFilter<PrismaWhere, P>
+const prisma: OrmAdapter<PrismaWhere, string>
+```
+
+Types: `PrismaWhere`, `PrismaMapping`.
+
+### `/drizzle`
+
+```ts title="TypeScript"
+function toWhere<P extends string>(filter: ListFilter<P>, mapping: DrizzleMapping): OrmFilter<SQL, P>
+const drizzle: OrmAdapter<SQL, AnyColumn>
+```
+
+Types: `DrizzleMapping`.
+
+### `/kysely`
+
+```ts title="TypeScript"
+function toWhere<P extends string>(filter: ListFilter<P>, mapping: KyselyMapping): OrmFilter<KyselyWhere, P>
+const kysely: OrmAdapter<KyselyWhere, string>
+```
+
+Types: `KyselyMapping`, `KyselyWhere`.
+
+### `/types`
+
+```ts title="TypeScript"
+function generateTypes(catalog: CatalogInput): string
+```
+
+Types: `CatalogInput`.
+
 
 ## Inspector: strig-inspect
 
