@@ -222,7 +222,15 @@ At `detailed` and `forensic`, the record of a change applied with its impact car
 
 <VersionBadge version="0.7.0" />
 
-Four actions record the steps of a pending request: `mutation_propose`, `mutation_approve`, `mutation_reject` and `mutation_expire`, with a new `pending` outcome. A log consumer that validates `action` and `outcome` against a closed list needs the new values before you turn the flow on. The steps and their outcomes are on [Approvals](/docs/approvals#what-the-audit-records).
+A pending request and the features built on it write these actions, with the outcome `pending` for a proposal that was kept:
+
+| Action | Written when |
+| --- | --- |
+| `mutation_propose`, `mutation_approve`, `mutation_reject`, `mutation_expire` | each step of a [pending request](/docs/approvals#what-the-audit-records) |
+| `elevation_review` | another actor closes the review of a break-glass [elevation](/docs/governance/elevation) |
+| `recert_open`, `recert_decide`, `recert_close` | a [recertification](/docs/governance/recertification) campaign opens, an item is decided (or defaulted at closing), the campaign closes |
+
+A log consumer that validates `action` and `outcome` against a closed list needs these values before you turn the flows on.
 
 <CardLink href="/docs/approvals" title="Approvals">
   A change that waits for a second person before it applies.

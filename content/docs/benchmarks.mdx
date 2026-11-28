@@ -53,7 +53,7 @@ The cost of a decision grows with the grants that name the same permission and k
 
 ## JavaScript
 
-Median of seven samples of 500 ms each, after 300 ms of warm-up.
+Median of seven samples of 500 ms each, after 300 ms of warm-up. This table was taken before the boundary change described [below](#javascript-the-boundary-before-and-after); `decide` and `apply` are faster now, and the second table has the new numbers for the small cases.
 
 | Case | Node, native | Node, wasm | Bun, native | Bun, wasm |
 | --- | ---: | ---: | ---: | ---: |
@@ -67,10 +67,34 @@ Median of seven samples of 500 ms each, after 300 ms of warm-up.
 
 Reading them:
 
-- The native module costs 15 µs or less for a simple decision, most of it the boundary, against 0.5 µs in Rust.
+- Before the change, the native module cost 16 µs for a simple decision, most of it the boundary, against 0.5 µs in Rust.
 - The wasm backend is about 1.2 to 1.4 times slower than native on Node. Bun's wasm shows the widest spread, so treat its figures as rough. This is also what a Linux musl or Alpine install runs on ([JavaScript](/docs/javascript#install-by-platform)).
 - `list/resolve_10k_rows` includes sending 10,000 resources into the engine. It is the cost of an exact in-memory filter from JS.
 - An `auditSink` adds one JavaScript call per record, about 5 µs on Node native.
+
+## JavaScript: the boundary, before and after
+
+A `check` on Node native spent its time like this, when `decide/simple` took 16.1 µs against 0.48 µs in Rust:
+
+| Step | Cost |
+| --- | ---: |
+| An empty N-API call | 0.25 µs |
+| Reading the request object, property by property, about 0.7 µs per leaf | about 12 µs |
+| The engine | 0.5 µs |
+| `JSON.stringify` of the same request | 0.77 µs |
+| Parsing that string in Rust | 0.73 µs |
+
+The `Context` already held the grants on the Rust side, so the grants were never the cost; the request and the response were. The wasm glue showed the same shape (`check` 15.6 µs).
+
+The binding now crosses with one string (`JSON.stringify` in, `JSON.parse` out for `decide` and `explain`), and `checkMany` spreads the call over a batch. With 100 requests per batch (median):
+
+| Case | Node, native | Node, wasm | Bun, native | Bun, wasm |
+| --- | ---: | ---: | ---: | ---: |
+| `decide/simple` | 6.5 µs | 9.3 µs | 5.1 µs | 8.6 µs |
+| `check/simple` | 3.5 µs | 4.5 µs | 2.6 µs | 3.3 µs |
+| `checkMany/simple`, per decision | 2.5 µs | 3.7 µs | 2.5 µs | 3.2 µs |
+
+A single `decide` stays above 2 µs on Node native. A `check` costs at least 0.77 µs to stringify, 0.73 µs to parse, 0.49 µs in the engine and 0.25 µs for the call, about 2.3 µs, and a `decide` adds the building, serialising and parsing of the `Decision`, about 1.6 µs. Going lower needs a request that is not text, such as handles to a subject and a resource prepared once, which is a different API. For one request, `check` is the cheapest answer. For many, `checkMany`.
 
 ## Reproduce
 
@@ -81,7 +105,7 @@ export CARGO_TARGET_DIR=/path/with/space   # optional: the release build and cri
 cargo bench -p strig --bench engine
 ```
 
-criterion prints the estimate per case and keeps its reports under `target/criterion`.
+criterion prints the estimate per case and keeps its reports under `target/criterion`. `cargo bench -p strig --bench listing` prints listing against a per-row `check` for growing tables, and the cost of each kind of condition.
 
 JavaScript, from `crates/strig-node/js`:
 
