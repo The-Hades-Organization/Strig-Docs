@@ -21,9 +21,42 @@ npm install @the-hades-organization/strig
 ```
 
   </Tab>
+  <Tab label="Python">
+
+```text title="Terminal"
+pip install strig-auth
+```
+
+  </Tab>
+  <Tab label="Go">
+
+```text title="Terminal"
+go get github.com/The-Hades-Organization/Strig/bindings/go@<tag>
+```
+
+  </Tab>
+  <Tab label="Java">
+
+```xml title="pom.xml"
+<dependency>
+  <groupId>io.github.the-hades-organization</groupId>
+  <artifactId>strig</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+  </Tab>
 </Tabs>
 
-Rust 1.88 or later. Node, Bun and the browser use the same engine through one npm package. The examples on this page ran against Strig 0.6.1; 0.7.0 does not change them.
+| Language | Needs |
+| --- | --- |
+| Rust | 1.88 or later |
+| Node, Bun, browser | Node 18.17, Bun 1.1 or a current browser; one package, native module or WebAssembly |
+| Python | 3.9 or later; one wheel per platform |
+| Go | 1.22 or later; no cgo |
+| Java, Kotlin | 17 or later; no native code |
+
+All five run the same engine and read the same policy file. The examples on this page run against Strig 1.0 in Rust and Node; [Python](/docs/integrations/python), [Go](/docs/integrations/go) and [Java](/docs/integrations/jvm) have their own pages.
 
 ## Write the smallest useful policy
 
@@ -253,7 +286,7 @@ g-edit: allow role editor to document.edit on project in org:acme when subject.m
 A condition the engine cannot evaluate never opens access. The `allow` is dropped, nothing else applies, and the answer is `deny` with the cause in `warnings`.
 
 <Callout kind="note">
-  The text of a warning is in Portuguese in 0.7.0.
+  The text of a warning is in Portuguese. Branch on `reason.kind`, not on the warning text.
 </Callout>
 
 Rust and Node print the same for these two.
@@ -266,4 +299,8 @@ Rust and Node print the same for these two.
 
 <CardLink href="/docs/policy-language" title="Policy language">
   The same policy in Blocks, Rules and Actors.
+</CardLink>
+
+<CardLink href="/docs/guides/saas-multi-tenant" title="A multi-tenant SaaS">
+  A complete policy, from the catalog to the checks in a service.
 </CardLink>
