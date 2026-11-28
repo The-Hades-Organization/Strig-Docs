@@ -336,6 +336,387 @@ A value together with the revision its write was given.
 </ApiWide>
 
 
+## Governance, impact and why-not
+
+Invariants that every change to grants must keep, the impact of a change before it lands, and the smallest changes that would turn a deny into an allow. Walk-throughs: [Impact](/docs/governance/impact), [Why not](/docs/governance/why-not) and [Separation of duties](/docs/governance/separation-of-duties).
+
+#### `Mutation`
+
+Proposed change to the grant set or to a subject's roles.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `role_change` | `pub fn role_change(&self) -> Option<(&Subject, &RoleAssignment, bool)>` |
+| `kind` | `pub fn kind(&self) -> MutationKind` |
+| `subject_after` | `pub fn subject_after(&self) -> Option<Subject>` |
+
+</ApiWide>
+
+#### `MutationKind`
+
+The kind of a ``Mutation``, without its payload.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `as_str` | `pub fn as_str(self) -> &'static str` |
+
+</ApiWide>
+
+#### `Proposal`
+
+What an invariant sees: who changes, what, and the set before and after.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(actor: &'a Subject, mutation: &'a Mutation, before: &'a [Grant], after: &'a [Grant]) -> Self` |
+| `with_tuples` | `pub fn with_tuples(mut self, tuples: &'a dyn TupleStore) -> Self` |
+| `with_now` | `pub fn with_now(mut self, now: u64) -> Self` |
+| `grant` | `pub fn grant(&self) -> Option<&'a Grant>` |
+| `subject_after` | `pub fn subject_after<'s>(&self, subject: &'s Subject) -> Cow<'s, Subject>` |
+| `before_context` | `pub fn before_context(&self) -> Context<'_>` |
+| `after_context` | `pub fn after_context(&self) -> Context<'_>` |
+
+</ApiWide>
+
+#### `Suggestion`
+
+Compensating change proposed with a ``Violation``.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `into_mutation` | `pub fn into_mutation(self, subject: Subject) -> Mutation` |
+| `subject_id` | `pub fn subject_id(&self) -> &str` |
+
+</ApiWide>
+
+#### `Violation`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(invariant: impl Into<String>, message: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `Invariant`
+
+Rule that every grant or role change must respect.
+
+#### `AppliedWithImpact`
+
+A change applied together with what it does to access, from ``Governance::apply_with_impact``.
+
+#### `Governance`
+
+Applies grant and role changes only after they pass every invariant and, with the `audit` feature, after recording the decision.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `with` | `pub fn with(mut self, invariant: impl Invariant + 'static) -> Self` |
+| `audited` | `pub fn audited(mut self, auditor: Arc<Auditor>) -> Self` |
+| `with_revisions` | `pub fn with_revisions(mut self, source: Arc<dyn RevisionSource>) -> Self` |
+| `apply_revised` | `pub fn apply_revised( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Revised<Vec<Grant>>, Vec<Violation>>` |
+| `len` | `pub fn len(&self) -> usize` |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `apply` | `pub fn apply( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>) -> Result<Vec<Grant>, Vec<Violation>>` |
+| `at` | `pub fn at(&self, now: u64) -> GovernanceAt<'_>` |
+| `apply_with` | `pub fn apply_with( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Vec<Grant>, Vec<Violation>>` |
+| `impact` | `pub fn impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, options: &ImpactOptions<'_>) -> Result<Impact, Vec<Violation>>` |
+| `apply_with_impact` | `pub fn apply_with_impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes, options: &ImpactOptions<'_>) -> Result<AppliedWithImpact, Vec<Violation>>` |
+
+</ApiWide>
+
+#### `GovernanceAt`
+
+``Governance`` judging every change at one instant; see ``Governance::at``.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `apply_reporting` | `pub fn apply_reporting( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> (Result<Vec<Grant>, Vec<Violation>>, Option<AuditStatus>)` |
+| `apply` | `pub fn apply( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>) -> Result<Vec<Grant>, Vec<Violation>>` |
+| `impact` | `pub fn impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, options: &ImpactOptions<'_>) -> Result<Impact, Vec<Violation>>` |
+| `apply_with_impact` | `pub fn apply_with_impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes, options: &ImpactOptions<'_>) -> Result<AppliedWithImpact, Vec<Violation>>` |
+| `apply_revised` | `pub fn apply_revised( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Revised<Vec<Grant>>, Vec<Violation>>` |
+| `apply_with` | `pub fn apply_with( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Vec<Grant>, Vec<Violation>>` |
+
+</ApiWide>
+
+#### `CatalogConformance`
+
+The added grant exists in the catalog and targets a kind the permission accepts.
+
+#### `NoSelfManagement`
+
+Nobody changes a grant that applies to themselves: neither the user directly, nor a role they hold (direct or inherited).
+
+#### `RequirePermission`
+
+The actor must hold `key` on `resource` before the change.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(key: impl Into<String>, resource: Resource) -> Self` |
+
+</ApiWide>
+
+#### `NoLockout`
+
+After the change, each critical permission still has at least one member able to exercise it on `resource`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new<I, S>(critical: I, members: Vec<Subject>, resource: Resource) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+| `with_reserve` | `pub fn with_reserve<I>(mut self, admin_role: RoleAssignment, subjects: I) -> Self where I: IntoIterator<Item = Subject>,` |
+
+</ApiWide>
+
+#### `Forbid`
+
+`subject` never receives `allow` on `permissions` or on any permission that grants them.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new<I, S>(subject: SubjectMatcher, permissions: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+
+</ApiWide>
+
+#### `Prerequisites`
+
+Holding a permission requires holding its `depends_on` prerequisites on the same resource.
+
+#### `NonDelegable`
+
+A permission marked ``PermissionDef::non_delegable``(crate::PermissionDef::non_delegable) is only granted by an actor who holds `manager` on the resource: having the permission is not enough to pass it on.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(manager: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ManagementOnly`
+
+A permission marked ``PermissionDef::management_only``(crate::PermissionDef::management_only) is only granted to the management `roles`: never straight to a user, a principal or an ordinary role.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new<I, S>(roles: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+
+</ApiWide>
+
+#### `Bypass`
+
+Permission that exempts its holder from ``NoEscalation`` on `resource`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(permission: impl Into<String>, resource: Resource) -> Self` |
+
+</ApiWide>
+
+#### `NoEscalation`
+
+The actor only hands out what they hold.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `bypass` | `pub fn bypass(mut self, bypass: Bypass) -> Self` |
+
+</ApiWide>
+
+#### `AUDIT_EXAMPLES`
+
+Most examples an audit record keeps.
+
+#### `SampleSpec`
+
+Subjects, resources and permissions to ask about, chosen by the caller.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `subject` | `pub fn subject(mut self, subject: Subject) -> Self` |
+| `resource` | `pub fn resource(mut self, resource: Resource) -> Self` |
+| `permission` | `pub fn permission(mut self, permission: impl Into<String>) -> Self` |
+| `field` | `pub fn field(mut self, field: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ImpactSource`
+
+How the subjects and the resources of an impact are found.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `derived` | `pub fn derived() -> Self` |
+| `sample` | `pub fn sample(spec: SampleSpec) -> Self` |
+
+</ApiWide>
+
+#### `ImpactOptions`
+
+What the impact of a change is computed over.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(source: ImpactSource) -> Self` |
+| `with_tuples` | `pub fn with_tuples(mut self, tuples: &'a dyn TupleIndex) -> Self` |
+| `with_env` | `pub fn with_env(mut self, env: &'a Attributes) -> Self` |
+| `with_limits` | `pub fn with_limits(mut self, limits: QueryLimits) -> Self` |
+| `at` | `pub fn at(mut self, now: u64) -> Self` |
+
+</ApiWide>
+
+#### `Access`
+
+What one side of a question came out as.
+
+#### `AccessChange`
+
+One question whose answer the change moves.
+
+#### `Impact`
+
+Who gains and who loses access with a change.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `summary` | `pub fn summary(&self) -> ImpactSummary` |
+
+</ApiWide>
+
+#### `PotentialClash`
+
+A separation clash the change would create, and who would hold it.
+
+#### `ImpactSummary`
+
+The impact of a change as the audit trail keeps it: counts and a bounded list of examples.
+
+#### `WhyNotOptions`
+
+Bounds of a ``Engine::why_not`` call.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `with_limits` | `pub fn with_limits(mut self, limits: QueryLimits) -> Self` |
+| `with_max_remedies` | `pub fn with_max_remedies(mut self, max_remedies: usize) -> Self` |
+
+</ApiWide>
+
+#### `Cause`
+
+What denied the request.
+
+#### `Caveat`
+
+A known governance rule the remedy runs into.
+
+#### `Change`
+
+One change that, applied alone, makes the decision `allow`.
+
+#### `Remedy`
+
+A verified remedy.
+
+#### `Remedies`
+
+The answer of ``Engine::why_not``: what denied and what would allow.
+
+#### More on `Engine`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `why_not` | `pub fn why_not(&self, ctx: &Context<'_>, request: &Request<'_>, options: &WhyNotOptions) -> Option<Remedies>` |
+
+</ApiWide>
+
+#### `SEPARATION_PREFIX`
+
+Prefix of the name a dynamic rule has as an override (`separation:&lt;rule>`), in the reason of the decision and in the explanation.
+
+#### `Clash`
+
+Two members of a ``MutualExclusion`` that one subject holds in the same scope.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `describe` | `pub fn describe(&self, who: &str) -> String` |
+
+</ApiWide>
+
+#### `SeparationOfDuties`
+
+Nobody accumulates two members of a ``MutualExclusion`` of the catalog in the same scope.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `with_subjects` | `pub fn with_subjects<I: IntoIterator<Item = Subject>>(mut self, subjects: I) -> Self` |
+
+</ApiWide>
+
+#### `SeparationRule`
+
+A dynamic rule of the catalog as an override that only denies.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(rule: ActionConflict) -> Self` |
+
+</ApiWide>
+
+
 ## Real time: strig-sync
 
 `strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
