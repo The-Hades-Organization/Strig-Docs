@@ -1,11 +1,20 @@
 ---
 title: Reference
-description: "The public API: the strig engine, its decisions, requests, grants and errors, then the real-time, server, macro and JavaScript packages. The JavaScript part is current at 0.7.0."
+description: "The public API of Strig 1.0: the Rust crates, the command line, the npm and Python packages, the Go and Java bindings, the Wasm ABI, the HTTP API, protocol 2 and the closed lists of error codes."
 ---
 
-The JavaScript section is copied from the 0.7.0 `index.d.ts`. The Rust signatures below were copied at 0.6.1; [Upgrading](/docs/upgrading#070) lists what 0.7.0 changed in them, and what it adds to Rust (the audit fail mode, `Approvals`, `tz`) is on [Audit](/docs/audit), [Approvals](/docs/approvals) and [Concepts](/docs/concepts#time-zones). Pick a name to see it in the bench with a real example and what it returns. The first part is the `strig` crate: install it with `strig = "0.7"`; the default features are `audit`, and `dsl` and `dsl-fs` add the policy language. After it come `strig-sync` and its transports, `strig-axum`, `strig-server`, `strig-macros`, the npm package and the inspector.
+This page lists every name in the 1.0 public surface, copied from the sources and the type snapshots of the release. Pick a name to see it in the bench with a real example and what it returns.
 
-The repository's `CHANGELOG.md` records what changed between versions; [Upgrading](/docs/upgrading) says what to change between releases. Strig was called Themis until 0.5.0: the crate `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`, with the same code. The npm package and `strig-server` have no 0.6.0 release, so 0.6.1 was the first version of both.
+| Surface | Install | Section |
+| --- | --- | --- |
+| `strig` | `strig = "1.0"` (default feature `audit`; `dsl` and `dsl-fs` add the policy language) | [Engine](#engine) |
+| `strig-sync`, `strig-redis`, `strig-postgres` | `strig-sync = "1.0"` | [Real-time](#real-time-strig-sync) |
+| `strig-axum`, `strig-server`, `strig-macros` | `strig-server = "1.0"` | [Server](#decision-server-strig-server) |
+| `strig-cli` | `cargo install strig-cli` | [Command line](#command-line) |
+| npm package | `npm install @the-hades-organization/strig` | [npm](#javascript-the-npm-package) |
+| `strig-auth` (Python), Go, Java | `pip install strig-auth` | [Python](#python-strig-auth) |
+
+[Upgrading](/docs/upgrading) says what to change between releases and what 1.0 promises to keep. The repository's `CHANGELOG.md` records every change. Strig was called Themis until 0.5.0: `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`.
 
 ## Engine
 
@@ -214,7 +223,7 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 | Type | Variants | From |
 | --- | --- | --- |
 | `EngineError` | `UnknownPermission(String)` | `EngineBuilder::build` |
-| `GrantError` | `EmptyId`, `UnknownPermission(String)`, `UnknownTargetKind(String)`, `TargetNotAllowed { permission, target }`, `OverrideOnly(String)`, `RelationsDisabled`, `UnknownFunction(String)`, `InvalidWindow(ValidityError)` | `Engine::validate_grant` |
+| `GrantError` | `EmptyId`, `UnknownPermission(String)`, `UnknownTargetKind(String)`, `TargetNotAllowed { permission, target }`, `OverrideOnly(String)`, `RelationsDisabled`, `UnknownFunction(String)`, `InvalidWindow(ValidityError)`, `InvalidField(String)`, `UnknownField { permission, field }` | `Engine::validate_grant` |
 | `SpecError` | `Catalog(CatalogErrors)`, `Roles(RbacError)`, `Engine(EngineError)` | `EngineSpec::build` |
 | `QueryError` | `UnknownSubject(SubjectRef)`, `LimitExceeded { what, limit }`, `RelationDepthExceeded { grant_id }` | `check_for`, `who_can_on`, `access_of` |
 | `dsl::Diagnostics` | A list of `Diagnostic { location, message, hint, related }` | `dsl::parse` |
@@ -222,12 +231,12 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 </ApiWide>
 
 <Callout kind="warning">
-  In 0.7.0 `EngineError`, `GrantError` and `SpecError` print their text in Portuguese, while `QueryError` and `dsl::Diagnostics` print English. Match on the variant, not on the text.
+  `EngineError`, `GrantError`, `SpecError` and the catalog errors print their text in Portuguese, while `QueryError` and `dsl::Diagnostics` print English. Match on the variant, not on the text: the variants are the contract, the messages are not.
 </Callout>
 
 <ApiWide>
 
-| Variant | Message, as 0.7.0 prints it |
+| Variant | Message |
 | --- | --- |
 | `EngineError::UnknownPermission` | <code lang="pt">exceção de override cita permissão fora do catálogo: {'{0}'}</code> |
 | `GrantError::EmptyId` | <code lang="pt">grant sem id</code> |
@@ -238,10 +247,12 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 | `GrantError::RelationsDisabled` | <code lang="pt">grant por relação exige RelationSchema no motor</code> |
 | `GrantError::UnknownFunction` | <code lang="pt">condição chama função não registrada: {'{0}'}</code> |
 | `GrantError::InvalidWindow` | <code lang="pt">janela de validade inválida: {'{0}'}</code> |
+| `GrantError::InvalidField` | <code lang="pt">campo inválido '{'{0}'}': use segmentos [A-Za-z_][A-Za-z0-9_]* separados por ponto</code> |
+| `GrantError::UnknownField` | <code lang="pt">a permissão {'{permission}'} não declara o campo {'{field}'}</code> |
 
 </ApiWide>
 
-Nothing in 0.7.0 is deprecated. The [deprecation policy](/docs/upgrading#deprecation-policy) says how it will be announced. The Rust core has no string error codes.
+The Rust core has no string error codes; the packages and the server map each variant to a closed [error code](#error-codes). The [deprecation policy](/docs/upgrading#deprecation-policy) says how a change to a variant is announced.
 
 ## Fields and revisions
 
@@ -1813,7 +1824,7 @@ Exclusive ownership of resources over a store.
 
 ## Real time: strig-sync
 
-`strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
+`strig-sync = "1.0"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
 
 <ApiGroup>
   <ApiItem id="hub-builder" name="Hub::builder" sig={"pub fn builder() -> HubBuilder\npub fn new() -> Self"}>
@@ -1865,7 +1876,7 @@ Exclusive ownership of resources over a store.
     The medium between instances. Delivery is at most once: the hub covers a gap with `Resync`. `strig-redis` and `strig-postgres` implement it; another broker plugs in the same way. `MemoryTransport::new(capacity: usize)` is for tests and shares one channel between clones.
   </ApiItem>
   <ApiItem level={4} id="transport-error" name="TransportError" sig={"pub enum TransportError { Connection(String), Decode(String), Closed }"}>
-    Match on the variant: in 0.7.0 the text is Portuguese.
+    Match on the variant: the text is Portuguese.
   </ApiItem>
 </ApiGroup>
 
@@ -1918,7 +1929,7 @@ Exclusive ownership of resources over a store.
 
 ## axum routes: strig-axum
 
-`strig-axum = "0.7"`. Authentication stays with your application: your handler identifies the subject and calls the route.
+`strig-axum = "1.0"`. Authentication stays with your application: your handler identifies the subject and calls the route.
 
 <ApiGroup>
   <ApiItem id="realtime-new" name="Realtime::new" sig={"pub fn new(hub: Hub) -> Self\npub fn with_provider(mut self, provider: Arc<dyn CapabilityProvider>) -> Self\npub fn with_options(mut self, options: SessionOptions) -> Self\npub fn hub(&self) -> &Hub"}>
@@ -1938,10 +1949,10 @@ Both are a `Transport` for `Hub::builder().transport(..)`.
 
 <ApiGroup>
   <ApiItem id="redis-transport" name="RedisTransport::new" pick="redis" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn from_client(client: Client, channel: impl Into<String>) -> Self\npub fn channel(&self) -> &str"}>
-    `strig-redis = "0.7"`. Redis pub/sub. Publishing reconnects on its own; each `subscribe` opens a dedicated connection, and when it drops the hub reopens it and emits `Resync`.
+    `strig-redis = "1.0"`. Redis pub/sub. Publishing reconnects on its own; each `subscribe` opens a dedicated connection, and when it drops the hub reopens it and emits `Resync`.
   </ApiItem>
   <ApiItem id="pg-transport" name="PgTransport::new" pick="pg" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn with_tls<T>(url: &str, channel: impl Into<String>, tls: T) -> Result<Self, TransportError>"}>
-    `strig-postgres = "0.7"`. Postgres `LISTEN/NOTIFY`, without TLS or with any `tokio-postgres` connector.
+    `strig-postgres = "1.0"`. Postgres `LISTEN/NOTIFY`, without TLS or with any `tokio-postgres` connector.
   </ApiItem>
   <ApiItem id="pg-notify" name="strig_postgres::notify" sig={"pub async fn notify<C: GenericClient + Sync>(client: &C, channel: &str, change: &Change) -> Result<(), TransportError>"}>
     Sends a change through a client or a transaction. `NOTIFY` goes out on commit, so a notice sent in the transaction that writes the grant goes out only if the write does. It arrives without an origin, so every instance delivers it, the writer included. `MAX_PAYLOAD` is 7999 bytes.
@@ -2011,7 +2022,7 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 ## Decision server: strig-server
 
-`strig-server = "0.7"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
+`strig-server = "1.0"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
 
 <ApiGroup>
   <ApiItem id="decision-server" name="DecisionServer::router" pick="server" sig={"pub fn new(source: Arc<dyn DecisionSource>) -> Self\npub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self\npub fn with_config(mut self, config: ServerConfig) -> Self\npub fn router(self) -> Router"}>
@@ -2237,7 +2248,7 @@ $ echo $?
 
 ## Policies at compile time: strig-macros
 
-`strig-macros = "0.7"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
+`strig-macros = "1.0"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
 
 <ApiGroup>
   <ApiItem id="policy-macro" name="policy!" pick="policy" sig={"policy!(\"<policy text>\")"}>
@@ -2252,7 +2263,7 @@ The expansion embeds the validated policy as JSON and reads that JSON back on ea
 
 ## JavaScript: the npm package
 
-`npm install @the-hades-organization/strig`, version 1.0.0-rc.1, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
+`npm install @the-hades-organization/strig`, version 1.0, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
 
 `call` condition functions, your own overrides and your own invariants are synchronous callbacks passed to `new Engine(spec, hooks)`; see [JavaScript](/docs/javascript#rules-written-in-javascript). The JSON spec covers the built-in `resource_owner` and `permission_holder`.
 
