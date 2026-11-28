@@ -18,10 +18,10 @@ A source is the `language actors` line, then headings.
 
 | Heading | Lines under it |
 | --- | --- |
-| `role <name> [inherits <names>]` | `in <scope>` and, under it or directly, `allow\|deny <permission> on <target> [when <condition>] [from <date>] [until <date>] as <id>` |
+| `role <name> [inherits <names>]` | `in <scope>` and, under it or directly, `allow\|deny <permission> on <target> [fields <names>] [when <condition>] [from <date>] [until <date>] as <id>` |
 | `user <id>` or `subject <kind:id>` | `role <name> [in <scope>] [from <date>] [until <date>]`, `principal <id>`, `attr <key> = <value>`, and the same `allow` and `deny` lines |
 | `principal <id>`, `relation <name>`, `anyone` | the `allow` and `deny` lines |
-| `catalog` | `kinds`, `broad`, then each permission as in Rules, without the `permission` word |
+| `catalog` | `kinds`, `broad`, then each permission as in Rules, without the `permission` word, and the `mutually-exclusive` and `conflicting-actions` lines as in Rules |
 | `relations` | `doc#viewer = this \| owner`, one per line |
 | `tuples` | `doc:d1#owner@user:bob`, one per line |
 | `engine` | `strategy`, `depth` and `override ...` |
