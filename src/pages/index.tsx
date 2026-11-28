@@ -18,6 +18,22 @@ import {
   REQUEST_DENY,
 } from '../ds/landing-samples';
 import { LINKS, NPM_PACKAGE } from '../ds/links';
+import { Seo } from '../ds/Seo';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, absoluteUrl } from '../lib/site';
+
+const HOME_TITLE = `${SITE_NAME}: RBAC, ABAC and ReBAC authorization library`;
+
+// Structured data for the home page: the library as a software project.
+const JSON_LD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareSourceCode',
+  name: SITE_NAME,
+  description: SITE_TAGLINE,
+  url: absoluteUrl('/'),
+  codeRepository: LINKS.github,
+  license: 'https://opensource.org/license/mit',
+  programmingLanguage: 'Rust',
+}).replace(/</g, '\\u003c');
 
 const NO_GRANT = 'No grant on this step.';
 
@@ -162,6 +178,9 @@ const EXITS: Exit[] = [
 export default function HomePage() {
   return (
     <div className="landing">
+      <Seo description={SITE_DESCRIPTION} path="/" type="website" fullTitle={HOME_TITLE} />
+      {/* Constant JSON built above from site constants: no external input. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON_LD }} />
       <a className="skip-link" href="#content">
         Skip to content
       </a>

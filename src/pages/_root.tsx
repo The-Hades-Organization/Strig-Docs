@@ -11,15 +11,15 @@ import '../styles/bench.css';
 import '../styles/reference.css';
 import '../styles/home.css';
 import { THEME_INIT_SCRIPT } from '../ds/theme';
+import { SITE_LOCALE } from '../lib/site';
 
 export default async function RootElement({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={SITE_LOCALE} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
-        <title>Strig</title>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         {/* Constant string, no external input: sets the theme before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

@@ -1,4 +1,5 @@
 import { Seal } from '../ds/Seal';
+import { SITE_NAME } from '../lib/site';
 import { Shell } from '../ds/Shell';
 import { LINKS } from '../ds/links';
 
@@ -7,6 +8,8 @@ import { LINKS } from '../ds/links';
 export default function NotFound() {
   return (
     <Shell>
+      <title>{`Page not found · ${SITE_NAME}`}</title>
+      <meta name="robots" content="noindex" />
       <div className="home">
         <section className="home-hero">
           <h1>Nothing at this address.</h1>

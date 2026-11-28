@@ -121,6 +121,7 @@ export default function DesignSystemPage() {
   const current = '/docs/concepts';
   return (
     <Shell>
+      <title>Design system · Strig</title>
       <meta name="robots" content="noindex, nofollow" />
       <div className="prose" style={{ maxWidth: 'var(--w-wide)' }}>
         <h1>Design system</h1>
