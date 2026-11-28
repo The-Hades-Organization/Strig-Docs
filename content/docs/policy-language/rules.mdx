@@ -22,7 +22,7 @@ A source is the `language rules` line, then one statement per line.
 | `broad` | `broad org` |
 | `strategy` | `strategy <name>`, where the name is `most_specific`, `deny_overrides`, `permit_overrides` or `first_applicable` |
 | `depth` | `depth <n>` |
-| `permission` | `permission <id> on <kinds> [implied by <ids>] [depends_on <ids>] [label "..."] [about "..."] [non-delegable] [management-only] [override-only] [meta k = "v"]` |
+| `permission` | `permission <id> on <kinds> [implied by <ids>] [depends_on <ids>] [fields <names>] [label "..."] [about "..."] [non-delegable] [management-only] [override-only] [meta k = "v"]` |
 | `role` | `role <name> [inherits <names>]` |
 | `subject` | `subject team:ops` declares a subject |
 | role assignment | `user:ana has role <name> [in <scope>] [from <date>] [until <date>]` |
@@ -31,11 +31,13 @@ A source is the `language rules` line, then one statement per line.
 | `relations` | `relations none` declares that the policy uses no relations |
 | `relation` | `relation doc#viewer = this \| owner` |
 | `tuple` | `tuple doc:d1#owner@user:bob` |
-| grant | `<id>: allow\|deny <matcher> to <permission> on <target> [in <scope>] [when <condition>] [from <date>] [until <date>]` |
+| grant | `<id>: allow\|deny <matcher> to <permission> on <target> [in <scope>] [fields <names>] [when <condition>] [from <date>] [until <date>]` |
+| `mutually-exclusive` | `mutually-exclusive <name> of roles\|permissions members [a, b] [anchor <kind>]` |
+| `conflicting-actions` | `conflicting-actions <name> first [a] then [b] [history <attr>] [distinct_roles true]` |
 | `override` | `override resource-owner <attr> [except <ids>]` and `override permission-holder <id> [except <ids>]` |
 | `always` | `always <invariant> [fields]` |
 
-The invariant words are the Blocks names with hyphens: `catalog-conformance`, `no-self-management`, `prerequisites`, `require-permission`, `no-lockout`, `non-delegable`, `management-only`, `no-escalation` and `forbid`. Fields follow the word as `name value` pairs, with lists in square brackets, for example `always require-permission permission doc.read resource org:acme > doc`.
+The invariant words are the Blocks names with hyphens: `catalog-conformance`, `no-self-management`, `prerequisites`, `require-permission`, `no-lockout`, `non-delegable`, `management-only`, `no-escalation`, `forbid` and `separation-of-duties` (`subjects`). Fields follow the word as `name value` pairs, with lists in square brackets, for example `always require-permission permission doc.read resource org:acme > doc`.
 
 In a grant, the matcher is `anyone`, `role viewer`, `user ana`, `principal ana` or `relation viewer`. `on` names the kind or the resource the grant sits on, and `in` limits where it applies. The word after `to` is a permission the catalog declares.
 

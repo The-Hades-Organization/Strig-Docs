@@ -27,10 +27,12 @@ A source is the `language blocks` line, then the settings, then the declarations
 
 | Declaration | Fields |
 | --- | --- |
-| `permission <id> { }` | `label`, `description`, `targets` (required), `implied_by`, `depends_on`, `non_delegable`, `management_only`, `override_only`, `meta { k = "v" }` |
+| `permission <id> { }` | `label`, `description`, `targets` (required), `implied_by`, `depends_on`, `fields`, `non_delegable`, `management_only`, `override_only`, `meta { k = "v" }` |
 | `role <name> { }` | `inherits` |
 | `subject <kind:id> { }` | `principals`, `attrs { }`, and `assign <role> { }` with `scope`, `valid_from`, `valid_until` |
-| `grant <id> { }` | `effect` (`allow` or `deny`), `subject`, `permission`, `target`, `scope`, `when`, `valid_from`, `valid_until` |
+| `grant <id> { }` | `effect` (`allow` or `deny`), `subject`, `permission`, `target`, `scope`, `when`, `fields`, `valid_from`, `valid_until` |
+| `mutually_exclusive <name> { }` | `of` (`roles` or `permissions`), `members` (two or more), `anchor` (a kind; absent means global) |
+| `conflicting_actions <name> { }` | `first`, `then`, `history` (default `history`), `distinct_roles` |
 | `relation <kind#name> { }` | `rewrite` |
 | `relations = []` | declares that the policy uses no relations |
 | `tuples { }` | one `object#relation@subject` per line |
@@ -51,6 +53,7 @@ The invariant kinds and their fields are:
 | `management_only` | `roles` |
 | `no_escalation` | `bypass`, `on` |
 | `forbid` | `subject`, `permissions` |
+| `separation_of_duties` | `subjects` (optional: also judged when a grant is added) |
 
 ## A complete example
 

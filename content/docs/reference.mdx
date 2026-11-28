@@ -1,11 +1,20 @@
 ---
 title: Reference
-description: "The public API: the strig engine, its decisions, requests, grants and errors, then the real-time, server, macro and JavaScript packages. The JavaScript part is current at 0.7.0."
+description: "The public API of Strig 1.0: the Rust crates, the command line, the npm and Python packages, the Go and Java bindings, the Wasm ABI, the HTTP API, protocol 2 and the closed lists of error codes."
 ---
 
-The JavaScript section is copied from the 0.7.0 `index.d.ts`. The Rust signatures below were copied at 0.6.1; [Upgrading](/docs/upgrading#070) lists what 0.7.0 changed in them, and what it adds to Rust (the audit fail mode, `Approvals`, `tz`) is on [Audit](/docs/audit), [Approvals](/docs/approvals) and [Concepts](/docs/concepts#time-zones). Pick a name to see it in the bench with a real example and what it returns. The first part is the `strig` crate: install it with `strig = "0.7"`; the default features are `audit`, and `dsl` and `dsl-fs` add the policy language. After it come `strig-sync` and its transports, `strig-axum`, `strig-server`, `strig-macros`, the npm package and the inspector.
+This page lists every name in the 1.0 public surface, copied from the sources and the type snapshots of the release. Pick a name to see it in the bench with a real example and what it returns.
 
-The repository's `CHANGELOG.md` records what changed between versions; [Upgrading](/docs/upgrading) says what to change between releases. Strig was called Themis until 0.5.0: the crate `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`, with the same code. The npm package and `strig-server` have no 0.6.0 release, so 0.6.1 was the first version of both.
+| Surface | Install | Section |
+| --- | --- | --- |
+| `strig` | `strig = "1.0"` (default feature `audit`; `dsl` and `dsl-fs` add the policy language) | [Engine](#engine) |
+| `strig-sync`, `strig-redis`, `strig-postgres` | `strig-sync = "1.0"` | [Real-time](#real-time-strig-sync) |
+| `strig-axum`, `strig-server`, `strig-macros` | `strig-server = "1.0"` | [Server](#decision-server-strig-server) |
+| `strig-cli` | `cargo install strig-cli` | [Command line](#command-line) |
+| npm package | `npm install @the-hades-organization/strig` | [npm](#javascript-the-npm-package) |
+| `strig-auth` (Python), Go, Java | `pip install strig-auth` | [Python](#python-strig-auth) |
+
+[Upgrading](/docs/upgrading) says what to change between releases and what 1.0 promises to keep. The repository's `CHANGELOG.md` records every change. Strig was called Themis until 0.5.0: `themis-auth` is now `strig`, and `use themis::` becomes `use strig::`.
 
 ## Engine
 
@@ -214,7 +223,7 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 | Type | Variants | From |
 | --- | --- | --- |
 | `EngineError` | `UnknownPermission(String)` | `EngineBuilder::build` |
-| `GrantError` | `EmptyId`, `UnknownPermission(String)`, `UnknownTargetKind(String)`, `TargetNotAllowed { permission, target }`, `OverrideOnly(String)`, `RelationsDisabled`, `UnknownFunction(String)`, `InvalidWindow(ValidityError)` | `Engine::validate_grant` |
+| `GrantError` | `EmptyId`, `UnknownPermission(String)`, `UnknownTargetKind(String)`, `TargetNotAllowed { permission, target }`, `OverrideOnly(String)`, `RelationsDisabled`, `UnknownFunction(String)`, `InvalidWindow(ValidityError)`, `InvalidField(String)`, `UnknownField { permission, field }` | `Engine::validate_grant` |
 | `SpecError` | `Catalog(CatalogErrors)`, `Roles(RbacError)`, `Engine(EngineError)` | `EngineSpec::build` |
 | `QueryError` | `UnknownSubject(SubjectRef)`, `LimitExceeded { what, limit }`, `RelationDepthExceeded { grant_id }` | `check_for`, `who_can_on`, `access_of` |
 | `dsl::Diagnostics` | A list of `Diagnostic { location, message, hint, related }` | `dsl::parse` |
@@ -222,12 +231,12 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 </ApiWide>
 
 <Callout kind="warning">
-  In 0.7.0 `EngineError`, `GrantError` and `SpecError` print their text in Portuguese, while `QueryError` and `dsl::Diagnostics` print English. Match on the variant, not on the text.
+  `EngineError`, `GrantError`, `SpecError` and the catalog errors print their text in Portuguese, while `QueryError` and `dsl::Diagnostics` print English. Match on the variant, not on the text: the variants are the contract, the messages are not.
 </Callout>
 
 <ApiWide>
 
-| Variant | Message, as 0.7.0 prints it |
+| Variant | Message |
 | --- | --- |
 | `EngineError::UnknownPermission` | <code lang="pt">exceção de override cita permissão fora do catálogo: {'{0}'}</code> |
 | `GrantError::EmptyId` | <code lang="pt">grant sem id</code> |
@@ -238,14 +247,1584 @@ A deny is never an error: `decide` always returns a `Decision`, and an unknown p
 | `GrantError::RelationsDisabled` | <code lang="pt">grant por relação exige RelationSchema no motor</code> |
 | `GrantError::UnknownFunction` | <code lang="pt">condição chama função não registrada: {'{0}'}</code> |
 | `GrantError::InvalidWindow` | <code lang="pt">janela de validade inválida: {'{0}'}</code> |
+| `GrantError::InvalidField` | <code lang="pt">campo inválido '{'{0}'}': use segmentos [A-Za-z_][A-Za-z0-9_]* separados por ponto</code> |
+| `GrantError::UnknownField` | <code lang="pt">a permissão {'{permission}'} não declara o campo {'{field}'}</code> |
 
 </ApiWide>
 
-Nothing in 0.7.0 is deprecated. The [deprecation policy](/docs/upgrading#deprecation-policy) says how it will be announced. The Rust core has no string error codes.
+The Rust core has no string error codes; the packages and the server map each variant to a closed [error code](#error-codes). The [deprecation policy](/docs/upgrading#deprecation-policy) says how a change to a variant is announced.
+
+## Fields and revisions
+
+A field permission narrows what a subject may use inside a resource; a revision pins a decision to a point in the history of a data scope. Walk-throughs: [Field permissions](/docs/modeling/field-permissions) and [Consistency](/docs/storage/consistency).
+
+#### `FieldSet`
+
+The fields of a resource a subject may use for a permission, as `Engine::allowed_fields` answers.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `contains` | `pub fn contains(&self, field: &str) -> bool` |
+| `is_none` | `pub fn is_none(&self) -> bool` |
+| `is_all` | `pub fn is_all(&self) -> bool` |
+
+</ApiWide>
+
+#### `FieldVerdict`
+
+Why one field came out allowed or denied.
+
+#### `FieldExplanation`
+
+The per-field trace of `Engine::explain_fields`.
+
+#### `Revision`
+
+A position in the history of one data scope.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(scope: impl Into<String>, value: u64) -> Self` |
+| `scope` | `pub fn scope(&self) -> &str` |
+| `value` | `pub fn value(&self) -> u64` |
+| `reached_by` | `pub fn reached_by(required: &Revision, have: Option<&Revision>) -> Reached` |
+| `reaches` | `pub fn reaches(&self, required: &Revision) -> Reached` |
+| `advanced` | `pub fn advanced(&self, by: u64) -> Self` |
+
+</ApiWide>
+
+#### `Reached`
+
+How a revision a holder has compares with the one a decision requires.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_reached` | `pub fn is_reached(self) -> bool` |
+
+</ApiWide>
+
+#### `DEFAULT_SCOPE`
+
+The scope an empty one is read as.
+
+#### `RevisionParseError`
+
+The text did not read as a revision token.
+
+#### `RevisionSource`
+
+Where revisions come from: the store that persists the changes of one data scope.
+
+#### `MemoryRevisions`
+
+A `RevisionSource` that counts in memory, for the memory and file stores and for tests.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(scope: impl Into<String>) -> Self` |
+| `starting_at` | `pub fn starting_at(scope: impl Into<String>, value: u64) -> Self` |
+
+</ApiWide>
+
+#### `Revised`
+
+A value together with the revision its write was given.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(value: T, revision: Option<Revision>) -> Self` |
+
+</ApiWide>
+
+
+## Governance, impact and why-not
+
+Invariants that every change to grants must keep, the impact of a change before it lands, and the smallest changes that would turn a deny into an allow. Walk-throughs: [Impact](/docs/governance/impact), [Why not](/docs/governance/why-not) and [Separation of duties](/docs/governance/separation-of-duties).
+
+#### `Mutation`
+
+Proposed change to the grant set or to a subject's roles.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `role_change` | `pub fn role_change(&self) -> Option<(&Subject, &RoleAssignment, bool)>` |
+| `kind` | `pub fn kind(&self) -> MutationKind` |
+| `subject_after` | `pub fn subject_after(&self) -> Option<Subject>` |
+
+</ApiWide>
+
+#### `MutationKind`
+
+The kind of a `Mutation`, without its payload.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `as_str` | `pub fn as_str(self) -> &'static str` |
+
+</ApiWide>
+
+#### `Proposal`
+
+What an invariant sees: who changes, what, and the set before and after.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(actor: &'a Subject, mutation: &'a Mutation, before: &'a [Grant], after: &'a [Grant]) -> Self` |
+| `with_tuples` | `pub fn with_tuples(mut self, tuples: &'a dyn TupleStore) -> Self` |
+| `with_now` | `pub fn with_now(mut self, now: u64) -> Self` |
+| `grant` | `pub fn grant(&self) -> Option<&'a Grant>` |
+| `subject_after` | `pub fn subject_after<'s>(&self, subject: &'s Subject) -> Cow<'s, Subject>` |
+| `before_context` | `pub fn before_context(&self) -> Context<'_>` |
+| `after_context` | `pub fn after_context(&self) -> Context<'_>` |
+
+</ApiWide>
+
+#### `Suggestion`
+
+Compensating change proposed with a `Violation`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `into_mutation` | `pub fn into_mutation(self, subject: Subject) -> Mutation` |
+| `subject_id` | `pub fn subject_id(&self) -> &str` |
+
+</ApiWide>
+
+#### `Violation`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(invariant: impl Into<String>, message: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `Invariant`
+
+Rule that every grant or role change must respect.
+
+#### `AppliedWithImpact`
+
+A change applied together with what it does to access, from `Governance::apply_with_impact`.
+
+#### `Governance`
+
+Applies grant and role changes only after they pass every invariant and, with the `audit` feature, after recording the decision.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `with` | `pub fn with(mut self, invariant: impl Invariant + 'static) -> Self` |
+| `audited` | `pub fn audited(mut self, auditor: Arc<Auditor>) -> Self` |
+| `with_revisions` | `pub fn with_revisions(mut self, source: Arc<dyn RevisionSource>) -> Self` |
+| `apply_revised` | `pub fn apply_revised( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Revised<Vec<Grant>>, Vec<Violation>>` |
+| `len` | `pub fn len(&self) -> usize` |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `apply` | `pub fn apply( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>) -> Result<Vec<Grant>, Vec<Violation>>` |
+| `at` | `pub fn at(&self, now: u64) -> GovernanceAt<'_>` |
+| `apply_with` | `pub fn apply_with( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Vec<Grant>, Vec<Violation>>` |
+| `impact` | `pub fn impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, options: &ImpactOptions<'_>) -> Result<Impact, Vec<Violation>>` |
+| `apply_with_impact` | `pub fn apply_with_impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes, options: &ImpactOptions<'_>) -> Result<AppliedWithImpact, Vec<Violation>>` |
+
+</ApiWide>
+
+#### `GovernanceAt`
+
+`Governance` judging every change at one instant; see `Governance::at`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `apply_reporting` | `pub fn apply_reporting( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> (Result<Vec<Grant>, Vec<Violation>>, Option<AuditStatus>)` |
+| `apply` | `pub fn apply( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>) -> Result<Vec<Grant>, Vec<Violation>>` |
+| `impact` | `pub fn impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, options: &ImpactOptions<'_>) -> Result<Impact, Vec<Violation>>` |
+| `apply_with_impact` | `pub fn apply_with_impact( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes, options: &ImpactOptions<'_>) -> Result<AppliedWithImpact, Vec<Violation>>` |
+| `apply_revised` | `pub fn apply_revised( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Revised<Vec<Grant>>, Vec<Violation>>` |
+| `apply_with` | `pub fn apply_with( &self, engine: &Engine, actor: &Subject, current: &[Grant], mutation: &Mutation, tuples: Option<&dyn TupleStore>, meta: &Attributes) -> Result<Vec<Grant>, Vec<Violation>>` |
+
+</ApiWide>
+
+#### `CatalogConformance`
+
+The added grant exists in the catalog and targets a kind the permission accepts.
+
+#### `NoSelfManagement`
+
+Nobody changes a grant that applies to themselves: neither the user directly, nor a role they hold (direct or inherited).
+
+#### `RequirePermission`
+
+The actor must hold `key` on `resource` before the change.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(key: impl Into<String>, resource: Resource) -> Self` |
+
+</ApiWide>
+
+#### `NoLockout`
+
+After the change, each critical permission still has at least one member able to exercise it on `resource`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new<I, S>(critical: I, members: Vec<Subject>, resource: Resource) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+| `with_reserve` | `pub fn with_reserve<I>(mut self, admin_role: RoleAssignment, subjects: I) -> Self where I: IntoIterator<Item = Subject>,` |
+
+</ApiWide>
+
+#### `Forbid`
+
+`subject` never receives `allow` on `permissions` or on any permission that grants them.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new<I, S>(subject: SubjectMatcher, permissions: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+
+</ApiWide>
+
+#### `Prerequisites`
+
+Holding a permission requires holding its `depends_on` prerequisites on the same resource.
+
+#### `NonDelegable`
+
+A permission marked `PermissionDef::non_delegable`(crate::PermissionDef::non_delegable) is only granted by an actor who holds `manager` on the resource: having the permission is not enough to pass it on.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(manager: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ManagementOnly`
+
+A permission marked `PermissionDef::management_only`(crate::PermissionDef::management_only) is only granted to the management `roles`: never straight to a user, a principal or an ordinary role.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new<I, S>(roles: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+
+</ApiWide>
+
+#### `Bypass`
+
+Permission that exempts its holder from `NoEscalation` on `resource`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(permission: impl Into<String>, resource: Resource) -> Self` |
+
+</ApiWide>
+
+#### `NoEscalation`
+
+The actor only hands out what they hold.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `bypass` | `pub fn bypass(mut self, bypass: Bypass) -> Self` |
+
+</ApiWide>
+
+#### `AUDIT_EXAMPLES`
+
+Most examples an audit record keeps.
+
+#### `SampleSpec`
+
+Subjects, resources and permissions to ask about, chosen by the caller.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `subject` | `pub fn subject(mut self, subject: Subject) -> Self` |
+| `resource` | `pub fn resource(mut self, resource: Resource) -> Self` |
+| `permission` | `pub fn permission(mut self, permission: impl Into<String>) -> Self` |
+| `field` | `pub fn field(mut self, field: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ImpactSource`
+
+How the subjects and the resources of an impact are found.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `derived` | `pub fn derived() -> Self` |
+| `sample` | `pub fn sample(spec: SampleSpec) -> Self` |
+
+</ApiWide>
+
+#### `ImpactOptions`
+
+What the impact of a change is computed over.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(source: ImpactSource) -> Self` |
+| `with_tuples` | `pub fn with_tuples(mut self, tuples: &'a dyn TupleIndex) -> Self` |
+| `with_env` | `pub fn with_env(mut self, env: &'a Attributes) -> Self` |
+| `with_limits` | `pub fn with_limits(mut self, limits: QueryLimits) -> Self` |
+| `at` | `pub fn at(mut self, now: u64) -> Self` |
+
+</ApiWide>
+
+#### `Access`
+
+What one side of a question came out as.
+
+#### `AccessChange`
+
+One question whose answer the change moves.
+
+#### `Impact`
+
+Who gains and who loses access with a change.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `summary` | `pub fn summary(&self) -> ImpactSummary` |
+
+</ApiWide>
+
+#### `PotentialClash`
+
+A separation clash the change would create, and who would hold it.
+
+#### `ImpactSummary`
+
+The impact of a change as the audit trail keeps it: counts and a bounded list of examples.
+
+#### `WhyNotOptions`
+
+Bounds of a `Engine::why_not` call.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `with_limits` | `pub fn with_limits(mut self, limits: QueryLimits) -> Self` |
+| `with_max_remedies` | `pub fn with_max_remedies(mut self, max_remedies: usize) -> Self` |
+
+</ApiWide>
+
+#### `Cause`
+
+What denied the request.
+
+#### `Caveat`
+
+A known governance rule the remedy runs into.
+
+#### `Change`
+
+One change that, applied alone, makes the decision `allow`.
+
+#### `Remedy`
+
+A verified remedy.
+
+#### `Remedies`
+
+The answer of `Engine::why_not`: what denied and what would allow.
+
+#### More on `Engine`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `why_not` | `pub fn why_not(&self, ctx: &Context<'_>, request: &Request<'_>, options: &WhyNotOptions) -> Option<Remedies>` |
+
+</ApiWide>
+
+#### `SEPARATION_PREFIX`
+
+Prefix of the name a dynamic rule has as an override (`separation:&lt;rule>`), in the reason of the decision and in the explanation.
+
+#### `Clash`
+
+Two members of a `MutualExclusion` that one subject holds in the same scope.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `describe` | `pub fn describe(&self, who: &str) -> String` |
+
+</ApiWide>
+
+#### `SeparationOfDuties`
+
+Nobody accumulates two members of a `MutualExclusion` of the catalog in the same scope.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `with_subjects` | `pub fn with_subjects<I: IntoIterator<Item = Subject>>(mut self, subjects: I) -> Self` |
+
+</ApiWide>
+
+#### `SeparationRule`
+
+A dynamic rule of the catalog as an override that only denies.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(rule: ActionConflict) -> Self` |
+
+</ApiWide>
+
+
+## Approvals, elevation and recertification
+
+Changes that wait for a reviewer, time-boxed elevation, and periodic review of who holds what. Walk-throughs: [Approvals](/docs/approvals), [Elevation](/docs/governance/elevation) and [Recertification](/docs/governance/recertification).
+
+#### `ApprovalRule`
+
+Who may approve a kind of change: whoever holds `permission` on `resource`.
+
+#### `ApprovalPolicy`
+
+The kinds of change that wait for approval.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `from_rules` | `pub fn from_rules(rules: impl IntoIterator<Item = ApprovalRule>) -> Self` |
+| `require` | `pub fn require(mut self, kind: MutationKind, permission: impl Into<String>, resource: Resource) -> Self` |
+| `require_all` | `pub fn require_all(self, permission: impl Into<String>, resource: Resource) -> Self` |
+| `rule_for` | `pub fn rule_for(&self, mutation: &Mutation) -> Option<&ApprovalRule>` |
+| `rules` | `pub fn rules(&self) -> &[ApprovalRule]` |
+
+</ApiWide>
+
+#### `PendingStatus`
+
+Where a request stands.
+
+#### `PendingRequest`
+
+A change waiting for another actor.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(id: impl Into<String>, actor: Subject, mutation: Mutation, requested_at: u64) -> Self` |
+| `expiring_at` | `pub fn expiring_at(mut self, expires_at: Option<u64>) -> Self` |
+| `with_status` | `pub fn with_status(mut self, status: PendingStatus) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, impact: Impact) -> Self` |
+| `with_elevation` | `pub fn with_elevation(mut self, elevation: ElevationInfo) -> Self` |
+| `is_pending` | `pub fn is_pending(&self) -> bool` |
+| `is_due` | `pub fn is_due(&self, now: u64) -> bool` |
+| `target` | `pub fn target(&self) -> String` |
+
+</ApiWide>
+
+#### `PendingError`
+
+#### `PendingStore`
+
+Where the requests are kept.
+
+#### `MemoryPendingStore`
+
+`PendingStore` in memory.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+
+</ApiWide>
+
+#### `ApprovalError`
+
+#### `Review`
+
+What a change is judged against: the grants as they are now, the tuples, the instant and the metadata of the call (ip, request id, reason) that the audit keeps from the `detailed` level.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(engine: &'a Engine, current: &'a [Grant], now: u64, meta: &'a Attributes) -> Self` |
+| `with_tuples` | `pub fn with_tuples(mut self, tuples: &'a dyn TupleStore) -> Self` |
+| `with_now` | `pub fn with_now(mut self, now: u64) -> Self` |
+| `with_current` | `pub fn with_current(mut self, current: &'a [Grant]) -> Self` |
+
+</ApiWide>
+
+#### `Proposed`
+
+The outcome of `Approvals::propose`.
+
+#### `Approved`
+
+A request approved and applied: the grants to persist (unchanged for a role change; the subject to write comes from `Mutation::subject_after` of the request) and the request as it now stands.
+
+#### `ImpactReview`
+
+The impact of a pending request as proposed and as it would be now, from `Approvals::review_impact`.
+
+#### `Approvals`
+
+The approval flow over a `Governance`, an `ApprovalPolicy` and a `PendingStore`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(governance: &'a Governance, policy: &'a ApprovalPolicy, store: &'a dyn PendingStore) -> Self` |
+| `with_distinct_roles` | `pub fn with_distinct_roles(mut self) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, options: &'a ImpactOptions<'a>) -> Self` |
+| `review_impact` | `pub fn review_impact(&self, review: &Review<'_>, id: &str) -> Result<ImpactReview, ApprovalError>` |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `pending` | `pub fn pending(&self, now: u64) -> Result<Vec<PendingRequest>, PendingError>` |
+| `propose` | `pub fn propose( &self, review: &Review<'_>, actor: &Subject, mutation: &Mutation, id: impl Into<String>, expires_at: Option<u64>) -> Result<Proposed, ApprovalError>` |
+| `approve` | `pub fn approve(&self, review: &Review<'_>, approver: &Subject, id: &str) -> Result<Approved, ApprovalError>` |
+| `reject` | `pub fn reject( &self, review: &Review<'_>, approver: &Subject, id: &str, reason: &str) -> Result<PendingRequest, ApprovalError>` |
+| `expire_due` | `pub fn expire_due(&self, now: u64, meta: &Attributes) -> Result<Vec<PendingRequest>, ApprovalError>` |
+
+</ApiWide>
+
+#### `ElevationTarget`
+
+What an elevation gives: a role, or a permission on a target.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `role` | `pub fn role(role: impl Into<String>) -> Self` |
+| `permission` | `pub fn permission(permission: impl Into<String>, target: TargetSelector) -> Self` |
+| `scoped` | `pub fn scoped(mut self, new_scope: Anchor) -> Self` |
+| `key` | `pub fn key(&self) -> ElevationKey` |
+
+</ApiWide>
+
+#### `ElevationKey`
+
+A role or a permission, as the policy names it.
+
+#### `ElevationRule`
+
+How a role or permission may be elevated.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new( key: ElevationKey, max_duration_ms: u64, approver_permission: impl Into<String>, approver_resource: Resource) -> Self` |
+| `requiring_justification` | `pub fn requiring_justification(mut self) -> Self` |
+| `allowing_break_glass` | `pub fn allowing_break_glass(mut self, max_duration_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `BreakGlassRule`
+
+The limit of a break-glass elevation.
+
+#### `ElevationPolicy`
+
+The roles and permissions that can be elevated, and how.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `from_rules` | `pub fn from_rules(rules: impl IntoIterator<Item = ElevationRule>) -> Self` |
+| `with` | `pub fn with(mut self, rule: ElevationRule) -> Self` |
+| `rule_for` | `pub fn rule_for(&self, target: &ElevationTarget) -> Option<&ElevationRule>` |
+| `rules` | `pub fn rules(&self) -> &[ElevationRule]` |
+
+</ApiWide>
+
+#### `ElevationRequest`
+
+A request for an elevation.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(id: impl Into<String>, actor: Subject, target: ElevationTarget, duration_ms: u64) -> Self` |
+| `justified` | `pub fn justified(mut self, justification: impl Into<String>) -> Self` |
+| `break_glass` | `pub fn break_glass(mut self) -> Self` |
+
+</ApiWide>
+
+#### `ElevationInfo`
+
+What a `PendingRequest` says about the elevation it carries.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(target: ElevationTarget, duration_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `ReviewState`
+
+Where the review of a break-glass elevation stands.
+
+#### `Revocation`
+
+An elevation taken back before its time.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(by: impl Into<String>, at: u64, reason: Option<String>) -> Self` |
+
+</ApiWide>
+
+#### `Elevated`
+
+The outcome of `Elevations::request`.
+
+#### `Revoked`
+
+An elevation revoked and the grants to persist.
+
+#### `Elevations`
+
+The elevation flow over a `Governance`, an `ElevationPolicy` and a `PendingStore`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(governance: &'a Governance, policy: &'a ElevationPolicy, store: &'a dyn PendingStore) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, options: &'a ImpactOptions<'a>) -> Self` |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `active` | `pub fn active(&self, now: u64) -> Result<Vec<PendingRequest>, PendingError>` |
+| `pending_reviews` | `pub fn pending_reviews(&self) -> Result<Vec<PendingRequest>, PendingError>` |
+| `expire_due` | `pub fn expire_due(&self, now: u64, meta: &Attributes) -> Result<Vec<PendingRequest>, ApprovalError>` |
+| `request` | `pub fn request( &self, review: &Review<'_>, req: &ElevationRequest, expires_at: Option<u64>) -> Result<Elevated, ApprovalError>` |
+| `approve` | `pub fn approve(&self, review: &Review<'_>, approver: &Subject, id: &str) -> Result<Approved, ApprovalError>` |
+| `reject` | `pub fn reject( &self, review: &Review<'_>, approver: &Subject, id: &str, reason: &str) -> Result<PendingRequest, ApprovalError>` |
+| `revoke` | `pub fn revoke( &self, review: &Review<'_>, by: &Subject, id: &str, reason: Option<&str>) -> Result<Revoked, ApprovalError>` |
+| `close_review` | `pub fn close_review( &self, review: &Review<'_>, reviewer: &Subject, id: &str, note: &str) -> Result<PendingRequest, ApprovalError>` |
+
+</ApiWide>
+
+#### More on `PendingRequest`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `elevation_active` | `pub fn elevation_active(&self, now: u64) -> bool` |
+
+</ApiWide>
+
+#### `RecertError`
+
+Why a recertification step failed.
+
+#### `ReviewerRule`
+
+Who may review an item.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `permission` | `pub fn permission(permission: impl Into<String>, resource: Resource) -> Self` |
+| `role` | `pub fn role(role: impl Into<String>) -> Self` |
+| `subject` | `pub fn subject(id: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ReviewerRoute`
+
+Sends the items about one permission or role to a reviewer rule other than the campaign's default.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `for_permission` | `pub fn for_permission(permission: impl Into<String>, reviewer: ReviewerRule) -> Self` |
+| `for_role` | `pub fn for_role(role: impl Into<String>, reviewer: ReviewerRule) -> Self` |
+
+</ApiWide>
+
+#### `RecertScope`
+
+What a campaign reviews.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `anchored` | `pub fn anchored(mut self, anchor: Anchor) -> Self` |
+| `permissions` | `pub fn permissions<I, S>(mut self, permissions: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+| `roles` | `pub fn roles<I, S>(mut self, roles: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+| `subject_kinds` | `pub fn subject_kinds<I, S>(mut self, kinds: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+
+</ApiWide>
+
+#### `DefaultAction`
+
+What runs on an item nobody reviewed when the campaign closes.
+
+#### `CampaignSpec`
+
+What a campaign is made of, before it opens.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new( id: impl Into<String>, reviewer: ReviewerRule, reviewer_permission: impl Into<String>, reviewer_resource: Resource, due_at: u64, keep_period_ms: u64) -> Self` |
+| `named` | `pub fn named(mut self, name: impl Into<String>) -> Self` |
+| `scoped` | `pub fn scoped(mut self, scope: RecertScope) -> Self` |
+| `routed` | `pub fn routed(mut self, route: ReviewerRoute) -> Self` |
+| `defaulting_to` | `pub fn defaulting_to(mut self, action: DefaultAction) -> Self` |
+| `escalating_to` | `pub fn escalating_to(mut self, reviewer: ReviewerRule) -> Self` |
+
+</ApiWide>
+
+#### `RecertTarget`
+
+The access an item is about.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `label` | `pub fn label(&self) -> String` |
+
+</ApiWide>
+
+#### `Delegation`
+
+A reviewer handing an item over.
+
+#### `ItemState`
+
+Where an item stands.
+
+#### `RecertItem`
+
+One access to certify.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_open` | `pub fn is_open(&self) -> bool` |
+
+</ApiWide>
+
+#### `CampaignStatus`
+
+Where a campaign stands.
+
+#### `Campaign`
+
+A recertification campaign and its items.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_open` | `pub fn is_open(&self) -> bool` |
+| `item` | `pub fn item(&self, id: &str) -> Option<&RecertItem>` |
+| `open_items` | `pub fn open_items(&self) -> impl Iterator<Item = &RecertItem>` |
+| `certified` | `pub fn certified(&self, now: u64) -> impl Iterator<Item = &RecertItem>` |
+| `report` | `pub fn report(&self) -> CampaignReport` |
+
+</ApiWide>
+
+#### `ReviewerTally`
+
+What each reviewer did.
+
+#### `CampaignReport`
+
+A campaign counted by outcome and by reviewer, from `Campaign::report`.
+
+#### `RecertDecision`
+
+What a reviewer decides about an item.
+
+#### `Decided`
+
+A decision taken and the grants to persist.
+
+#### `Closed`
+
+A campaign closed: the grants to persist, the subjects whose roles changed and the report.
+
+#### `RecertStore`
+
+Where the campaigns are kept.
+
+#### `MemoryRecertStore`
+
+`RecertStore` in memory.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+
+</ApiWide>
+
+#### `Recertifications`
+
+The recertification flow over a `Governance` and a `RecertStore`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(governance: &'a Governance, store: &'a dyn RecertStore) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, options: &'a ImpactOptions<'a>) -> Self` |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `open_campaigns` | `pub fn open_campaigns(&self) -> Result<Vec<Campaign>, RecertError>` |
+| `report` | `pub fn report(&self, id: &str) -> Result<CampaignReport, RecertError>` |
+| `open` | `pub fn open( &self, review: &Review<'_>, opener: &Subject, spec: CampaignSpec, subjects: &[Subject]) -> Result<Campaign, RecertError>` |
+| `decide` | `pub fn decide( &self, review: &Review<'_>, reviewer: &Subject, id: &str, item: &str, decision: RecertDecision, reason: Option<&str>) -> Result<Decided, RecertError>` |
+| `close` | `pub fn close(&self, review: &Review<'_>, closer: &Subject, id: &str) -> Result<Closed, RecertError>` |
+
+</ApiWide>
+
+
+## Audit
+
+Audit records carry `AUDIT_FORMAT` 1: a hash chain per sink, Merkle proofs over it, optional RFC 3161 timestamps, and a report. Walk-through: [Audit](/docs/audit).
+
+#### `AUDIT_FORMAT`
+
+Version of the audit record format: the canonical form and the hash of the chain fixed in `docs/audit-format.md`.
+
+#### `AuditLevel`
+
+How much of each change is recorded.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `typical_record_bytes` | `pub const fn typical_record_bytes(self) -> u64` |
+| `typical_decision_bytes` | `pub const fn typical_decision_bytes(self) -> u64` |
+| `estimate_decision_bytes` | `pub const fn estimate_decision_bytes(self, records: u64) -> u64` |
+| `estimate_bytes` | `pub const fn estimate_bytes(self, records: u64) -> u64` |
+
+</ApiWide>
+
+#### `AuditAction`
+
+#### `AuditOutcome`
+
+#### `DecisionSummary`
+
+Summary of a decision, kept from `AuditLevel::Standard` upward.
+
+#### `GrantSummary`
+
+Summary of a grant, kept from `AuditLevel::Standard` upward.
+
+#### `RoleChange`
+
+Recorded role assignment.
+
+#### `PendingRef`
+
+The pending request an approval-flow record is about, kept from `AuditLevel::Standard` upward.
+
+#### `RecertRef`
+
+The campaign and item a recertification record is about, kept from `AuditLevel::Standard` upward.
+
+#### `AuditRecord`
+
+One record of the trail.
+
+#### `AuditError`
+
+#### `AuditSink`
+
+Destination of the records.
+
+#### `FailMode`
+
+What happens to a change when its audit record cannot be written.
+
+#### `AuditStatus`
+
+Where a record ended up.
+
+#### `DroppedRecord`
+
+A record the retry queue could not keep.
+
+#### `DropHook`
+
+Called, outside any lock, for each record dropped because the queue was full.
+
+#### `RetryPolicy`
+
+Limits of the retry queue that `open` mode feeds.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `with_capacity` | `pub fn with_capacity(mut self, capacity: usize) -> Self` |
+| `with_base_delay_ms` | `pub fn with_base_delay_ms(mut self, base_delay_ms: u64) -> Self` |
+| `with_max_delay_ms` | `pub fn with_max_delay_ms(mut self, max_delay_ms: u64) -> Self` |
+| `with_on_drop` | `pub fn with_on_drop(mut self, on_drop: DropHook) -> Self` |
+
+</ApiWide>
+
+#### `AuditStats`
+
+Counters of the retry queue, for a metric or a health check.
+
+#### `PendingQueue`
+
+The retry queue of `open` mode.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(policy: RetryPolicy) -> Self` |
+| `stats` | `pub fn stats(&self) -> AuditStats` |
+| `pending` | `pub fn pending(&self) -> Vec<AuditRecord>` |
+| `flush` | `pub fn flush(&self, sink: &dyn AuditSink, now: u64, force: bool) -> usize` |
+
+</ApiWide>
+
+#### `Emitted`
+
+A record and where it ended up.
+
+#### `Redactor`
+
+Masks the sensitive parts of a record before it is hashed and written.
+
+#### `Observer`
+
+Called with every record the auditor accepted, written or queued, and where it ended up.
+
+#### `MemoryAuditLog`
+
+In-memory records, for tests and for callers who drain the trail themselves.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `records` | `pub fn records(&self) -> Vec<AuditRecord>` |
+| `drain` | `pub fn drain(&self) -> Vec<AuditRecord>` |
+
+</ApiWide>
+
+#### `JsonLinesAudit`
+
+One JSON record per line on a `Write` (file, socket, stdout).
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(out: W) -> Self` |
+| `into_inner` | `pub fn into_inner(self) -> W` |
+
+</ApiWide>
+
+#### `Clock`
+
+#### `Auditor`
+
+Builds the records at the configured level and hands them to the sink.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(level: AuditLevel, sink: Arc<dyn AuditSink>) -> Self` |
+| `with_fail_mode` | `pub fn with_fail_mode(mut self, mode: FailMode) -> Self` |
+| `with_permission_fail_mode` | `pub fn with_permission_fail_mode(mut self, permission: impl Into<String>, mode: FailMode) -> Self` |
+| `with_retry` | `pub fn with_retry(mut self, policy: RetryPolicy) -> Self` |
+| `with_queue` | `pub fn with_queue(mut self, queue: Arc<PendingQueue>) -> Self` |
+| `with_redactor` | `pub fn with_redactor(mut self, redactor: Redactor) -> Self` |
+| `observe` | `pub fn observe(mut self, observer: impl Fn(&AuditRecord, AuditStatus) + Send + Sync + 'static) -> Self` |
+| `queue` | `pub fn queue(&self) -> &Arc<PendingQueue>` |
+| `stats` | `pub fn stats(&self) -> AuditStats` |
+| `flush` | `pub fn flush(&self) -> usize` |
+| `chain_head` | `pub fn chain_head(&self) -> Option<String>` |
+| `with_clock` | `pub fn with_clock(mut self, clock: impl Fn() -> u64 + Send + Sync + 'static) -> Self` |
+| `resume_chain` | `pub fn resume_chain(self, last_hash: impl Into<String>) -> Self` |
+| `level` | `pub fn level(&self) -> AuditLevel` |
+| `decide` | `pub fn decide( &self, engine: &Engine, ctx: &Context<'_>, request: &Request<'_>, meta: &Attributes) -> (Decision, Result<AuditRecord, AuditError>)` |
+| `decision` | `pub fn decision( &self, request: &Request<'_>, decision: &Decision, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `explained` | `pub fn explained(&self, explanation: &Explanation, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `grant_mutation` | `pub fn grant_mutation( &self, actor: &Subject, mutation: &Mutation, before: &[Grant], result: &Result<Vec<Grant>, Vec<Violation>>, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `grant_mutation_with` | `pub fn grant_mutation_with( &self, actor: &Subject, mutation: &Mutation, before: &[Grant], result: &Result<Vec<Grant>, Vec<Violation>>, meta: &Attributes, call: Option<FailMode>) -> Result<Emitted, AuditError>` |
+| `grant_mutation_impact` | `pub fn grant_mutation_impact( &self, actor: &Subject, mutation: &Mutation, before: &[Grant], result: &Result<Vec<Grant>, Vec<Violation>>, meta: &Attributes, call: Option<FailMode>, impact: Option<&Impact>) -> Result<Emitted, AuditError>` |
+| `tuple_change` | `pub fn tuple_change( &self, actor: &Subject, added: bool, tuple: &Tuple, outcome: AuditOutcome, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `exclusive` | `pub fn exclusive( &self, actor: &Subject, action: AuditAction, resource: &ObjectRef, outcome: AuditOutcome, at: u64, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+| `role_change` | `pub fn role_change( &self, actor: &Subject, assigned: bool, change: &RoleChange, outcome: AuditOutcome, meta: &Attributes) -> Result<AuditRecord, AuditError>` |
+
+</ApiWide>
+
+#### `ChainError`
+
+#### `Hash`
+
+A SHA-256 digest.
+
+#### `MerkleError`
+
+Why a proof was refused.
+
+#### `MerkleTree`
+
+A tree kept in memory, for building proofs over a stretch of the trail.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(leaves: Vec<Hash>) -> Self` |
+| `from_records` | `pub fn from_records(records: &[AuditRecord]) -> Result<Self, AuditError>` |
+| `size` | `pub fn size(&self) -> usize` |
+| `root` | `pub fn root(&self) -> Hash` |
+| `root_at` | `pub fn root_at(&self, size: usize) -> Option<Hash>` |
+| `inclusion_proof` | `pub fn inclusion_proof(&self, index: usize) -> Option<Vec<Hash>>` |
+| `consistency_proof` | `pub fn consistency_proof(&self, first: usize) -> Option<Vec<Hash>>` |
+
+</ApiWide>
+
+#### `TimestampError`
+
+Why a request could not be built or a response was refused.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `code` | `pub fn code(&self) -> &'static str` |
+
+</ApiWide>
+
+#### `HashAlgorithm`
+
+A hash algorithm for the stamped digest.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `name` | `pub fn name(self) -> &'static str` |
+
+</ApiWide>
+
+#### `TimestampRequest`
+
+A `TimeStampReq` (RFC 3161 §2.4.1) to send to a TSA.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(algorithm: HashAlgorithm, digest: Vec<u8>) -> Self` |
+| `for_chain_head` | `pub fn for_chain_head(head: &str, nonce: Option<u64>) -> Result<Self>` |
+| `to_der` | `pub fn to_der(&self) -> Result<Vec<u8>>` |
+
+</ApiWide>
+
+#### `TimestampInfo`
+
+What a verified time stamp states.
+
+#### `VerifyOptions`
+
+What to check besides the signature.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(imprint: Vec<u8>, trusted_roots: Vec<Vec<u8>>) -> Self` |
+| `for_chain_head` | `pub fn for_chain_head(head: &str, trusted_roots: Vec<Vec<u8>>) -> Result<Self>` |
+
+</ApiWide>
+
+#### `LineError`
+
+A line of a JSON Lines trail that is not an audit record.
+
+#### `Period`
+
+The span of time the records cover.
+
+#### `BreakKind`
+
+How a record fails the chain.
+
+#### `ChainBreak`
+
+One place where the chain does not hold.
+
+#### `ChainStatus`
+
+The state of the hash chain.
+
+#### `Anchors`
+
+Anchors known from outside the trail.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `head` | `pub fn head(mut self, head: impl Into<String>) -> Self` |
+| `start` | `pub fn start(mut self, start: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `AnchorCheck`
+
+Outcome of comparing the trail with an anchor.
+
+#### `TimestampCheck`
+
+Result of verifying one time stamp, filled by the caller (see `timestamp`).
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `verified` | `pub fn verified(label: impl Into<String>, gen_time: i64, policy: String, serial: String) -> Self` |
+| `failed` | `pub fn failed(label: impl Into<String>, error: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ConformanceReport`
+
+The report.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `build` | `pub fn build(records: &[AuditRecord], anchors: &Anchors) -> Self` |
+| `from_json_lines` | `pub fn from_json_lines(text: &str, anchors: &Anchors) -> Self` |
+| `with_timestamps` | `pub fn with_timestamps(mut self, timestamps: Vec<TimestampCheck>) -> Self` |
+| `is_conforming` | `pub fn is_conforming(&self) -> bool` |
+
+</ApiWide>
+
+
+## Policy language and tooling
+
+Needs the `dsl` feature (`dsl-fs` adds the file store, `import` the Casbin and OpenFGA importers). The DSL schema is `DSL_SCHEMA` 5. Walk-throughs: [Policy language](/docs/policy-language), [Diff and lint](/docs/tools/diff-lint) and [Importers](/docs/tools/importers).
+
+#### `MAX_SOURCE_BYTES`
+
+The largest source accepted: input is external and unbounded.
+
+#### `DSL_SCHEMA`
+
+The version of the canonical JSON that `Policy::from_json` reads, frozen as stable from 1.0: it only grows, and a reader refuses a document newer than it.
+
+#### `Parsed`
+
+One source read and validated.
+
+#### More on `Policy`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `validate` | `pub fn validate(&self) -> Result<(), Diagnostics>` |
+
+</ApiWide>
+
+#### `ConvertError`
+
+Why a source could not be converted.
+
+#### `FormatError`
+
+Why a source could not be formatted.
+
+#### `Built`
+
+The policy a `Project` builds and where each of its elements was declared.
+
+#### `Project`
+
+Several sources, each in its own syntax, gathered into one policy.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `len` | `pub fn len(&self) -> usize` |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `add_source` | `pub fn add_source(&mut self, name: &str, text: &str) -> Result<Language, Diagnostics>` |
+| `build` | `pub fn build(&self) -> Result<Built, Diagnostics>` |
+
+</ApiWide>
+
+#### `MAX_SOURCES`
+
+The most sources a project takes.
+
+#### `MAX_PROJECT_BYTES`
+
+The most bytes all the sources of a project may hold together.
+
+#### `MAX_FIXTURE_BYTES`
+
+The largest fixture `DiffFixture::parse` reads.
+
+#### `DiffFixture`
+
+The data a diff asks its questions about, besides the two policies.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `parse` | `pub fn parse(file: &str, text: &str) -> Result<Self, DiffError>` |
+
+</ApiWide>
+
+#### `DiffError`
+
+Why a diff could not be made.
+
+#### `DiffOptions`
+
+What bounds the work of a diff.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `with_limits` | `pub fn with_limits(mut self, limits: QueryLimits) -> Self` |
+
+</ApiWide>
+
+#### `DiffSide`
+
+One version of a policy and, when it came from sources, where its elements are written.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(policy: &'a Policy) -> Self` |
+| `with_origins` | `pub fn with_origins(mut self, origins: &'a Origins) -> Self` |
+
+</ApiWide>
+
+#### `ChangeKind`
+
+Which way a decision moved.
+
+#### `Responsible`
+
+What decided on one side.
+
+#### `DecisionChange`
+
+A question whose answer differs between the two versions.
+
+#### `Universe`
+
+The questions a diff asked.
+
+#### `PolicyDiff`
+
+The decisions that differ between two versions.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_empty` | `pub fn is_empty(&self) -> bool` |
+| `count` | `pub fn count(&self, kind: ChangeKind) -> usize` |
+
+</ApiWide>
+
+#### `Severity`
+
+How much a finding matters.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `name` | `pub const fn name(self) -> &'static str` |
+
+</ApiWide>
+
+#### `LintCode`
+
+The kinds of finding.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `code` | `pub const fn code(self) -> &'static str` |
+| `name` | `pub const fn name(self) -> &'static str` |
+| `severity` | `pub const fn severity(self) -> Severity` |
+| `parse` | `pub fn parse(text: &str) -> Option<LintCode>` |
+
+</ApiWide>
+
+#### `Finding`
+
+One thing the lint found.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `lint_code` | `pub fn lint_code(&self) -> Option<LintCode>` |
+| `position` | `pub fn position(&self) -> Option<String>` |
+
+</ApiWide>
+
+#### `LintOptions`
+
+What to leave out.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `ignoring` | `pub fn ignoring(mut self, code: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `Report`
+
+What an import did: what was converted, what had no faithful translation and what was converted with a narrower reach.
+
+#### `ImportError`
+
+An import that could not be completed: the `Report` holds what was converted and what was not.
+
+
+## Exclusive ownership
+
+Needs the `exclusive` feature. One holder per resource, with priority, preemption and a deadline. Walk-through: [Exclusive store](/docs/storage/exclusive-store).
+
+#### `DEFAULT_HOLD_PERMISSION`
+
+Permission that allows holding a resource exclusively, unless configured otherwise.
+
+#### `DEFAULT_PREEMPT_PERMISSION`
+
+Permission that allows taking a resource from a lower-priority holder, unless configured otherwise.
+
+#### `Lease`
+
+Active or expired ownership of a resource.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(resource: ObjectRef, holder: ObjectRef, priority: i64, acquired_at: u64, expires_at: u64) -> Self` |
+| `is_active` | `pub fn is_active(&self, now: u64) -> bool` |
+| `granted` | `pub fn granted(claim: &Claim, now: u64) -> Self` |
+| `renewed` | `pub fn renewed(&self, now: u64, ttl_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `Terms`
+
+Priority and duration of a claim.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(priority: i64, ttl_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `Claim`
+
+Request to own `resource` on behalf of `holder`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(resource: ObjectRef, holder: ObjectRef, terms: Terms) -> Self` |
+
+</ApiWide>
+
+#### `Preemption`
+
+Whether `ExclusiveRegistry::acquire` may take a resource from a lower-priority holder.
+
+#### `Acquisition`
+
+Outcome of an acquisition.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `decide` | `pub fn decide(current: Option<Lease>, claim: &Claim, now: u64, preemption: Preemption) -> Self` |
+
+</ApiWide>
+
+#### `OwnedChange`
+
+Outcome of a change only the holder can make: `ExclusiveStore::renew_lease` and `ExclusiveStore::release_lease`.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `decide` | `pub fn decide(current: Option<Lease>, holder: &ObjectRef, now: u64) -> Self` |
+
+</ApiWide>
+
+#### `StoreError`
+
+Failure to read or write the lease store.
+
+#### `ExclusiveError`
+
+#### `ExclusiveStore`
+
+Persistence of the leases, one per resource.
+
+#### `MemoryExclusiveStore`
+
+Leases in memory.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+
+</ApiWide>
+
+#### `ExclusivePermissions`
+
+Names of the permissions the checked acquisition asks the engine for.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(hold: impl Into<String>, preempt: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ExclusiveRegistry`
+
+Exclusive ownership of resources over a store.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(store: S) -> Self` |
+| `with_permissions` | `pub fn with_permissions(mut self, permissions: ExclusivePermissions) -> Self` |
+| `with_max_ttl` | `pub fn with_max_ttl(mut self, max_ttl_ms: u64) -> Self` |
+| `with_audit` | `pub fn with_audit(mut self, auditor: Arc<Auditor>) -> Self` |
+| `permissions` | `pub fn permissions(&self) -> &ExclusivePermissions` |
+| `store` | `pub fn store(&self) -> &S` |
+| `validate` | `pub fn validate(&self, engine: &Engine) -> Result<(), ExclusiveError>` |
+| `holder` | `pub fn holder(&self, resource: &ObjectRef, now: u64) -> Result<Option<Lease>, ExclusiveError>` |
+| `acquire` | `pub fn acquire(&mut self, claim: &Claim, now: u64, preemption: Preemption) -> Result<Acquisition, ExclusiveError>` |
+| `acquire_checked` | `pub fn acquire_checked( &mut self, engine: &Engine, ctx: &Context<'_>, subject: &Subject, resource: &Resource, terms: Terms, now: u64) -> Result<Acquisition, ExclusiveError>` |
+| `release` | `pub fn release(&mut self, resource: &ObjectRef, holder: &ObjectRef, now: u64) -> Result<Lease, ExclusiveError>` |
+| `renew` | `pub fn renew( &mut self, resource: &ObjectRef, holder: &ObjectRef, now: u64, ttl_ms: u64) -> Result<Lease, ExclusiveError>` |
+| `renew_checked` | `pub fn renew_checked( &mut self, engine: &Engine, ctx: &Context<'_>, subject: &Subject, resource: &Resource, now: u64, ttl_ms: u64) -> Result<Lease, ExclusiveError>` |
+| `expire` | `pub fn expire(&mut self, now: u64) -> Result<Vec<Lease>, ExclusiveError>` |
+
+</ApiWide>
+
 
 ## Real time: strig-sync
 
-`strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
+`strig-sync = "1.0"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
 
 <ApiGroup>
   <ApiItem id="hub-builder" name="Hub::builder" sig={"pub fn builder() -> HubBuilder\npub fn new() -> Self"}>
@@ -297,7 +1876,7 @@ Nothing in 0.7.0 is deprecated. The [deprecation policy](/docs/upgrading#depreca
     The medium between instances. Delivery is at most once: the hub covers a gap with `Resync`. `strig-redis` and `strig-postgres` implement it; another broker plugs in the same way. `MemoryTransport::new(capacity: usize)` is for tests and shares one channel between clones.
   </ApiItem>
   <ApiItem level={4} id="transport-error" name="TransportError" sig={"pub enum TransportError { Connection(String), Decode(String), Closed }"}>
-    Match on the variant: in 0.7.0 the text is Portuguese.
+    Match on the variant: the text is Portuguese.
   </ApiItem>
 </ApiGroup>
 
@@ -350,7 +1929,7 @@ Nothing in 0.7.0 is deprecated. The [deprecation policy](/docs/upgrading#depreca
 
 ## axum routes: strig-axum
 
-`strig-axum = "0.7"`. Authentication stays with your application: your handler identifies the subject and calls the route.
+`strig-axum = "1.0"`. Authentication stays with your application: your handler identifies the subject and calls the route.
 
 <ApiGroup>
   <ApiItem id="realtime-new" name="Realtime::new" sig={"pub fn new(hub: Hub) -> Self\npub fn with_provider(mut self, provider: Arc<dyn CapabilityProvider>) -> Self\npub fn with_options(mut self, options: SessionOptions) -> Self\npub fn hub(&self) -> &Hub"}>
@@ -370,10 +1949,10 @@ Both are a `Transport` for `Hub::builder().transport(..)`.
 
 <ApiGroup>
   <ApiItem id="redis-transport" name="RedisTransport::new" pick="redis" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn from_client(client: Client, channel: impl Into<String>) -> Self\npub fn channel(&self) -> &str"}>
-    `strig-redis = "0.7"`. Redis pub/sub. Publishing reconnects on its own; each `subscribe` opens a dedicated connection, and when it drops the hub reopens it and emits `Resync`.
+    `strig-redis = "1.0"`. Redis pub/sub. Publishing reconnects on its own; each `subscribe` opens a dedicated connection, and when it drops the hub reopens it and emits `Resync`.
   </ApiItem>
   <ApiItem id="pg-transport" name="PgTransport::new" pick="pg" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn with_tls<T>(url: &str, channel: impl Into<String>, tls: T) -> Result<Self, TransportError>"}>
-    `strig-postgres = "0.7"`. Postgres `LISTEN/NOTIFY`, without TLS or with any `tokio-postgres` connector.
+    `strig-postgres = "1.0"`. Postgres `LISTEN/NOTIFY`, without TLS or with any `tokio-postgres` connector.
   </ApiItem>
   <ApiItem id="pg-notify" name="strig_postgres::notify" sig={"pub async fn notify<C: GenericClient + Sync>(client: &C, channel: &str, change: &Change) -> Result<(), TransportError>"}>
     Sends a change through a client or a transaction. `NOTIFY` goes out on commit, so a notice sent in the transaction that writes the grant goes out only if the write does. It arrives without an origin, so every instance delivers it, the writer included. `MAX_PAYLOAD` is 7999 bytes.
@@ -401,9 +1980,49 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 `PgQueryError` is `#[non_exhaustive]` and prints English: `InvalidIdentifier`, `UnmappedAttribute`, `UnmappedKind`, `UnsupportedExpr`, `EmptyUsersetRelation`, `Residual`, `InstantOutOfRange`, `Database`, `Decode`. A listing that reads an attribute or a path kind with no column fails loudly, because reading it as "no row" would open access under a deny.
 
+### Postgres stores
+
+`strig-postgres = "1.0"`. Every store is built from a `PgTables` and a connection URL; each has a `connect_with_tls` twin that takes a TLS connector, and `with_timeout` bounds every statement.
+
+<ApiWide>
+
+| Item | Signature | What it does |
+| --- | --- | --- |
+| `connect` | `pub async fn connect(url: &str) -> Result<Client, tokio_postgres::Error>` | Opens a plain connection and spawns its driver task. |
+| `migrate` | `pub async fn migrate(client: &Client) -> Result<Vec<u32>, PgQueryError>` | Brings the default tables up to `LATEST_VERSION` and returns the versions it applied. Additive and idempotent. |
+| `migrate_with` | `pub async fn migrate_with(client: &Client, tables: &PgTables) -> Result<Vec<u32>, PgQueryError>` | The same, for custom table names. |
+| `schema_version` | `pub async fn schema_version(client: &Client, tables: &PgTables) -> Result<Option<u32>, PgQueryError>` | The version in the ledger, or `None` before the first migration. |
+| `PgStore::load` | `pub async fn load<C: GenericClient>(client: &C, tables: PgTables) -> Result<Self, PgQueryError>` | Reads grants and tuples into memory. |
+| `PgStore::reload` | `pub async fn reload<C: GenericClient>(&self, client: &C) -> Result<(), PgQueryError>` | Reads both again; `reload_grants` and `reload_tuples` read one. |
+| `PgStore::is_stale` | `pub fn is_stale(&self) -> bool` | True when the last reload failed; cleared by the next one that succeeds. |
+| `PgStore::grants` | `pub fn grants(&self) -> PgGrants` | A `GrantSource` and `GrantIndex` over the snapshot; `tuples` gives the `TupleStore` and `TupleIndex`. |
+| `PgStore::follow` | `pub fn follow<F, Fut, E>(&self, changes: broadcast::Receiver<Change>, connect: F, retry: Duration) -> JoinHandle<()>` | Reloads on every `Change`; a failed reload is retried every `retry` and the store reads as stale meanwhile. |
+| `PgTables::assign_role` | `pub async fn assign_role<C: GenericClient>(&self, client: &C, subject: &Subject, role: &RoleAssignment) -> Result<(), PgQueryError>` | Stores a role assignment; `revoke_role`, `roles_of` and `subject` are the siblings. |
+| `PgTables::commit_mutation` | `pub async fn commit_mutation<C: GenericClient + Sync>(&self, client: &C, channel: &str, mutation: &Mutation) -> Result<Option<Change>, PgQueryError>` | Applies a governed `Mutation` and notifies on `channel`, in one transaction under `lock_governance`. |
+| `PgPendingStore` | `connect(url: &str, tables: PgTables) -> Result<Self, PgQueryError>` | A `PendingStore` in a table; `due(now)` lists requests past their deadline. |
+| `PgRecertStore` | `connect(url: &str, tables: PgTables) -> Result<Self, PgQueryError>` | A `RecertStore` in a table. |
+| `PgExclusiveStore` | `connect(url: &str, tables: PgTables) -> Result<Self, PgQueryError>` | An `ExclusiveStore` in a table. Needs the `exclusive` feature. |
+
+</ApiWide>
+
+### Redis store
+
+`strig-redis = "1.0"` has one public type, `RedisExclusiveStore`, an `ExclusiveStore` for a resource held across processes.
+
+<ApiWide>
+
+| Item | Signature | What it does |
+| --- | --- | --- |
+| `new` | `pub fn new(url: &str, prefix: impl Into<String>) -> Result<Self, StoreError>` | Does not connect yet; fails if the URL does not parse or the prefix is empty. `prefix` namespaces every key. |
+| `from_client` | `pub fn from_client(client: Client, prefix: impl Into<String>) -> Result<Self, StoreError>` | Reuses a client you already have. |
+| `with_timeout` | `pub fn with_timeout(mut self, timeout: Duration) -> Self` | Bounds every command. |
+| `with_retention` | `pub fn with_retention(mut self, retention: Duration) -> Self` | How long a lease that ran out stays in Redis for the sweep to find. Default one hour. |
+
+</ApiWide>
+
 ## Decision server: strig-server
 
-`strig-server = "0.7"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
+`strig-server = "1.0"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
 
 <ApiGroup>
   <ApiItem id="decision-server" name="DecisionServer::router" pick="server" sig={"pub fn new(source: Arc<dyn DecisionSource>) -> Self\npub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self\npub fn with_config(mut self, config: ServerConfig) -> Self\npub fn router(self) -> Router"}>
@@ -447,9 +2066,189 @@ The body is `{"error": {"code": "...", "message": "..."}}`. `code` is stable; `m
   </ApiItem>
 </ApiGroup>
 
+## HTTP API
+
+`strig-server` speaks JSON over HTTP. A request and its answer:
+
+```bash
+curl -s localhost:8080/v1/check \
+  -H 'content-type: application/json' \
+  -H 'x-strig-timeout-ms: 500' \
+  -d '{"subject":{"kind":"user","id":"ana"},"permission":"document.view","resource":{"kind":"document","id":"d1"}}'
+```
+
+```json
+{"decision": {"effect": "allow"}, "evaluated_at": 1700000000000, "requested_at": 1700000000000}
+```
+
+All times are milliseconds since the Unix epoch, UTC. The server decides with its own clock: `at` in a body is echoed for audit and never used to decide. There is no authentication and no rate limiting; put the server behind your gateway.
+
+**Fail closed.** Only `200` from a decision route is a success. A network error, a timeout, any other status and an unreadable `200` all mean no access. A deny is a normal `200` with `effect: "deny"`.
+
+### Routes
+
+<ApiWide>
+
+| Route | Body | Answer |
+| --- | --- | --- |
+| `POST /v1/check` | `subject`, `permission`, `resource`, optional `env`, `at`, `min_revision` | `decision`, `evaluated_at`, `requested_at`, and `revision` when the source tracks one. |
+| `POST /v1/check/batch` | `{"checks": [...]}` | `{"results": [...]}` in request order. All or nothing: a failure is one error, never partial results. |
+| `POST /v1/list` | `subject`, `permission`, `kind`, optional `layout`, `resources`, `env`, `at` | `kind`, `permission`, `exact`, `shape`, `residual`, `warnings`, `evaluated_at`, and `ids` when `resources` was sent. Never read `residual` as an allow. |
+| `POST /v1/who` | `permission`, optional `resource`, `env`, `at` | `entries` (each with a typed `subject` and the `via` that grants it), `except`, `evaluated_at`. |
+| `POST /v1/access` | `resource`, `env`, `at` | Who holds which permission on the resource, with the path that decided each. |
+| `GET /health/live` | none | `200 {"status":"live"}` while the process runs. |
+| `GET /health/ready` | none | `200 {"status":"ready"}` when the grant source answers; otherwise `503`, so the instance leaves the pool. |
+
+</ApiWide>
+
+`shape.type` in a list answer is `nothing`, `kind` (with `except`), `ids`, `within` (with `anchors`) or `compound` (with `expr`).
+
+### Headers
+
+| Header | Effect |
+| --- | --- |
+| `x-strig-timeout-ms: <n>` | Deadline of this request, capped at the server's ceiling (default 10 s; default deadline 2 s). `0`, a negative number or text is `400 invalid_request`. A passed deadline is `503 deadline_exceeded`. |
+| `x-strig-min-revision: <scope>@<value>` | Answer only from data at that revision or later (any route; `check` and `check/batch` also take `min_revision`). A source that is behind is polled until the deadline, then `503 revision_not_reached`. Another scope, or no revision at all, is `503 revision_mismatch` at once. A malformed token is `400 invalid_request`. |
+| `x-strig-reason: true` | On the AuthZEN and Envoy routes with `with_reasons(true)`: adds a fixed reason code to the answer. |
+
+### Limits
+
+| Limit | Default | Past it |
+| --- | --- | --- |
+| Body | 1 MiB | `413 body_too_large` |
+| Batch | 256 checks | `400 batch_too_large` |
+| Candidate resources in a list | 1000 | `400 too_many_resources` |
+| Work (checks × grants) | 1 000 000 | `503 query_limit_exceeded` |
+| `QueryLimits` for `list`, `who`, `access` | 1000 and 100 000 | `503 query_limit_exceeded` |
+| Work slots | one per CPU | `503 overloaded` |
+
+<a id="error-codes-server" />
+
+### Errors
+
+```json
+{"error": {"code": "source_unavailable", "message": "the grant source is unavailable; access is denied"}}
+```
+
+`code` is stable and safe to branch on. `message` is fixed per code and never carries table names, paths or driver text. `4xx` means the request is wrong and retrying it unchanged fails again; `503` means the server could not decide: deny, and retry later.
+
+<ApiWide>
+
+| Status | `error.code` | Meaning |
+| --- | --- | --- |
+| 400 | `malformed_json` | The body is not JSON. |
+| 400 | `invalid_request` | Valid JSON that does not fit the route, an unknown field, a `layout` that does not fit `kind`, a bad deadline header or a malformed revision token. |
+| 400 | `batch_too_large`, `too_many_resources` | Over the batch or the candidate limit. |
+| 404, 405 | `not_found`, `method_not_allowed` | No such route, or the wrong method. |
+| 413, 415 | `body_too_large`, `unsupported_media_type` | Body over the limit, or not `application/json`. |
+| 503 | `source_unavailable` | The grants or the policy could not be loaded. |
+| 503 | `query_limit_exceeded`, `overloaded`, `relation_depth_exceeded`, `deadline_exceeded` | A limit, the work slots, a relation chain too deep to read a deny, or the deadline. |
+| 503 | `revision_not_reached`, `revision_mismatch` | The source is behind the required revision, or tracks another scope. |
+| 503 | `clock_unavailable`, `internal` | No usable instant, or anything else inside the server, including a caught panic. |
+
+</ApiWide>
+
+### AuthZEN
+
+`DecisionServer::with_authzen(AuthzenConfig)` also serves the OpenID AuthZEN Authorization API 1.0 next to `/v1`; without it these routes answer `404`. Same body limit, deadline, work budget and absence of authentication.
+
+```bash
+curl -s localhost:8080/access/v1/evaluation \
+  -H 'content-type: application/json' \
+  -d '{"subject":{"type":"user","id":"ana"},"action":{"name":"document.view"},"resource":{"type":"document","id":"d1"}}'
+```
+
+```json
+{"decision": true}
+```
+
+<ApiWide>
+
+| Route | Notes |
+| --- | --- |
+| `POST /access/v1/evaluation` | `{subject, action, resource, context?}` answers `{decision, context?}`. |
+| `POST /access/v1/evaluations` | Top-level `subject`, `action`, `resource`, `context` are defaults an item overrides. `options.evaluations_semantic` is `execute_all` (default), `deny_on_first_deny` or `permit_on_first_permit`; anything else is `400`. |
+| `POST /access/v1/search/subject` | Subjects of `subject.type` that hold `action.name` on `resource`. |
+| `POST /access/v1/search/action` | The permissions of the catalog that `subject` holds on `resource`. |
+| `POST /access/v1/search/resource` | Only with `AuthzenConfig::with_resource_catalog`; otherwise `404`. |
+| `GET /.well-known/authzen-configuration` | Only with `AuthzenConfig::with_issuer` (an `https` URL); otherwise `404`. |
+
+</ApiWide>
+
+| AuthZEN | Strig |
+| --- | --- |
+| `subject.type`, `subject.id` | `Subject.kind`, `Subject.id`. Kinds in `authenticated_kinds` (default `user`) also carry the `authenticated` principal. |
+| `subject.properties` | Attributes. `roles` (default name) holds the roles, as strings or `{role, scope?, valid_from?, valid_until?}`; `principals` holds principal names. Neither becomes an attribute. |
+| `resource.type`, `resource.id` | The first step of the path, `type:id`. |
+| `resource.properties` | Attributes. `path` (default name) holds the broader steps, most specific first. With a `PathResolver` the server's answer is used instead; a resource it does not know is a deny with `context.error.status` `404`. |
+| `action.name` | The permission. `action.properties` is not read. |
+| `context` | `env`. The server replaces `now` with its clock. |
+
+`decision` is `true` only for an allow; a permission outside the catalog is `200 {"decision": false}`. With `with_reasons(true)` and the header `x-strig-reason: true`, `context.reason` is one of `override`, `grant`, `no_applicable_grant`, `unknown_permission`, `missing_prerequisite`; it never names a grant, role or permission. Errors use the `/v1` error body with the statuses of the spec: `400` for a request that does not fit, `500` for everything the server could not decide.
+
+Searches are sorted and take `page: {token?, limit?}` (`limit` defaults to and is capped by `with_max_page_size`, 1000); the answer carries `page: {next_token, count, total}`, and `next_token` is `""` on the last page. A token is bound to its request: change the entity, the context or the limit and it is `400`. Subject search sets `context.incomplete` to `true` when a party that is not a subject of a type (role, principal, userset, wildcard, `anyone`) was left out. `signed_metadata`, `capabilities`, tenant suffixes of the well-known URI, `action.properties` and `page.properties` are not read.
+
+### Envoy external authorization
+
+With the `envoy` feature, `DecisionServer::envoy_service(EnvoyConfig)` builds the `envoy.service.auth.v3.Authorization` gRPC service over the same source, clock, limits and work slots as the HTTP routes. Take it before `router()`, which consumes the server. Without the feature the crate has no `tonic` or `prost` in its build.
+
+<ApiWide>
+
+| `CheckRequest` | Strig |
+| --- | --- |
+| `attributes.request.http.method` and `path` | The first route whose methods and pattern match decides. A path with dot segments, an empty middle segment, an encoded `/`, `\` or NUL, invalid UTF-8 or more than 64 segments matches no route. |
+| A header (`with_subject_header`) or filter metadata (`with_subject_metadata`) | The subject id, of the kind `with_subject_kind` (default `user`), with the `authenticated` principal. A value that is empty, over 512 bytes or holds a comma is no subject. |
+| A header (`with_roles_header`), comma-separated | The roles, up to 64 of at most 512 bytes; past that there is no subject. |
+| `RouteRule::require(permission, ResourceTemplate::new(kind, id))` | The permission and the resource; `{param}` is filled from the path. A template naming a parameter the pattern lacks fails at configuration. |
+| `with_path_resolver` | The broader steps of the resource, as for AuthZEN. |
+
+</ApiWide>
+
+Patterns start with `/`; a segment is a literal, `{name}` (one segment, captured), `*` (one segment) or, last, `**` (the rest). Methods are `*` or a list such as `GET,HEAD`. Rules are tried in the order they were added. The adapter trusts the subject and roles it reads: Envoy must set those headers itself and overwrite what the client sent.
+
+<ApiWide>
+
+| Case | `status.code` | HTTP | `x-strig-reason` (with `with_reasons(true)`) |
+| --- | --- | --- | --- |
+| The engine allows, or the route is `public` | `OK` (0) | | |
+| The engine denies | `PERMISSION_DENIED` (7) | 403 | `denied` |
+| No route matches | same | 403 | `no_route` |
+| No usable subject on a route that needs one | same | 403 | `no_subject` |
+| The resolver does not know the resource | same | 403 | `unknown_resource` |
+| Source down, deadline passed, no work slot, clock or work failed | same | 403 | `unavailable` |
+| No HTTP attributes, or a template that cannot be filled | same | 403 | `bad_request` |
+
+</ApiWide>
+
+A `public` route decides nothing and does not read the source, so it allows even while the source is down. A message over `max_body_bytes` or a call that outlives `max_timeout` is a gRPC error (`RESOURCE_EXHAUSTED`, `CANCELLED`): leave `failure_mode_allow: false` in the Envoy filter so Envoy denies on those too.
+
+## Command line: strig-cli
+
+`cargo install strig-cli` installs the `strig` binary. Every command exits `0` when it did what you asked, `1` when a case failed, a finding matched or a change has no faithful translation, and `2` when the arguments, the policy or a test file are wrong or there is nothing to run.
+
+```text
+$ strig test policies/
+$ echo $?
+1
+```
+
+<ApiWide>
+
+| Command | What it does |
+| --- | --- |
+| `strig test <dir> [--junit <file>]` | Runs the `*.strig-test.json` files of `<dir>` against its `*.strig` policy. `--junit` also writes JUnit XML. |
+| `strig audit report <trail.jsonl> [--json] [--anchor-head <hash>] [--anchor-start <hash>] [--timestamp <resp.tsr>]... [--root <ca.pem>]...` | Conformance report over an audit trail. Exits `1` when it does not conform. See [Audit](/docs/audit). |
+| `strig import casbin <model.conf> <policy.csv> -o <dir> [--language <l>] [--action <a>]...` | Converts a Casbin model and policy into `<dir>/policy.strig`. Exits `1` when part of it has no faithful translation. |
+| `strig import openfga <model> <tuples> -o <dir> [--language <l>]` | The same for an OpenFGA model and tuples. `--action` is Casbin only. |
+| `strig diff <before> <after> [--fixture <file>] [--now <ms>] [--json] [--fail-on allow\|any] [--max-subjects <n>] [--max-decisions <n>]` | The decisions that change between two versions of a policy (directories or `*.strig` files). Exits `1` when a change matches `--fail-on` (default `any`). |
+| `strig lint <dir> [--json] [--ignore <code>]... [--config <file>] [--fail-on error\|warning\|info\|never]` | Findings about dead or suspicious policy. Exits `1` on a warning or worse. |
+| `strig help` | Prints the usage text. `--help` and `-h` do the same. |
+
+</ApiWide>
+
 ## Policies at compile time: strig-macros
 
-`strig-macros = "0.7"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
+`strig-macros = "1.0"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
 
 <ApiGroup>
   <ApiItem id="policy-macro" name="policy!" pick="policy" sig={"policy!(\"<policy text>\")"}>
@@ -464,7 +2263,7 @@ The expansion embeds the validated policy as JSON and reads that JSON back on ea
 
 ## JavaScript: the npm package
 
-`npm install @the-hades-organization/strig`, version 0.7.0, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
+`npm install @the-hades-organization/strig`, version 1.0, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
 
 `call` condition functions, your own overrides and your own invariants are synchronous callbacks passed to `new Engine(spec, hooks)`; see [JavaScript](/docs/javascript#rules-written-in-javascript). The JSON spec covers the built-in `resource_owner` and `permission_holder`.
 
@@ -510,14 +2309,798 @@ Every error the binding throws has a stable `error.code`, the same on both backe
   </ApiItem>
 </ApiGroup>
 
-## Inspector: strig-inspect
+### Type declarations by subpath
 
-Not published on crates.io and outside the workspace default members: install it from a clone with `cargo install --path crates/strig-inspect`, or add `--no-default-features` for the terminal commands only. It explains decisions, simulates grants, builds the access matrix and reads an audit trail. Its library API is small and not a stable contract, so only the commands are listed.
+Copied from the `.d.ts` files the package ships: the root, then one block per subpath of `exports`. `strig-types` is the package's one binary and writes the output of `generateTypes`.
 
-<ApiGroup>
-  <ApiItem id="inspect-explain" name="strig-inspect explain" pick="inspect" sig={"strig-inspect explain --scenario F --subject S --permission P --resource R\nstrig-inspect matrix  --scenario F --resource R [--disable ID]... [--add GRANT.json]...\nstrig-inspect audit   --audit F [--scenario F]\nstrig-inspect fmt [--check] FILE|DIR"}>
-    `explain` prints the trace of one decision. `matrix` shows who can do what on a resource, and which cells change when you disable or add a grant. `audit` lists a trail, checks the hash chain and re-evaluates the decisions. `fmt` formats `.strig` files; `--check` only lists them and exits with 1 if any would change. With no command, it opens a window.
-  </ApiItem>
-</ApiGroup>
+### Package root: `@the-hades-organization/strig`
 
-A scenario is a JSON file with `spec`, `grants`, `tuples`, `env`, `subjects` and `resources`.
+```ts title="TypeScript"
+function load(options: { backend: 'native' }): Promise<NativeStrig>
+function load(options?: { backend?: 'auto' | 'native' | 'wasm'; wasm?: unknown }): Promise<Strig>
+class Context {
+  constructor(init?: { grants?: Grant[]; tuples?: unknown[]; env?: Record<string, unknown>; now?: number | bigint | null; limits?: QueryLimits });
+  setGrants(grants: Grant[]): void;
+  addGrant(grant: Grant): void;
+  removeGrant(id: string): boolean;
+  grants(): Grant[];
+  readonly size: number;
+  addTuple(tuple: unknown): boolean;
+  removeTuple(tuple: unknown): boolean;
+  setEnv(env: Record<string, unknown>): void;
+  loadCapabilities(set: CapabilitySet): Subject;
+  setNow(now: number | bigint | null): void;
+  setLimits(limits: QueryLimits | null): void;
+}
+class Engine<P extends string = string> {
+  constructor(spec: unknown, hooks?: EngineHooks);
+  decide(context: Context, request: DecisionRequest<P>, now?: number | bigint): Decision;
+  check(context: Context, request: DecisionRequest<P>, now?: number | bigint): boolean;
+  explain(context: Context, request: DecisionRequest<P>, now?: number | bigint): Explanation;
+  allowedFields(context: Context, request: DecisionRequest<P>, now?: number | bigint): FieldSet;
+  whyNot(context: Context, request: DecisionRequest<P>, now?: number | bigint, options?: WhyNotOptions): Remedies | null;
+  explainFields(context: Context, request: DecisionRequest<P>, now?: number | bigint): FieldExplanation;
+  checkMany(context: Context, requests: readonly DecisionRequest<P>[], now?: number | bigint): boolean[];
+  explainMany(context: Context, requests: readonly DecisionRequest<P>[], now?: number | bigint): Explanation[];
+  capabilities(context: Context, subject: Subject, scope: Resource, now?: number | bigint): CapabilitySet;
+  validateGrant(grant: Grant): void;
+  catalog(): unknown;
+  apply(input: ApplyInput): ApplyResult;
+  materialize(input: MaterializeInput): Materialized;
+  applyTemplate(input: ApplyTemplateInput): ApplyTemplateResult;
+  impact(input: ApplyInput): ImpactResult;
+  reviewImpact(input: ReviewImpactInput): ReviewImpactResult;
+  propose(input: ProposeInput): ProposeResult;
+  resolve(input: ResolveInput): ResolveResult;
+  elevate(input: ElevateInput): ElevateResult;
+  recertify(input: RecertifyInput): RecertifyResult;
+  expire(input: ExpireInput): ExpireResult;
+  flushAudit(): AuditStats;
+  auditStats(): AuditStats;
+  list(context: Context, subject: Subject, permission: PermissionArg<P>, kind: string, options?: ListOptions, now?: number | bigint): ListResult;
+  whoCan(context: Context, permission: PermissionArg<P>, now?: number | bigint): SubjectRef[];
+  whoCanOn(context: Context, permission: PermissionArg<P>, resource: Resource, now?: number | bigint): WhoCanOnResult;
+  accessOf(context: Context, resource: Resource, now?: number | bigint): Array<{ subject: SubjectRef; permissions: string[] }>;
+  checkFor(context: Context, subject: SubjectRef, permission: PermissionArg<P>, resource: Resource, subjects: Subject[], now?: number | bigint): CheckForResult;
+}
+class Exclusive {
+  constructor(options?: ExclusiveOptions);
+  validate(engine: Engine): void;
+  acquire(engine: Engine, context: Context, subject: Subject, resource: Resource, terms: { priority: number; ttlMs: number }, now?: number | bigint,): Acquisition;
+  holder(resource: ObjectRef, now?: number | bigint): Lease | null;
+  release(resource: ObjectRef, holder: ObjectRef, now?: number | bigint): Lease;
+  renew(engine: Engine, context: Context, subject: Subject, resource: Resource, ttlMs: number, now?: number | bigint,): Lease;
+  expire(now?: number | bigint): Lease[];
+}
+```
+
+Types: `AuditLevel`, `AuditFailMode`, `AuditDelivery`, `AuditRedaction`, `Subject`, `SubjectMatcher`, `ObjectRef`, `ErrorCode`, `BindingError`, `ConditionOperand`, `Weekday`, `Condition`, `Grant`, `Reason`, `Verdict`, `Decision`, `Explanation`, `ConditionTrace`, `CapabilitySet`, `FieldSet`, `FieldVerdict`, `FieldExplanation`, `WhyNotCause`, `WhyNotChange`, `WhyNotCaveat`, `Remedy`, `Remedies`, `WhyNotOptions`, `PermissionArg`, `DecisionRequest`, `RoleAssignment`, `Bypass`, `InvariantSpec`, `ImpactSource`, `ImpactOptions`, `Access`, `AccessChange`, `Impact`, `SeparationClash`, `PotentialClash`, `ApplyInput`, `TemplateGrant`, `RoleTemplate`, `MaterializeInput`, `Materialized`, `ApplyTemplateInput`, `ApplyTemplateResult`, `Violation`, `AccessVia`, `SubjectRef`, `FilterExpr`, `FilterShape`, `FilterResidual`, `ListOptions`, `ListResult`, `WhoCanOnResult`, `CheckForResult`, `QueryLimits`, `Lease`, `Acquisition`, `ExclusiveOptions`, `Suggestion`, `ApplyResult`, `ImpactResult`, `ApprovalRule`, `PendingStatus`, `PendingRequest`, `ElevationTarget`, `ElevationRule`, `ElevationRequest`, `ReviewState`, `ElevationInfo`, `ElevateInput`, `ElevateResult`, `ReviewerRule`, `ReviewerRoute`, `RecertScope`, `RecertDefaultAction`, `CampaignSpec`, `RecertDecision`, `RecertItemState`, `RecertItem`, `Campaign`, `CampaignReport`, `RecertifyInput`, `RecertifyResult`, `ApprovalFlowInput`, `ProposeInput`, `ResolveInput`, `ReviewImpactInput`, `ReviewImpactResult`, `ExpireInput`, `ProposeResult`, `ResolveResult`, `ExpireResult`, `AuditStats`, `AuditPolicy`, `ChainAnchors`, `ChainVerification`, `MerkleVerification`, `MerkleInclusionInput`, `MerkleConsistencyInput`, `TimestampInput`, `TimestampVerification`, `HostCondition`, `HostOverrideRequest`, `HostOverrideOutcome`, `HostOverride`, `HostProposal`, `HostInvariantResult`, `EngineHooks`, `PolicyLanguage`, `DslErrorCode`, `DslPlace`, `DslDiagnostic`, `DslError`, `PolicyPermission`, `MutuallyExclusive`, `ConflictingActions`, `PolicyCatalog`, `PolicyStrategy`, `PolicyDocument`, `PolicyNote`, `PolicySource`, `PolicyTestFixture`, `PolicyTestFile`, `PolicyTestCase`, `PolicyTestOutcome`, `PolicyTestResult`, `PolicyTestReport`, `PolicyDiffResponsible`, `PolicyDecisionChange`, `PolicyDiffUniverse`, `PolicyDiff`, `PolicyDiffFixture`, `PolicyDiffOptions`, `PolicyLintFinding`, `PolicyLintOptions`, `PolicyLanguageApi`, `NativePolicyLanguageApi`, `Strig`, `NativeStrig`.
+
+### `/protocol`
+
+```ts title="TypeScript"
+function parseRevision(text: string): { scope: string; value: bigint; } | undefined
+function revisionReached(required: string, have: string | undefined): Reached
+function anchorToString(anchor: Anchor): string
+function scopeToString(scope: Resource): string
+function scopeFromString(text: string): Resource
+function sameAnchor(a: Anchor, b: Anchor): boolean
+function resourceContains(resource: Resource, anchor: Anchor): boolean
+function changeAffects(change: Change, subjectId: string | null, scope: Resource): boolean
+function resourceWithin(resource: Resource, scope: Resource): boolean
+function encodeSse(message: ServerMessage): string
+function readSse(body: ReadableStream<Uint8Array>, onMessage: (message: ServerMessage) => void): Promise<void>
+const GLOBAL = "global"
+const PROTOCOL_VERSION = 2
+```
+
+Types: `Anchor`, `Resource`, `ChangeKind`, `Change`, `ServerMessage`, `ClientMessage`, `Reached`.
+
+### `/client`
+
+```ts title="TypeScript"
+class PermissionClient<P extends string = string> {
+  readonly url: string | URL;
+  readonly transport: 'sse' | 'websocket';
+  scopes: Resource[];
+  readonly strig: Pick<Strig, 'Context'>;
+  readonly engine: Engine<string>;
+  readonly headers: Record<string, string>;
+  readonly fetch: typeof fetch;
+  readonly WebSocket: typeof WebSocket;
+  readonly minDelay: number;
+  readonly maxDelay: number;
+  private entries;
+  private listeners;
+  private required?;
+  private closed;
+  private abort?;
+  private socket?;
+  constructor(options: PermissionClientOptions);
+}
+```
+
+Types: `PermissionClientOptions`.
+
+### `/server`
+
+```ts title="TypeScript"
+function change(kind: ChangeKind, scope: Anchor, extra?: Partial<Change>): Change
+function openSession({ hub, subject, scopes, provider, heartbeatMs, revision, minRevision, send, }: SessionOptions & { send: (message: ServerMessage) => void; }): Session
+function sseResponse(options: SessionOptions): Response
+function pipeSse(res: ServerResponse, options: SessionOptions): Session
+function engineProvider({ engine, Context, loadGrants, }: { engine: Engine; Context: typeof ContextClass; loadGrants: (subject: Subject, scope: Resource) => Promise<Grant[]> | Grant[]; }): Provider
+function memoryTransport(): Transport
+function redisTransport({ publisher, subscriber, channel, }: { publisher: RedisPublisher; subscriber: RedisSubscriber; channel?: string; }): Transport
+function ioredisTransport({ publisher, subscriber, channel, }: { publisher: RedisPublisher; subscriber: IoredisSubscriber; channel?: string; }): Transport
+function pgTransport({ client, listener, channel, }: { client: Queryable; listener: PgListener; channel?: string; }): Transport
+function notify(queryable: Queryable, channel: string, item: Change): Promise<void>
+class Hub {
+  readonly origin: string;
+  private readonly transport;
+  private seq;
+  private readonly listeners;
+  private stopRelay;
+  constructor(options?: { origin?: string; transport?: Transport; });
+}
+```
+
+Types: `Transport`, `Provider`, `SessionOptions`, `Session`, `RedisPublisher`, `RedisSubscriber`, `IoredisSubscriber`, `Queryable`, `PgListener`.
+
+### `/remote`
+
+```ts title="TypeScript"
+function messageFor(code: string): string
+function parseErrorCode(value: unknown): ErrorCode | { unknown: string; }
+const ERROR_MESSAGES: Readonly<Record<string, string>>
+class CircuitBreaker {
+  #private;
+  readonly failureThreshold: number;
+  readonly waitMs: number;
+}
+class RemoteClient {
+  #private;
+  private readonly base;
+  private readonly timeoutMs;
+  private readonly fetch;
+  private readonly headers;
+  private readonly minRevision?;
+  readonly breaker: CircuitBreaker;
+  constructor(options: RemoteOptions);
+  check(request: CheckInput): Promise<RemoteResult>;
+  checkBatch(requests: CheckInput[], options?: { minRevision?: string; }): Promise<RemoteResult[]>;
+}
+```
+
+Types: `ErrorCode`, `FailureReason`, `Failure`, `CheckInput`, `RemoteResult`, `BreakerOptions`, `RemoteOptions`.
+
+### `/express`
+
+```ts title="TypeScript"
+function authorize<Req = any>(options: AuthorizerOptions<Req>): Handler<Req>
+function createCan<Req = any>(options: AuthorizerOptions<Req>): (permission: string, resource?: Resource | ((req: Req) => Resource)) => Handler<Req>
+function authorizeRoutes<Req = any>(options: RouteTableOptions<Req>): Handler<Req>
+```
+
+### `/fastify`
+
+```ts title="TypeScript"
+function authorize<Req = any>(options: AuthorizerOptions<Req>): PreHandler<Req>
+function createCan<Req = any>(options: AuthorizerOptions<Req>): (permission: string, resource?: Resource | ((request: Req) => Resource)) => PreHandler<Req>
+function authorizeRoutes<Req = any>(options: RouteTableOptions<Req>): PreHandler<Req>
+function plugin(fastify: FastifyInstanceLike, options: AuthorizerOptions): Promise<void>
+```
+
+### `/nestjs`
+
+```ts title="TypeScript"
+function Can(permission: string, resolver?: (request: any) => Resource): MethodDecorator & ClassDecorator
+const STRIG_CAN: string
+class StrigGuard {
+  #private;
+  private readonly options;
+  private readonly decide;
+  constructor(options: AuthorizerOptions);
+  canActivate(context: ExecutionContextLike): Promise<boolean>;
+}
+class StrigRouteGuard {
+  #private;
+  private readonly options;
+  private readonly byTable;
+  private readonly byCan;
+  constructor(options: RouteTableOptions);
+  canActivate(context: ExecutionContextLike): Promise<boolean>;
+}
+```
+
+### `/approvals`
+
+```ts title="TypeScript"
+function checkRecertUpdate(stored: Campaign | undefined, next: Campaign): void
+class PendingStoreError extends Error {
+  readonly code: PendingStoreErrorCode;
+  constructor(code: PendingStoreErrorCode, message: string);
+}
+class MemoryPendingStore implements PendingStore {
+  private readonly requests;
+  get(id: string): PendingRequest | undefined;
+  put(request: PendingRequest): void;
+  update(request: PendingRequest): void;
+  annotate(request: PendingRequest): void;
+  list(): PendingRequest[];
+}
+class Approvals {
+  private readonly engine;
+  readonly store: PendingStore;
+  private readonly options;
+  private head;
+  constructor(engine: ApprovalEngine, store: PendingStore, options: ApprovalsOptions);
+  propose(actor: Subject, mutation: ApplyInput['mutation'], current: Grant[], options?: ProposeOptions): Promise<ProposeResult>;
+  pending(now?: number): Promise<PendingRequest[]>;
+  approve(id: string, approver: Subject, current: Grant[], options?: DecideOptions): Promise<ResolveResult>;
+  reject(id: string, approver: Subject, reason: string, current?: Grant[], options?: DecideOptions): Promise<ResolveResult>;
+  reviewImpact(id: string, current: Grant[], options?: CallOptions): Promise<ReviewImpactResult>;
+  expire(options?: CallOptions): Promise<ExpireResult>;
+  private decide;
+  private close;
+  private common;
+  private follow;
+  private clock;
+}
+class Elevations {
+  private readonly engine;
+  readonly store: PendingStore;
+  private readonly options;
+  private head;
+  constructor(engine: ElevationEngine, store: PendingStore, options: ElevationsOptions);
+  request(request: ElevationRequest, current: Grant[], options?: ElevationPersistOptions & { expiresAt?: number; }): Promise<ElevateResult>;
+  approve(id: string, approver: Subject, current: Grant[], options?: ElevationPersistOptions): Promise<ElevateResult>;
+  reject(id: string, approver: Subject, reason: string, current: Grant[], options?: CallOptions): Promise<ElevateResult>;
+  revoke(id: string, by: Subject, current: Grant[], options?: ElevationPersistOptions & { reason?: string; }): Promise<ElevateResult>;
+  closeReview(id: string, reviewer: Subject, note: string, current: Grant[], options?: CallOptions): Promise<ElevateResult>;
+  active(now?: number): Promise<PendingRequest[]>;
+  pendingReviews(): Promise<PendingRequest[]>;
+  private step;
+  private load;
+  private requireStore;
+  private annotate;
+  private clock;
+}
+class RecertStoreError extends Error {
+  readonly code: RecertStoreErrorCode;
+  constructor(code: RecertStoreErrorCode, message: string);
+}
+class MemoryRecertStore implements RecertStore {
+  private readonly campaigns;
+  get(id: string): Campaign | undefined;
+  put(campaign: Campaign): void;
+  update(campaign: Campaign): void;
+  list(): Campaign[];
+}
+class Recertifications {
+  private readonly engine;
+  readonly store: RecertStore;
+  private readonly options;
+  private head;
+  constructor(engine: RecertEngine, store: RecertStore, options?: RecertificationsOptions);
+  open(spec: CampaignSpec, opener: Subject, subjects: Subject[], current: Grant[], options?: CallOptions): Promise<RecertifyResult>;
+  decide(id: string, item: string, decision: RecertDecision, reviewer: Subject, current: Grant[], options?: RecertPersistOptions & { reason?: string; }): Promise<RecertifyResult>;
+  close(id: string, closer: Subject, current: Grant[], options?: RecertPersistOptions): Promise<RecertifyResult>;
+  report(id: string): Promise<CampaignReport>;
+  openCampaigns(): Promise<Campaign[]>;
+  private step;
+  private load;
+}
+```
+
+Types: `PendingStoreErrorCode`, `PendingStore`, `ApprovalEngine`, `ApprovalsOptions`, `CallOptions`, `ProposeOptions`, `DecideOptions`, `ElevationEngine`, `ElevationsOptions`, `ElevationPersistOptions`, `RecertStoreErrorCode`, `RecertStore`, `RecertEngine`, `RecertificationsOptions`, `RecertPersistOptions`.
+
+### `/store`
+
+```ts title="TypeScript"
+function openJsonStore(options: JsonFileStoreOptions): Promise<JsonFileStore>
+const STORE_VERSION = 1
+class JsonStoreError extends Error {
+  readonly code: StoreErrorCode;
+  constructor(code: StoreErrorCode, message: string, options?: { cause?: unknown; });
+}
+class JsonFileStore {
+  readonly path: string;
+  private readonly lockPath;
+  private readonly options;
+  private data;
+  private queue;
+  private readonly listeners;
+  private readonly errorListeners;
+  private watcher;
+  private debounce;
+  constructor(options: JsonFileStoreOptions);
+  load(): Promise<this>;
+  reload(): Promise<StoreData>;
+}
+```
+
+Types: `StoreErrorCode`, `StoreData`, `JsonFileStoreOptions`, `ApplyMutation`, `Governance`.
+
+### `/testing`
+
+```ts title="TypeScript"
+function auditRoutes<Req = any>(routes: readonly RouteInfo[], table: readonly RouteRule<Req>[], options?: { caseSensitive?: boolean; }): RouteAudit<Req>
+function assertRoutesCovered<Req = any>(routes: readonly RouteInfo[], table: readonly RouteRule<Req>[], options?: { caseSensitive?: boolean; }): void
+function expressRoutes(app: unknown, prefix?: string): RouteInfo[]
+function collectFastifyRoutes(fastify: FastifyRouteHooks): RouteInfo[]
+function nestRoutes(app: { getHttpAdapter(): { getInstance(): unknown; }; }): RouteInfo[]
+class RouteTableAuditError extends Error {
+  readonly audit: RouteAudit;
+  constructor(audit: RouteAudit);
+}
+```
+
+Types: `RouteInfo`, `RouteAudit`.
+
+### `/react`
+
+```ts title="TypeScript"
+function StrigProvider<P extends string = string>({ client, connect, children }: StrigProviderProps<P>): ReactNode
+function useCan<P extends string = string>(permission: PermissionArg<P>, resource: Resource): boolean
+function useStrigStatus(): StrigStatus
+function useRequireRevision(): (revision: string) => void
+function Can<P extends string = string>({ permission, resource, fallback, children }: CanProps<P>): ReactNode
+```
+
+Types: `StrigProviderProps`, `CanProps`.
+
+### `/angular`
+
+```ts title="TypeScript"
+function provideStrig<P extends string>(client: PermissionClient<P>, options?: StrigOptions): EnvironmentProviders
+function strigCanActivate<P extends string = string>(permission: PermissionArg<P>, resource: Resource | ((route: any, state: any) => Resource), options?: StrigGuardOptions): (route: any, state: any) => Promise<any>
+const STRIG_CLIENT: InjectionToken<PermissionClient<any>>
+const STRIG_OPTIONS: InjectionToken<StrigOptions>
+class StrigService<P extends string = string> {
+  private readonly bridge;
+  private readonly server;
+  private readonly tick;
+  private readonly state;
+  readonly status: Signal<StrigStatus>;
+  constructor();
+  can(permission: Reactive<PermissionArg<P> | null | undefined>, resource: Reactive<Resource | null | undefined>): Signal<boolean>;
+  settled(timeoutMs?: number): Promise<boolean>;
+  requireRevision(revision: string): void;
+  check(permission: PermissionArg<P>, resource: Resource): boolean;
+  static ɵfac: i0.ɵɵFactoryDeclaration<StrigService<any>, never>;
+  static ɵprov: i0.ɵɵInjectableDeclaration<StrigService<any>>;
+}
+class StrigCanDirective<P extends string = string> {
+  private readonly template;
+  private readonly container;
+  private readonly permission;
+  private readonly resource;
+  private readonly fallback;
+  private view?;
+  private shown?;
+  set strigCan(value: PermissionArg<P> | null | undefined);
+  set strigCanResource(value: Resource | null | undefined);
+  set strigCanElse(value: TemplateRef<unknown> | null | undefined);
+  constructor();
+  static ɵfac: i0.ɵɵFactoryDeclaration<StrigCanDirective<any>, never>;
+  static ɵdir: i0.ɵɵDirectiveDeclaration<StrigCanDirective<any>, "[strigCan]", never, { "strigCan": { "alias": "strigCan"; "required": true; }; "strigCanResource": { "alias": "strigCanResource"; "required": false; }; "strigCanElse": { "alias": "strigCanElse"; "required": false; }; }, {}, never, never, true, never>;
+}
+```
+
+Types: `StrigOptions`, `StrigGuardOptions`.
+
+### `/prisma`
+
+```ts title="TypeScript"
+function toWhere<P extends string>(filter: ListFilter<P>, mapping: PrismaMapping): OrmFilter<PrismaWhere, P>
+const prisma: OrmAdapter<PrismaWhere, string>
+```
+
+Types: `PrismaWhere`, `PrismaMapping`.
+
+### `/drizzle`
+
+```ts title="TypeScript"
+function toWhere<P extends string>(filter: ListFilter<P>, mapping: DrizzleMapping): OrmFilter<SQL, P>
+const drizzle: OrmAdapter<SQL, AnyColumn>
+```
+
+Types: `DrizzleMapping`.
+
+### `/kysely`
+
+```ts title="TypeScript"
+function toWhere<P extends string>(filter: ListFilter<P>, mapping: KyselyMapping): OrmFilter<KyselyWhere, P>
+const kysely: OrmAdapter<KyselyWhere, string>
+```
+
+Types: `KyselyMapping`, `KyselyWhere`.
+
+### `/types`
+
+```ts title="TypeScript"
+function generateTypes(catalog: CatalogInput): string
+```
+
+Types: `CatalogInput`.
+
+
+## Python: strig-auth
+
+```bash
+pip install strig-auth
+```
+
+```python
+import strig
+from strig import Context, Engine, StrigError, dsl
+```
+
+The package is `strig-auth` on PyPI and `strig` on import; it needs Python 3.9 or later. Values are plain JSON (`dict`, `list`, `str`, `int`, `float`, `bool`, `None`) with the same camelCase field names as the JavaScript API; method names are snake_case. Every failure raises `StrigError` with a stable `code`; `DslError` adds `diagnostics`. Walk-through: [Python](/docs/integrations/python).
+
+The public surface, as the package's type stubs declare it:
+
+```python title="strig/_native.pyi, __init__.py, dsl.py, errors.py"
+# ===== _native.pyi =====
+"""Type stubs of the native extension. Values are plain JSON (`dict`, `list`, `str`, `int`, `float`,
+`bool`, `None`) with the same camelCase field names as the JavaScript API."""
+
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
+
+Json = Any
+JsonObject = Dict[str, Any]
+Request = Mapping[str, Any]
+Hook = Callable[[Any], Any]
+
+class Context:
+    def __init__(
+        self,
+        grants: Optional[Sequence[Mapping[str, Any]]] = None,
+        *,
+        tuples: Optional[Sequence[Mapping[str, Any]]] = None,
+        env: Optional[Mapping[str, Any]] = None,
+        now: Optional[int] = None,
+        limits: Optional[Mapping[str, Any]] = None,
+    ) -> None: ...
+    def set_grants(self, grants: Sequence[Mapping[str, Any]]) -> None: ...
+    def add_grant(self, grant: Mapping[str, Any]) -> None: ...
+    def remove_grant(self, id: str) -> bool: ...
+    def grants(self) -> List[JsonObject]: ...
+    @property
+    def size(self) -> int: ...
+    def __len__(self) -> int: ...
+    def add_tuple(self, tuple: Mapping[str, Any]) -> bool: ...
+    def remove_tuple(self, tuple: Mapping[str, Any]) -> bool: ...
+    def set_env(self, env: Mapping[str, Any]) -> None: ...
+    def load_capabilities(self, capabilities: Mapping[str, Any]) -> JsonObject: ...
+    def set_now(self, now: Optional[int] = None) -> None: ...
+    def set_limits(self, limits: Optional[Mapping[str, Any]] = None) -> None: ...
+
+class Engine:
+    def __init__(
+        self,
+        spec: Mapping[str, Any],
+        *,
+        conditions: Optional[Mapping[str, Callable[[List[Any]], bool]]] = None,
+        overrides: Optional[Iterable[Mapping[str, Any]]] = None,
+        invariants: Optional[Mapping[str, Callable[[JsonObject], Any]]] = None,
+        audit_sink: Optional[Callable[[JsonObject], None]] = None,
+        audit_redact: Optional[Callable[[JsonObject], JsonObject]] = None,
+        on_audit_drop: Optional[Callable[[JsonObject], None]] = None,
+        audit_policy: Optional[Mapping[str, Any]] = None,
+    ) -> None: ...
+    def decide(self, context: Context, request: Request, now: Optional[int] = None) -> JsonObject: ...
+    def check(self, context: Context, request: Request, now: Optional[int] = None) -> bool: ...
+    def explain(self, context: Context, request: Request, now: Optional[int] = None) -> JsonObject: ...
+    def why_not(
+        self,
+        context: Context,
+        request: Request,
+        now: Optional[int] = None,
+        options: Optional[Mapping[str, Any]] = None,
+    ) -> Optional[JsonObject]: ...
+    def check_many(self, context: Context, requests: Sequence[Request], now: Optional[int] = None) -> List[bool]: ...
+    def explain_many(
+        self, context: Context, requests: Sequence[Request], now: Optional[int] = None
+    ) -> List[JsonObject]: ...
+    def capabilities(
+        self, context: Context, subject: Mapping[str, Any], scope: Mapping[str, Any], now: Optional[int] = None
+    ) -> JsonObject: ...
+    def validate_grant(self, grant: Mapping[str, Any]) -> None: ...
+    def catalog(self) -> JsonObject: ...
+    def apply(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def impact(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def review_impact(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def propose(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def resolve(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def elevate(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def recertify(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def expire(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def flush_audit(self) -> JsonObject: ...
+    def audit_stats(self) -> JsonObject: ...
+    def materialize(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def apply_template(self, input: Mapping[str, Any]) -> JsonObject: ...
+    def list(
+        self,
+        context: Context,
+        subject: Mapping[str, Any],
+        permission: str,
+        kind: str,
+        options: Optional[Mapping[str, Any]] = None,
+        now: Optional[int] = None,
+    ) -> JsonObject: ...
+    def who_can(self, context: Context, permission: str, now: Optional[int] = None) -> List[JsonObject]: ...
+    def who_can_on(
+        self, context: Context, permission: str, resource: Mapping[str, Any], now: Optional[int] = None
+    ) -> JsonObject: ...
+    def access_of(
+        self, context: Context, resource: Mapping[str, Any], now: Optional[int] = None
+    ) -> List[JsonObject]: ...
+    def check_for(
+        self,
+        context: Context,
+        subject_ref: Mapping[str, Any],
+        permission: str,
+        resource: Mapping[str, Any],
+        subjects: Sequence[Mapping[str, Any]],
+        now: Optional[int] = None,
+    ) -> JsonObject: ...
+
+class Exclusive:
+    def __init__(self, options: Optional[Mapping[str, Any]] = None) -> None: ...
+    def validate(self, engine: Engine) -> None: ...
+    def acquire(
+        self,
+        engine: Engine,
+        context: Context,
+        subject: Mapping[str, Any],
+        resource: Mapping[str, Any],
+        terms: Mapping[str, Any],
+        now: Optional[int] = None,
+    ) -> JsonObject: ...
+    def holder(self, resource: Mapping[str, Any], now: Optional[int] = None) -> Optional[JsonObject]: ...
+    def release(
+        self, resource: Mapping[str, Any], holder: Mapping[str, Any], now: Optional[int] = None
+    ) -> JsonObject: ...
+    def renew(
+        self,
+        engine: Engine,
+        context: Context,
+        subject: Mapping[str, Any],
+        resource: Mapping[str, Any],
+        ttl_ms: int,
+        now: Optional[int] = None,
+    ) -> JsonObject: ...
+    def expire(self, now: Optional[int] = None) -> List[JsonObject]: ...
+
+def audit_estimate(level: str, records: int) -> float: ...
+def verify_audit_chain(records: Sequence[Mapping[str, Any]], anchors: Optional[Mapping[str, Any]] = None) -> JsonObject: ...
+def dsl_compile(text: str, options: Optional[Mapping[str, Any]] = None) -> JsonObject: ...
+def dsl_print(policy: Mapping[str, Any], language: str) -> JsonObject: ...
+def dsl_convert(text: str, language: str) -> JsonObject: ...
+def dsl_format(text: str, options: Optional[Mapping[str, Any]] = None) -> JsonObject: ...
+def dsl_is_formatted(text: str, options: Optional[Mapping[str, Any]] = None) -> JsonObject: ...
+def dsl_load_project(sources: Sequence[Mapping[str, str]]) -> JsonObject: ...
+def dsl_load_project_dir(dir: str) -> JsonObject: ...
+def dsl_run_tests(policy: Mapping[str, Any], tests: Sequence[Any]) -> JsonObject: ...
+
+# ===== __init__.py =====
+from typing import Any, Dict, List
+from . import dsl
+from ._native import Context, Engine, Exclusive, audit_estimate, verify_audit_chain
+from .errors import DslError, StrigError
+def scope_from_string(text: str) -> Dict[str, Any]: ...
+__all__ = ['Context', 'DslError', 'Engine', 'Exclusive', 'StrigError', 'audit_estimate', 'dsl', 'scope_from_string', 'verify_audit_chain']
+
+# ===== dsl.py =====
+from __future__ import annotations
+from typing import Any, Dict, List, Optional
+from . import _native
+from .errors import DslError
+__all__ = ['compile', 'print', 'convert', 'format', 'is_formatted', 'load_project', 'load_project_dir', 'run_tests']
+def compile(text: str, file: Optional[str]=None) -> Dict[str, Any]: ...
+def print(policy: Dict[str, Any], language: str) -> str: ...
+def convert(text: str, language: str) -> str: ...
+def format(text: str, file: Optional[str]=None) -> str: ...
+def is_formatted(text: str, file: Optional[str]=None) -> bool: ...
+def load_project(sources: List[Dict[str, str]]) -> Dict[str, Any]: ...
+def load_project_dir(directory: str) -> Dict[str, Any]: ...
+def run_tests(policy: Dict[str, Any], tests: List[Any]) -> Dict[str, Any]: ...
+
+# ===== errors.py =====
+from __future__ import annotations
+from typing import Any, List
+class StrigError(Exception):
+    code: str
+    message: str
+    def __init__(self, code: str, message: str) -> None: ...
+    ...
+class DslError(StrigError):
+    diagnostics: List[Any]
+    def __init__(self, code: str, message: str, diagnostics: List[Any] | None=None) -> None: ...
+    ...
+```
+
+## Go
+
+```bash
+go get github.com/The-Hades-Organization/Strig/bindings/go
+```
+
+Go 1.22 or later. The engine is the Wasm module, run on wazero; there is no cgo. `Engine` and `Context` hold module memory, so `Close` them. An `Engine` is single-threaded: `Fork` gives each worker its own. Every error is a `*Error` with a stable `Code`; `errors.Is` matches two of them by `Code`. Walk-through: [Go](/docs/integrations/go).
+
+```go
+engine, err := strig.NewEngine(spec)
+if err != nil { return err }
+defer engine.Close()
+
+ctx, _ := engine.NewContext(map[string]any{"grants": grants})
+defer ctx.Close()
+
+ok, err := engine.Check(ctx, map[string]any{
+    "subject":    map[string]any{"kind": "user", "id": "ana"},
+    "permission": "document.view",
+    "resource":   map[string]any{"path": []any{map[string]any{"kind": "document", "id": "d1"}}},
+})
+if strig.CodeOf(err) == "INVALID_GRANT" { /* ... */ }
+```
+
+<ApiWide>
+
+| Item | Signature |
+| --- | --- |
+| `NewEngine` | `func NewEngine(spec any) (*Engine, error)` |
+| `Engine.Fork` | `func (e *Engine) Fork() (*Engine, error)` |
+| `Engine.Close` | `func (e *Engine) Close() error` |
+| `Engine.NewContext` | `func (e *Engine) NewContext(init any) (*Context, error)` |
+| `Engine.Check` | `func (e *Engine) Check(c *Context, request any, opts ...Option) (bool, error)` |
+| `Engine.Decide` | `func (e *Engine) Decide(c *Context, request any, opts ...Option) (*Decision, error)` |
+| `Engine.Explain` | `func (e *Engine) Explain(c *Context, request any, opts ...Option) (map[string]any, error)` |
+| `Engine.CheckMany` | `func (e *Engine) CheckMany(c *Context, requests any, opts ...Option) ([]bool, error)` |
+| `Engine.List` | `func (e *Engine) List(c *Context, subject any, permission, kind string, options any, opts ...Option) (map[string]any, error)` |
+| `Engine.WhoCan` | `func (e *Engine) WhoCan(c *Context, permission string, opts ...Option) ([]map[string]any, error)` |
+| `Engine.Catalog` | `func (e *Engine) Catalog() (map[string]any, error)` |
+| `Engine.Apply`, `Impact`, `ReviewImpact`, `Propose`, `Resolve`, `Expire` | `func (e *Engine) Apply(input any) (map[string]any, error)`, and the same shape for the others |
+| `Context.SetGrants` | `func (c *Context) SetGrants(grants any) error` |
+| `Context.AddGrant` | `func (c *Context) AddGrant(grant any) error` |
+| `Context.RemoveGrant` | `func (c *Context) RemoveGrant(id string) (bool, error)` |
+| `Context.Grants` | `func (c *Context) Grants() ([]map[string]any, error)` |
+| `Context.AddTuple`, `RemoveTuple` | `func (c *Context) AddTuple(tuple any) (bool, error)` |
+| `Context.SetEnv` | `func (c *Context) SetEnv(env any) error` |
+| `Context.SetNow` | `func (c *Context) SetNow(t time.Time) error` |
+| `Context.SetLimits` | `func (c *Context) SetLimits(limits any) error` |
+| `Context.Close` | `func (c *Context) Close() error` |
+| `WithNow` | `func WithNow(t time.Time) Option` |
+| `Compile` | `func Compile(text string, file ...string) (map[string]any, error)` |
+| `Format` | `func Format(text string) (string, error)` |
+| `CodeOf` | `func CodeOf(err error) string` |
+| `Decision` | `struct { Effect string; Reason json.RawMessage; Matched []string; Warnings []string }`, with `Allowed() bool` |
+| `Error` | `struct { Code string; Message string; Diagnostics []any }` |
+| `ErrClosed`, `ErrBroken` | `INVALID_ARGUMENT` after `Close`; `INTERNAL` when the module trapped and was discarded. |
+
+</ApiWide>
+
+## Java
+
+```xml
+<dependency>
+  <groupId>io.github.the-hades-organization</groupId>
+  <artifactId>strig</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
+Package `io.github.thehadesorganization.strig`. The engine is the same Wasm module, run on Chicory. `Engine` and `Context` are `AutoCloseable`; use try-with-resources. Failures throw `StrigException` with a stable `code()`; a policy error also carries `diagnostics()`. Walk-through: [Java and the JVM](/docs/integrations/jvm).
+
+```java
+try (Engine engine = new Engine(spec);
+     Context ctx = engine.newContext(Map.of("grants", grants))) {
+    Decision d = engine.decide(ctx, request);
+    if (!d.allowed()) { /* d.reason() */ }
+}
+```
+
+<ApiWide>
+
+| Item | Signature |
+| --- | --- |
+| `Engine` | `public Engine(Object spec)`, `public Engine fork()`, `public synchronized void close()` |
+| `newContext` | `public Context newContext()`, `public Context newContext(Object init)` |
+| `check` | `public boolean check(Context context, Object request)`, and with a trailing `Instant now` |
+| `decide` | `public Decision decide(Context context, Object request)`, and with a trailing `Instant now` |
+| `explain` | `public Map<String, Object> explain(Context context, Object request)`, and with `Instant now` |
+| `checkMany` | `public List<Boolean> checkMany(Context context, Object requests)`, and with `Instant now` |
+| `list` | `public Map<String, Object> list(Context context, Object subject, String permission, String kind, Object options)` |
+| `whoCan` | `public List<Map<String, Object>> whoCan(Context context, String permission)` |
+| `catalog` | `public Map<String, Object> catalog()` |
+| `apply`, `impact`, `reviewImpact`, `propose`, `resolve`, `expire` | `public Map<String, Object> apply(Object input)`, and the same shape for the others |
+| `Context` | `setGrants(Object)`, `addGrant(Object)`, `boolean removeGrant(String id)`, `List<Map<String, Object>> grants()`, `boolean addTuple(Object)`, `boolean removeTuple(Object)`, `setEnv(Object)`, `setNow(Instant)`, `setLimits(Object)`, `close()` |
+| `Strig` | `static Map<String, Object> compile(String text)`, `compile(String text, String file)`, `static String format(String text)` |
+| `Decision` | `record Decision(String effect, JsonNode reason, List<String> matched, List<String> warnings)`, with `boolean allowed()` |
+| `StrigException` | `String code()`, `List<Object> diagnostics()` |
+
+</ApiWide>
+
+<a id="wasm-abi" />
+
+## Wasm ABI
+
+The Go and Java packages call one module, `strig-<version>.wasm`. A host in another language can do the same. The module imports nothing and exports a linear memory and three functions.
+
+<ApiWide>
+
+| Export | Signature | What it does |
+| --- | --- | --- |
+| `memory` | linear memory | The host writes inputs into it and reads outputs from it. |
+| `strig_alloc` | `(len: usize) -> *mut u8` | Gives the host `len` bytes to write an input into. |
+| `strig_free` | `(ptr: *mut u8, len: usize)` | Releases memory from `strig_alloc` or from a `strig_call` result, once. |
+| `strig_call` | `(op_ptr, op_len, in_ptr, in_len) -> u64` | Runs one operation. `op` is UTF-8 text and the input is a JSON object. The result packs `(ptr << 32) \| len` of a JSON envelope; read it, then free it. |
+
+</ApiWide>
+
+The envelope is one of:
+
+```json
+{"ok": true, "value": {"effect": "allow"}}
+{"ok": false, "code": "INVALID_GRANT", "message": "...", "diagnostics": []}
+```
+
+`code` is the same `errorCode` every binding raises. Input that is not UTF-8 is `INVALID_INPUT`.
+
+The operations, by group:
+
+| Group | Operations |
+| --- | --- |
+| Policy language | `compile`, `format`, `print`, `convert`, `isFormatted`, `loadProject`, `runTests`, `diff`, `lint` |
+| Handles | `engine.new`, `engine.free`, `context.new`, `context.free` |
+| Context | `context.setGrants`, `context.addGrant`, `context.removeGrant`, `context.grants`, `context.addTuple`, `context.removeTuple`, `context.setEnv`, `context.setNow`, `context.setLimits` |
+| Decisions | `check`, `decide`, `explain`, `whyNot`, `checkMany`, `explainMany`, `list`, `whoCan`, `catalog` |
+| Changes | `apply`, `impact`, `reviewImpact`, `propose`, `resolve`, `elevate`, `recertify`, `expire` |
+
+Engines and contexts live inside the module and are named by integer ids. The module is single-threaded: for concurrency, instantiate one module per worker. Callbacks (`call` conditions, overrides, invariants) are not part of the ABI; a request that needs one fails closed with the engine's own error. There is no clock: an operation that needs the instant takes `now` in its input, and the host fills it.
+
+<a id="protocol" />
+
+## Protocol 2
+
+The client protocol of `strig-sync`, `strig-server` and the JavaScript `/protocol` module is version 2 (`PROTOCOL_VERSION`). A peer that sends no `hello.version` is read as version 1; version 2 only adds optional fields and messages, so the two interoperate. Messages are JSON objects tagged by `type`, sent as Server-Sent Events (`event: <type>`, `data: <json>`) or over a WebSocket.
+
+<ApiWide>
+
+| Direction | `type` | Fields | Meaning |
+| --- | --- | --- | --- |
+| Server | `hello` | `origin`, `subject?`, `version` | First message; `version` is 1 when absent. |
+| Server | `capabilities` | `scope`, `set`, `revision?` | The current grants of the subject for a watched scope; replaces the previous set. A client that requires a revision treats a set without it, or behind it, as no decision. |
+| Server | `change` | `change` | A change that affects a watched scope. |
+| Server | `resync` | none | The client lost changes: discard what it has and wait for new `capabilities`. |
+| Server | `error` | `message` | A failure. |
+| Server | `ping` | none | Keep-alive. |
+| Client | `watch`, `unwatch` | `scopes` | Starts or stops watching scopes; `watch` answers with each scope's capabilities. |
+| Client | `refresh` | none | Asks again for the capabilities of every watched scope. |
+| Client | `refresh_at_least` | `revision` | Like `refresh`, but every set must come from data at `revision` or later. A scope that cannot be brought that far gets an `error` whose `message` is `revision_not_reached`, `revision_scope_mismatch` or `revision_untracked`, never an older set. |
+
+</ApiWide>
+
+A scope is text in a query string: steps from the most specific to the broadest, separated by `/`, each `kind:id` or just `kind` (`document:d1/project:p1/org:o1`).
+
+<a id="error-codes" />
+
+## Error codes
+
+Each list is closed: a code is added, never changed or reused. Removing one, or making an existing situation report a different one, is a breaking change. A deprecated code keeps being thrown until the next major version.
+
+**JavaScript, Python, Go, Java and Wasm** raise the same `ErrorCode`. A Rust error variant added later maps to `INTERNAL`, or to the `*_ERROR` code of its family, until it gets a code of its own.
+
+| Family | Codes |
+| --- | --- |
+| Input | `INVALID_ARGUMENT`, `INVALID_INPUT`, `INVALID_SPEC`, `INVALID_GRANT`, `UNKNOWN_SUBJECT`, `UNKNOWN_INVARIANT`, `REENTRANT_CALL` |
+| Queries | `QUERY_LIMIT_EXCEEDED`, `RELATION_DEPTH_EXCEEDED`, `QUERY_ERROR` |
+| Exclusive ownership | `EXCLUSIVE_ZERO_TTL`, `EXCLUSIVE_NOT_HELD`, `EXCLUSIVE_NOT_HOLDER`, `EXCLUSIVE_ANONYMOUS_SUBJECT`, `EXCLUSIVE_UNIDENTIFIED_RESOURCE`, `EXCLUSIVE_TTL_TOO_LONG`, `EXCLUSIVE_DENIED`, `EXCLUSIVE_UNKNOWN_PERMISSION`, `EXCLUSIVE_STORE`, `EXCLUSIVE_ERROR` |
+| Policy language | `DSL_PARSE`, `DSL_VALIDATE`, `DSL_CONFLICT`, `DSL_UNREPRESENTABLE`, `DSL_UNSUPPORTED`, `DSL_LIMIT`, `DSL_DUPLICATE_SOURCE`, `DSL_IO` |
+| Other | `INTERNAL` |
+
+**`strig-server` and the JavaScript `/remote` client** answer with `error.code` in the body: `malformed_json`, `invalid_request`, `batch_too_large`, `too_many_resources`, `not_found`, `method_not_allowed`, `body_too_large`, `unsupported_media_type`, `source_unavailable`, `query_limit_exceeded`, `overloaded`, `relation_depth_exceeded`, `deadline_exceeded`, `clock_unavailable`, `revision_not_reached`, `revision_mismatch`, `internal`. A client treats a code it does not know as `internal`. [Status and meaning of each](#error-codes-server).
+
+**Rust** error enums (`EngineError`, `SpecError`, `PendingError`, `ApprovalError`, `AuditError`, `ChainError`, `ExclusiveError`, `StoreError`, `QueryError` and the others) are `#[non_exhaustive]`; their variants are the codes, and the mapping to the lists above is part of the contract.
+

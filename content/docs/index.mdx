@@ -5,7 +5,7 @@ description: What Strig decides, how it reaches a verdict, and where it runs.
 
 Strig answers one question: may this subject do this to this resource?
 
-You write a policy. You ask questions. Each answer is a verdict and the grant that produced it. The examples on this page ran against Strig 0.6.1; 0.7.0 does not change them.
+You write a policy. You ask questions. Each answer is a verdict and the grant that produced it. The examples on this page run against Strig 1.0.
 
 <BenchRef>The policy, `documents.strig`, is in the bench beside this text.</BenchRef>
 
@@ -96,19 +96,28 @@ engine.explain(ctx, { subject: bruno, permission: 'document.edit', resource }).d
 
 ## Where it runs
 
-The core does no IO, needs no async runtime and compiles to WebAssembly. Everything else is a separate crate you add only when you need it.
+The core does no IO, needs no async runtime and compiles to WebAssembly. Everything else is a separate crate or package you add only when you need it.
 
 | You want | Use |
 | --- | --- |
 | Decisions inside a Rust service | `strig` |
 | Decisions in Node or Bun, native or WebAssembly | `@the-hades-organization/strig` |
 | Decisions in the browser, from the same engine | the WebAssembly build of the same package |
-| Decisions for services that do not embed the engine | `strig-server`, an HTTP server with a Rust client that denies when it gets no answer |
+| Decisions from Python, Go or Java | [`strig-auth`](/docs/integrations/python), [the Go module](/docs/integrations/go), [the JVM artifact](/docs/integrations/jvm) |
+| Decisions for services that do not embed the engine | `strig-server`, an HTTP server with a Rust client that denies when it gets no answer ([guide](/docs/integrations/server)) |
+| Grants kept in Postgres or Redis | [`strig-postgres` and `strig-redis`](/docs/storage/postgres) |
 | Permission changes pushed to clients as they happen | `strig-sync`, with Redis or Postgres between instances, and `strig-axum` for SSE and WebSocket |
 | A policy checked while your crate compiles | `strig-macros`: `policy!` and `include_policy!` |
-| The trace of a decision, grant simulation and the audit trail | `strig-inspect`, in a window or from the terminal |
+| A policy tested, diffed and linted in CI | `strig test`, `strig diff`, `strig lint` ([tools](/docs/tools/testing)) |
+| The trace of a decision, grant simulation and the audit trail | the [inspector](/docs/tools/inspector), in a window or from the terminal |
 
-Strig also checks changes to the grants themselves. Governance applies a change only if every invariant passes (no escalation, no lockout, your own rules). With the `audit` feature, each change, applied or refused, becomes an audit record, and if the record cannot be written the change is refused.
+On top of the decision, Strig covers how permissions change:
+
+- **Field permissions.** A permission can name the fields it covers, and a grant narrows to some of them ([modeling](/docs/modeling/field-permissions)).
+- **Governed changes.** Governance applies a change only if every invariant passes (no escalation, no lockout, your own rules), and reports who gains and who loses access before it applies ([impact](/docs/governance/impact)).
+- **Approvals.** A change can wait for an approver, be time-boxed as an [elevation](/docs/governance/elevation), or be reviewed in a [recertification](/docs/governance/recertification) campaign. [Separation of duties](/docs/governance/separation-of-duties) keeps incompatible permissions apart.
+- **Audit.** With the `audit` feature, each change, applied or refused, becomes a hash-chained record, and if the record cannot be written the change is refused. A third party can [verify the trail](/docs/audit) without trusting you.
+- **Consistency.** A decision can require the revision of a change you just made ([consistency](/docs/storage/consistency)).
 
 ## When to use it, and when not
 
@@ -118,7 +127,7 @@ Skip it when the check is a single flag on a user and will stay one. A column is
 
 Two limits to know before you start:
 
-- **Pre-1.0.** The API can change between minor versions. The [changelog](https://github.com/The-Hades-Organization/Strig/blob/main/CHANGELOG.md) lists every break.
+- **Stable from 1.0.** A breaking change to the public API, the policy schema, the audit format or the protocol takes a new major version, with a deprecation window first. [Upgrading](/docs/upgrading) lists exactly what that covers.
 - **The client does not guard anything.** `PermissionClient` decides locally for the interface. The server still decides on every operation.
 
 ## Where to next
@@ -136,7 +145,7 @@ Two limits to know before you start:
 </CardLink>
 
 <CardLink href="/docs/reference" title="Reference">
-  The engine, its methods and the error codes.
+  Every public name by crate and package, the HTTP API and the error codes.
 </CardLink>
 
 <CardLink href="https://github.com/The-Hades-Organization/Strig/tree/main/playground" title="Playground">

@@ -172,11 +172,65 @@ The SHA-256 of exactly those bytes, UTF-8 with no trailing newline:
 
 The record as written is the same object with `,"hash":"087dbffd…4cb5"` before the closing `}`.
 
+## Prove one record, or the time, to a third party
+
+The chain proves the log is intact to whoever holds all of it. To hand an auditor one record without the rest, the records are also the leaves of a Merkle tree (RFC 6962, restated by RFC 9162). The chain and the record hash do not change.
+
+```js title="JavaScript"
+const { verifyMerkleInclusion, verifyMerkleConsistency } = await load();
+
+verifyMerkleInclusion({ record, index: 41, size: 1000, proof, root });
+// { ok: true }  or  { ok: false, code: 'ROOT_MISMATCH' }
+
+verifyMerkleConsistency({ first: 600, second: 1000, firstRoot, secondRoot, proof });
+// the tree of 1000 records extends the one of 600 you published before
+```
+
+The auditor needs the record, its position, the tree size, the proof (at most `ceil(log2 size)` hashes) and a root they already trust. Publish the root like the chain head. A consistency proof shows that a root you published earlier still holds: nothing before it was rewritten.
+
+`code` is one of `INDEX_OUT_OF_RANGE`, `PROOF_LENGTH`, `ROOT_MISMATCH` and `SIZES`. In Rust, `strig::merkle::MerkleTree::from_records` builds the tree and the proofs, and `verify_inclusion` and `verify_consistency` check them. The leaf is `SHA-256(0x00 || line)` over the record exactly as written, `hash` included; a node is `SHA-256(0x01 || left || right)`. [`docs/audit-format.md`](https://github.com/The-Hades-Organization/Strig/blob/main/docs/audit-format.md) has the test vectors.
+
+A Merkle root or a chain head says what the log held. A time-stamping authority says when, signed by someone other than the host. Ask it for a stamp over the head (RFC 3161), then verify the answer offline, against a root certificate you supply:
+
+```js title="JavaScript"
+const { verifyTimestamp } = await load();
+
+verifyTimestamp({ response: base64Der, head, roots: caPem });
+// { ok: true, genTime, serial, policy, algorithm, signerSubject, ... }
+// { ok: false, code: 'UNTRUSTED_CHAIN', message }
+```
+
+The check fails closed: with no root every response is refused, and the status, the imprint, the signature, the certificate chain and the `id-kp-timeStamping` usage must all hold. Revocation (CRL, OCSP) is not consulted. In Rust the request is `strig::timestamp::TimestampRequest::for_chain_head(head, nonce)` and the check is `verify_response` (feature `timestamp`); the core does no network IO, so you POST the request yourself.
+
+## Report on a trail
+
+`strig audit report` reads a JSON Lines trail and answers what an auditor asks first:
+
+```text title="Terminal"
+strig audit report trail.jsonl --anchor-head 9f2c… --timestamp head.tsr --root ca.pem
+```
+
+It lists the period, records per action and outcome, applied changes per actor, refusals per invariant, every chain break with its position, the anchors compared with the trail, and each stamp verified against the head. `--json` prints the same as data. The exit status is `0` when the trail conforms, `1` when it does not, and `2` for a usage error; an empty trail does not conform. The flags are in the [reference](/docs/reference#command-line-strig-cli).
+
+## The format is versioned
+
+`AUDIT_FORMAT` is `1`. A record written today verifies with a verifier written against format 1, in any language. A change to key order, escaping, hash input or the meaning of a field takes a new format number and a major version, while an added optional field does not change the hash of a record that lacks it. [Upgrading](/docs/upgrading) lists what is frozen.
+
+At `detailed` and `forensic`, the record of a change applied with its impact carries the optional field `impact`: `gained`, `lost`, `indeterminate`, `partial`, and up to 10 `examples`. See [Impact](/docs/governance/impact).
+
 ## Records of the approval flow
 
 <VersionBadge version="0.7.0" />
 
-Four actions record the steps of a pending request: `mutation_propose`, `mutation_approve`, `mutation_reject` and `mutation_expire`, with a new `pending` outcome. A log consumer that validates `action` and `outcome` against a closed list needs the new values before you turn the flow on. The steps and their outcomes are on [Approvals](/docs/approvals#what-the-audit-records).
+A pending request and the features built on it write these actions, with the outcome `pending` for a proposal that was kept:
+
+| Action | Written when |
+| --- | --- |
+| `mutation_propose`, `mutation_approve`, `mutation_reject`, `mutation_expire` | each step of a [pending request](/docs/approvals#what-the-audit-records) |
+| `elevation_review` | another actor closes the review of a break-glass [elevation](/docs/governance/elevation) |
+| `recert_open`, `recert_decide`, `recert_close` | a [recertification](/docs/governance/recertification) campaign opens, an item is decided (or defaulted at closing), the campaign closes |
+
+A log consumer that validates `action` and `outcome` against a closed list needs these values before you turn the flows on.
 
 <CardLink href="/docs/approvals" title="Approvals">
   A change that waits for a second person before it applies.

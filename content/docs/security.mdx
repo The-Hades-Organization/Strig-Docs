@@ -21,13 +21,13 @@ What to expect:
 
 ## Supported versions
 
-Strig is pre-1.0: only the latest minor release (`0.y`) receives security fixes, as a patch release. A fix can come with a breaking change when keeping the old behaviour would be unsafe, and the release notes say so ([Upgrading](/docs/upgrading#deprecation-policy)). From 1.0, fixes ship in a patch of the latest minor and of the last minor of the previous major, for 12 months after the new major.
+From 1.0, a security fix ships as a patch of the latest minor and of the last minor of the previous major, for 12 months after the new major. Before 1.0 only the latest `0.y` received fixes. A fix can come with a breaking change when keeping the old behaviour would be unsafe, and the release notes say so ([Upgrading](/docs/upgrading#deprecation-policy)).
 
 ## What is in scope
 
 - **A wrong authorization decision.** An allow where the model says deny: a deny grant, an override, a missing prerequisite, an expired validity window, a condition that does not hold, a failed callback. Also a deny explained wrongly in a way that misleads an operator.
-- **A bypass of governance.** A grant or role change that passes the invariants (`NoEscalation`, `NoLockout`, `Forbid`, `NonDelegable`, `ManagementOnly`, custom invariants) when it should be refused, or a refused change that reaches the stored grants.
-- **A break in the audit chain.** A record that can be altered, dropped or reordered without `verify_chain` or `verify_chain_anchored` noticing. A hash that does not match [the format](/docs/audit#the-canonical-format). A redaction that leaks a masked attribute into the record. A change that goes through without a record under `FailMode::Closed`.
+- **A bypass of governance.** A grant or role change that passes the invariants (`NoEscalation`, `NoLockout`, `Forbid`, `NonDelegable`, `ManagementOnly`, `SeparationOfDuties`, custom invariants) when it should be refused, or a refused change that reaches the stored grants. The same for an approval, an [elevation](/docs/governance/elevation) or a recertification that goes through when the flow should have refused it: an author approving their own request, an elevation past its maximum, a break-glass without its record.
+- **A break in the audit chain.** A record that can be altered, dropped or reordered without `verify_chain`, `verify_chain_anchored` or a [Merkle proof](/docs/audit) noticing, or a timestamp token that verifies for a head it does not cover. A hash that does not match [the format](/docs/audit#the-canonical-format). A redaction that leaks a masked attribute into the record. A change that goes through without a record under `FailMode::Closed`.
 - **Leaks across tenants or subjects** in listing and reverse queries (`list`, `who_can_on`, `access_of`), in the SQL produced by `strig-postgres`, in the real-time transports (`strig-sync`, `strig-redis`, `strig-axum`, `strig-server`) and in the JS integrations: the route table, `StrigRouteGuard` and `authorizeRoutes`, including a route the deny-by-default table lets through.
 - **Memory-safety or denial-of-service bugs** reachable from untrusted input: a policy file or JSON spec, a request, a frame on the wire, a store file.
 
@@ -37,7 +37,7 @@ Strig is pre-1.0: only the latest minor release (`0.y`) receives security fixes,
 - The behaviour of your own callbacks, sinks and stores (`call` conditions, JS overrides, an `AuditSink`), except when the engine mishandles what they return or throw.
 - Findings that need a malicious host process or access to the machine the engine runs on.
 - Vulnerabilities in a dependency with no way to reach them through Strig. Report these upstream.
-- The `strig-inspect` window and the playground, which are tools with no authority of their own.
+- The [inspector](/docs/tools/inspector) window and the playground, which are tools with no authority of their own.
 
 ## Verify a release
 

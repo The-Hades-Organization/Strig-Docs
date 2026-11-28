@@ -1,55 +1,110 @@
 ---
 title: Upgrading
-description: What counts as public API and what breaks it, how a feature is deprecated before it goes, and the steps to move from 0.6 to 0.7.
+description: What the 1.0 promise covers, what breaks a release, how a feature is deprecated, and the steps to move from 0.7 to 1.0 with the code before and after.
 ---
 
-Strig follows [Semantic Versioning](https://semver.org/). This page says what the public API is, what counts as a breaking change, how versions behave before and after 1.0, which toolchains are supported and how a feature is deprecated. Then it lists what to change in your code, release by release, newest first. The [changelog](https://github.com/The-Hades-Organization/Strig/blob/main/CHANGELOG.md) lists every change.
+From `1.0.0-rc.1` the public API is frozen. A change that breaks it needs a new major version, a line under **Breaking** in the [changelog](https://github.com/The-Hades-Organization/Strig/blob/main/CHANGELOG.md) and a section on this page. Minor versions add features and deprecations. Patches only fix.
 
-All crates and the npm package share one version number, and a release bumps them together.
+All crates, the npm package, the Python package, the Go module tag and the Java artifact share one version number, and a release bumps them together.
+
+Moving from 0.10? Only Rust code that names a few types changes: [0.10 → 1.0](#100). The JavaScript, Python, Go and Java packages, the policy language, stored data and the audit hash need no edit.
+
+## What 1.0 freezes
+
+Three numbers and one list do not change inside a major version. Readers keep reading every schema and format they read at 1.0.
+
+| Value | At 1.0 | Where it lives |
+| --- | --- | --- |
+| Policy JSON schema | `DSL_SCHEMA` = 5 | `strig::dsl::DSL_SCHEMA` |
+| Audit record and chain hash | `AUDIT_FORMAT` = 1 | `strig::audit::AUDIT_FORMAT` |
+| Client and sync protocol | version 2 (`hello.version`, 1 when absent) | [Reference](/docs/reference#protocol) |
+| `errorCode` lists | closed; codes are added, never changed or reused | [Reference](/docs/reference#error-codes) |
+
+Four checks in CI keep the promise, so it does not rest on review alone.
+
+| Check | What it locks | Fails when |
+| --- | --- | --- |
+| `cargo semver-checks` | The public Rust API of `strig`, `strig-sync`, `strig-redis`, `strig-postgres`, `strig-axum`, `strig-server` and `strig-macros`, against the last version on crates.io | An item is removed, renamed or changed without a major version |
+| API snapshots | `crates/strig-node/js/api/strig.d.ts.snap` (every published `.d.ts`) and `crates/strig-python/api/strig.pyi.snap` | The JavaScript or Python surface changes and the snapshot was not updated |
+| Frozen fixtures | The policy JSON for every syntax, an audit record and its chain hash, one file per sync message, the `strig-server` wire | The output changes by one byte |
+| `errorCode` lists | The closed lists in the [Reference](/docs/reference#error-codes) | A code is removed or changed |
 
 ## What is public API
 
 | Surface | What is covered |
 | --- | --- |
-| Rust crates | Everything reachable from the public items of `strig`, `strig-sync`, `strig-redis`, `strig-postgres`, `strig-axum`, `strig-macros` and `strig-server`, with the documented feature flags. `strig-node` and `strig-inspect` are not libraries: their API is the npm package and the command line. |
-| npm package | The exports of `@the-hades-organization/strig` and its subpaths (`/client`, `/server`, `/protocol`, `/remote`, `/express`, `/fastify`, `/nestjs`, `/store`, `/testing`, `/types`, `/approvals`), their TypeScript types, and the `strig-types` command. |
+| Rust crates | Everything reachable from the public items of `strig`, `strig-sync`, `strig-redis`, `strig-postgres`, `strig-axum`, `strig-macros` and `strig-server`, with the documented feature flags. |
+| `strig-cli` | Subcommands, flags and exit codes. |
+| npm package | The exports of `@the-hades-organization/strig` and its subpaths, their TypeScript types, and the `strig-types` command. |
+| Python package | The exports of `strig` (`pip install strig-auth`), their method names and keyword arguments, and the type stubs. |
+| Go module | The exports of `github.com/The-Hades-Organization/Strig/bindings/go`. |
+| Java and Kotlin package | The public classes of `io.github.the-hades-organization:strig`. |
+| Wasm ABI | The exports of `strig-<version>.wasm` (`memory`, `strig_alloc`, `strig_free`, `strig_call`), the operation names and JSON inputs of `strig_call`, and the envelope it answers with. |
 | Policy language | The grammar and meaning of the three syntaxes, and the canonical JSON the parser produces. |
 | JSON spec | The shape of `EngineSpec`, `Grant`, `Condition`, `Catalog`, the exported catalog and the files read by the JSON store, with their `schema` numbers. |
 | Audit format | The canonical form of a record and the hash of the chain, with its test vector. |
-| `errorCode`s | The `code` of every error the JS binding throws, and the stable names the Rust errors map to. |
+| `errorCode`s | The `code` of every error the bindings raise, and the stable names the Rust errors map to. |
 | Wire protocol | The messages of `strig-sync`, `strig-server` and the JS `/protocol` module. |
-| `strig-inspect` command line | Subcommands, flags and exit codes. The window and the text of messages are not covered. |
 
-Not public, and free to change in any release: items marked `#[doc(hidden)]`, anything under an `internal` or `__private` name, the layout of the built `dist/` and `wasm/` folders (use the exports map), the wording of error messages and hints (match on `code`, never on the text), the exact text of `explain` traces, the playground and the `strig-inspect` window, and benchmark numbers.
+Not public, and free to change in any release: items marked `#[doc(hidden)]`, anything under an `internal` or `__private` name, the layout of the built `dist/` and `wasm/` folders (use the exports map), the wording of error messages and hints (match on `code`, never on the text), the text of `explain` traces, the playground, the `strig-inspect` window and benchmark numbers.
+
+Three crates are not library API. `strig-node` and `strig-inspect` are not published: the npm package is the surface of the first, and the second is covered only by its command line. `strig-lsp` ships inside the editor extension and speaks the Language Server Protocol.
 
 ## What counts as a breaking change
 
-- **Rust.** Removing or renaming a public item. Changing a signature or a trait. Adding a required method to a public trait that users implement (`AuditSink`, `Invariant`, `ExclusiveStore`, `TupleStore`). Adding a variant to a public enum, or a field to a public struct, that is not `#[non_exhaustive]`, since an exhaustive `match` or a struct literal stops compiling. Changing a default feature. Raising the MSRV. Changing what a method returns for the same input in a way a caller can observe.
-- **npm package.** Removing or renaming an export, an option or a field. Narrowing an accepted type or widening a returned one. Changing the `code` of an error. Dropping a supported Node or Bun version. Moving a subpath.
-- **Policy language and JSON spec.** A source or document that parsed before must parse to the same policy. Removing a keyword, `op`, field or syntax is breaking. Adding one is not, but a policy that uses it exports a higher `schema` number, so older readers refuse it instead of reading it wrongly (`DSL_SCHEMA` is 3 today). Making the validator reject what it accepted is breaking. Fixing it to stop accepting what the documentation never allowed is a fix.
-- **Audit format.** Any change to the canonical form or the hash computation is breaking, because it invalidates stored chains and anchors. It needs a major version and a documented migration of existing chains.
-- **`errorCode`s.** Codes are added, never changed or reused. Removing a code, or making an existing situation report a different one, is breaking.
-- **Decisions.** A bug fix that makes the engine deny where it allowed wrongly is not breaking, even if a caller relied on it. It is announced under **Fixed**, as security fixes are. A change that allows where it denied needs a test showing the deny cases that must still deny, and is announced under **Changed** or **Breaking**.
+| Where | Breaking | Not breaking |
+| --- | --- | --- |
+| Rust | Removing or renaming a public item. Changing a signature or a trait. Adding a required method to a trait you implement (`AuditSink`, `Invariant`, `ExclusiveStore`, `TupleStore`). Adding a variant or field to a type that is not `#[non_exhaustive]`. Changing a default feature. Raising the MSRV in a patch. | Adding a variant or field to a `#[non_exhaustive]` type. Adding a method with a default body. |
+| npm, Python, Go, Java | Removing or renaming an export, option, field, method or exception. Changing the `code` of an error. Narrowing an accepted type or widening a returned one. Dropping a supported runtime version. Moving a subpath. | Adding an export, a method or an optional argument. |
+| Wasm ABI | Changing the signature of an export, removing or renaming an operation, changing the envelope. | New operations and new optional input fields. |
+| Policy language and JSON | A source that parsed before parses to a different policy. Removing a keyword, `op`, field or syntax. Making the validator reject what it accepted. | Adding a keyword. A policy that uses it exports a higher `schema`, so an older reader refuses it instead of reading it wrongly. |
+| Audit format | Any change to the canonical form or the hash. It invalidates stored chains and anchors, so it needs a major version and a migration for existing chains. | A new optional record field that is left out of the canonical form when unset. |
+| `errorCode`s | Removing a code, or making a situation report a different one. | Adding a code. |
+| Decisions | A change that allows where it denied. It needs a test with the deny cases that must still deny, and is announced under **Changed** or **Breaking**. | A fix that denies where it allowed wrongly. It is announced under **Fixed**, as security fixes are. |
 
-Anything breaking is listed under **Breaking** in the changelog with the step you take, and the larger ones are written out below.
+### Types that can grow
+
+Public enums that may gain variants, and public structs the library returns, are `#[non_exhaustive]`. A `match` on them needs a catch-all arm, and a result struct is read, never built with a literal:
+
+```rust title="Rust"
+match builder.build() {
+    Ok(engine) => use_it(engine),
+    Err(EngineError::UnknownPermission(p)) => reject(p),
+    Err(_) => reject_unknown(), // fails closed
+}
+```
+
+Structs you build to configure or feed the library (`Review`, `Resource`, `Anchor`, `Lease`, `SessionOptions`, `RetryPolicy`, `Proposal`, `EvalContext` and similar) are `#[non_exhaustive]` too. Pass the required fields to `new(...)` and the optional ones through `with_*`:
+
+```rust title="Rust"
+let policy = RetryPolicy::default().with_capacity(500);
+```
+
+Five types stay exhaustive on purpose: `Effect`, `PendingStatus`, `TupleSubject`, `Mutation` and `SubjectMatcher`. Every store matches them, so a new variant must fail at compile time instead of dropping a write silently. Adding a variant to one of them is a major change.
 
 ## Versions before and after 1.0
 
-- **Before 1.0** (`0.y.z`): a minor version (`0.y`) may contain breaking changes. A patch version never does. Every breaking change is in the changelog, and in this page when it needs more than one line.
+- **Before 1.0** (`0.y.z`): a minor version may break the API. A patch never does. Every break is in the changelog, and on this page when it needs more than a line.
 - **From 1.0** (`x.y.z`): only a major version breaks the public API. A minor adds features and deprecations. A patch only fixes. Security fixes ship in a patch of every supported line.
 - **A pre-release** (`1.0.0-rc.1`) can change until the final version.
 
 ## Supported toolchains
 
-- **Rust (MSRV)**: 1.88 today. Raising it is a minor change before 1.0. From 1.0 it may be raised only in a minor version, never in a patch, stays at least six months old, and is announced in the changelog.
-- **Node** 18.17 or newer, and **Bun** 1.1 or newer. Dropping a version is a breaking change before 1.0. From 1.0 it needs a major version, unless the runtime has been end-of-life for more than six months.
-- **Browsers**: the WebAssembly backend needs WebAssembly with the features the shipped `.wasm` uses. The `browser` export is built for current evergreen browsers.
-- **Platforms with a native module**: `linux-x64` and `linux-arm64` (glibc), `darwin-x64`, `darwin-arm64` and `win32-x64`. Linux with musl uses the WebAssembly backend. Adding a platform is not breaking. Removing one is.
+| Toolchain | Supported | Dropping a version |
+| --- | --- | --- |
+| Rust (MSRV) | 1.88 | A minor version only, never a patch. The MSRV stays at least six months old and the changelog announces it. |
+| Node and Bun | Node 18.17 or newer, Bun 1.1 or newer | A major version, unless the runtime has been end-of-life for more than six months. |
+| Python | 3.9 or newer. One `abi3` wheel per platform covers every later version: `linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`, `win32-x64`. The source distribution builds anywhere with a Rust toolchain. | As Node. |
+| Go | 1.22 or newer | As Node. |
+| Java | 17 or newer, and Kotlin on any version that targets it | As Node. |
+| Browsers | Current evergreen browsers, through the `browser` export and the WebAssembly backend | A major version. |
+
+The npm package has a native module for `linux-x64` and `linux-arm64` (glibc), `darwin-x64`, `darwin-arm64` and `win32-x64`. Linux with musl uses the WebAssembly backend. Go and Java run the engine on a WebAssembly runtime written in the host language, so any OS and architecture that runs Go or the JVM works. Adding a platform is not breaking. Removing one is.
 
 ## Deprecation policy
 
-1. **Warn in a minor.** A feature is deprecated in a minor release, with at least one `0.y` release before removal when you are before 1.0. The release notes list it under **Deprecated**, naming the replacement and the version where it will go.
-2. **Remove only in the next major.** From 1.0, a deprecated item stays through the rest of the major line and goes in the next major. Before 1.0, it goes no sooner than the next minor after the one that deprecated it.
+1. **Warn in a minor.** The release notes list the feature under **Deprecated**, with the replacement and the version where it goes.
+2. **Remove only in the next major.** A deprecated item stays through the rest of the major line.
 3. **Keep it working.** A deprecated item keeps its behaviour. The only change allowed is the warning.
 4. **Security is the exception.** When keeping something works against safety, it can be removed or made to fail closed in a minor or a patch. The advisory and the changelog say so.
 
@@ -57,12 +112,239 @@ How the warning reaches you:
 
 | Where | How you see it |
 | --- | --- |
-| Rust | `#[deprecated(since = "0.y.0", note = "use new_name; removed in 2.0")]`. The compiler warns at every use. CI builds with `-D warnings`, so a project that denies warnings fails at the first build after the upgrade, which is the point. |
-| JavaScript and TypeScript | A `@deprecated` JSDoc tag in the `.d.ts`, with the replacement, which editors strike through. At runtime, a one-time `process.emitWarning(message, 'DeprecationWarning', 'STRIG_DEPnnn')` on Node and Bun, and `console.warn` in the browser. Run Node with `--throw-deprecation` in your tests to fail on a use. Each deprecation has a stable `STRIG_DEPnnn` code that the changelog repeats. |
-| Policy language and JSON | A deprecated keyword or field still parses. The validator reports it as a warning, not an error, with the position and the replacement in the hint. |
+| Rust | `#[deprecated(since = "1.2.0", note = "use new_name; removed in 2.0")]`. The compiler warns at every use. CI builds with `-D warnings`, so a project that denies warnings fails at the first build after the upgrade. |
+| JavaScript and TypeScript | A `@deprecated` JSDoc tag in the `.d.ts`, with the replacement, which editors strike through. At runtime, a one-time `process.emitWarning(message, 'DeprecationWarning', 'STRIG_DEPnnn')` on Node and Bun (`console.warn` in the browser). Run Node with `--throw-deprecation` in your tests to fail on a use. The changelog repeats each `STRIG_DEPnnn` code. |
+| Policy language and JSON | A deprecated keyword or field still parses. The validator reports a warning with the position and the replacement in the hint. |
 | Error codes | A deprecated code keeps being thrown until the major version. The changelog names the code that replaces it. |
 
-Changes made before this policy, such as the `needs` to `depends_on` rename in 0.5.0, were breaking at once. From now on a rename goes through the steps above. Nothing is deprecated in 0.7.0.
+Changes made before this policy, such as the `needs` to `depends_on` rename in 0.5.0, were breaking at once. From now on a rename goes through the steps above. Nothing is deprecated at 1.0.
+
+## 1.0.0
+
+The public API is frozen from `1.0.0-rc.1`. This was the last window for breaking changes, and it breaks only Rust code that names the types below.
+
+### Rust: growing enums and result structs are `#[non_exhaustive]`
+
+About 40 public enums that can gain a variant and about 60 structs the library returns can now grow without a major version. The enums include the error types (`EngineError`, `GrantError`, `SpecError`, `PendingError`, `AuditError`, `QueryError`), `Condition`, `Operand`, `Reason`, `Rewrite`, `Value` and `MutationKind`. The structs include `Decision`, `Explanation`, `WhoCan`, `CheckAnswer`, `AuditStats`, `Violation` and `Materialized`.
+
+**Before.**
+
+```rust title="Rust"
+match builder.build() {
+    Ok(engine) => use_it(engine),
+    Err(EngineError::UnknownPermission(p)) => reject(p),
+}
+```
+
+**After.** Add a catch-all arm that fails closed, and `..` when you destructure a result struct.
+
+```rust title="Rust"
+match builder.build() {
+    Ok(engine) => use_it(engine),
+    Err(EngineError::UnknownPermission(p)) => reject(p),
+    Err(_) => reject_unknown(),
+}
+let Decision { effect, .. } = decision;
+```
+
+**Step.** Search your code for `match` on these enums and for destructured result structs. A result struct is no longer built with a literal outside its crate: take one from the API that produces it.
+
+### Rust: input structs are built with a constructor
+
+The 20 structs you build to configure or feed the library can no longer be built with a literal, nor with `..Default::default()`, outside their crate. Required fields go in `new(...)`, optional ones in `with_*`, and configuration structs keep `Default`. Reading a field is unchanged, and so is assigning one on a value you own. A pattern that destructures one needs `..`.
+
+**Before.**
+
+```rust title="Rust"
+let policy = RetryPolicy { capacity: 500, ..RetryPolicy::default() };
+let review = Review { now: t, ..review };
+```
+
+**After.**
+
+```rust title="Rust"
+let policy = RetryPolicy::default().with_capacity(500);
+let review = review.with_now(t); // Review is now Copy
+```
+
+**Step.** Replace each literal with the constructor in the table. A store implemented outside this repository builds what it returns the same way (`Lease::new`, `Review::new`).
+
+<ApiWide>
+
+| Struct | Before | After |
+| --- | --- | --- |
+| `Review` | `Review { engine, current, tuples: None, now, meta }` | `Review::new(engine, current, now, meta)`, `.with_tuples(store)` |
+| `Proposal` | `Proposal { actor, mutation, before, after, tuples: None, now: None }` | `Proposal::new(actor, mutation, before, after)`, `.with_tuples(store)`, `.with_now(now)` |
+| `EvalContext` | `EvalContext { subject, resource, env }` | `EvalContext::new(subject, resource, env)` |
+| `CapabilitySet` | `CapabilitySet { subject, grants }` | `CapabilitySet::new(subject, grants)` |
+| `Lease` | `Lease { resource, holder, priority, acquired_at, expires_at }` | `Lease::new(resource, holder, priority, acquired_at, expires_at)` |
+| `ExclusivePermissions` | `ExclusivePermissions { hold, preempt }` | `ExclusivePermissions::new(hold, preempt)` |
+| `Resource` | `Resource { path, attrs: Default::default() }` | `Resource::from_path(path)`, or `Resource::new(kind, id).within(..)` |
+| `Anchor` | `Anchor { kind, id }` | `Anchor::new(kind, id)` or `Anchor::kind_only(kind)` |
+| `RoleAssignment` | `RoleAssignment { role, scope, valid_from, valid_until }` | `RoleAssignment::new(role)` or `::in_scope(role, scope)`, `.valid_from(t)`, `.valid_until(t)` |
+| `OverrideSpec` | `OverrideSpec { rule, except }` | `OverrideSpec::new(rule).with_except(except)` |
+| `RetryPolicy` | `RetryPolicy { capacity: 500, ..RetryPolicy::default() }` | `RetryPolicy::default().with_capacity(500)`; also `with_base_delay_ms`, `with_max_delay_ms`, `with_on_drop` |
+| `Note` | `Note { text, anchor, origin }` | `Note::new(text, anchor, origin)` |
+| `NoteAnchor` | `NoteAnchor { element, placement }` | `NoteAnchor::new(element, placement)` |
+| `NoteOrigin` | `NoteOrigin { file, language, line, column, field }` | `NoteOrigin::new(file, language, line, column)`, `.with_field(field)` |
+| `import::openfga::Options` | `Options { model_file, ..Options::default() }` | `Options::default().with_model_file(..)`, `.with_tuples_file(..)` |
+| `import::casbin::Options` | `Options { actions, ..Options::default() }` | `Options::default().with_actions(..)`, `.with_model_file(..)`, `.with_policy_file(..)` |
+| `SessionOptions` (`strig-sync`) | `SessionOptions { heartbeat: None, ..Default::default() }` | `SessionOptions::default().with_heartbeat(None)`, `.with_buffer(n)` |
+| `WindowColumns` (`strig-postgres`) | `WindowColumns { effect, ..Default::default() }` | `WindowColumns::default().with_effect(..)`; also `with_valid_from`, `with_valid_until`, `with_allow_effect` |
+| `ListRequest` (`strig-server`) | `ListRequest { subject, permission, kind, layout, resources, env, at }` | `ListRequest::new(subject, permission, kind)`, `.with_layout(..)`, `.with_resources(..)`, `.with_env(..)`, `.with_at(..)` |
+| `RawResponse` (`strig-server`) | `RawResponse { status, body }` | `RawResponse::new(status, body)` |
+
+</ApiWide>
+
+### New, no action
+
+- `strig::audit::AUDIT_FORMAT` (1) and `strig::dsl::DSL_SCHEMA` (5) are public constants.
+- `dsl.run_tests` is in the `__all__` of the Python package.
+
+## 0.10.0
+
+Four changes break, all of them only for Rust code that names these types. The JavaScript package, the Python, Go and Java bindings, the JSON protocol, stored requests and records, and the audit hash need no edit.
+
+### Rust: `AuditAction` is `#[non_exhaustive]` and has `ElevationReview`
+
+**Before.**
+
+```rust title="Rust"
+match record.action { AuditAction::Apply => .., AuditAction::Check => .. /* every variant */ }
+```
+
+**After.**
+
+```rust title="Rust"
+match record.action { AuditAction::Apply => .., AuditAction::Check => .., _ => .. }
+```
+
+**Step.** Add a `_ =>` arm to every `match` on `AuditAction`. `ElevationReview` is written only by `Elevations::close_review`, and in the JSON it is `elevation_review`: add it to a closed list of `action` values in a log consumer. `PendingStore` has a new method, `annotate`, with a default that refuses, so existing implementations still compile.
+
+### Rust: `PendingRequest`, `Approved` and `AuditRecord` gain `impact`
+
+**Before.**
+
+```rust title="Rust"
+let req = PendingRequest { id, actor, mutation, requested_at, status, expires_at, .. };
+let AuditRecord { id, action, .. } = record;
+```
+
+**After.**
+
+```rust title="Rust"
+let req = PendingRequest::new(id, actor, mutation, requested_at).expiring_at(Some(at)).with_impact(impact);
+let AuditRecord { id, action, .. } = record;
+```
+
+**Step.** Build a `PendingRequest` with `PendingRequest::new(..)` and its builders (`expiring_at`, `with_status`, `with_impact`, `with_elevation`). `Approved` (field `proposed_impact`) and `AuditRecord` come from `Approvals` and the auditor, so only code that built them by hand changes. Add `..` to every pattern that destructures any of the three. Stored requests and records without `impact` still load.
+
+### Rust: `CatalogExport` gains `mutually_exclusive` and `conflicting_actions`
+
+**Before.**
+
+```rust title="Rust"
+let export = CatalogExport { permissions, roles };
+let CatalogExport { permissions, roles } = export;
+```
+
+**After.**
+
+```rust title="Rust"
+let export = CatalogExport { permissions, roles, ..CatalogExport::default() };
+let CatalogExport { permissions, roles, .. } = export;
+```
+
+**Step.** Build it with `CatalogExport { .., ..CatalogExport::default() }` or through `Catalog::export`, and put `..` in every pattern that destructures it. `Impact` gains `separation`. JSON and the bindings are unaffected: both fields are optional on read and omitted when empty.
+
+### Rust: revisions in `strig-sync` and `strig-server` types
+
+`Change` (`strig-sync`), `Snapshot`, `CheckRequest`, `CheckResponse`, `BatchRequest` and `BatchResponse` (`strig-server`) gain a `revision` (`min_revision` on the two requests). `ServerMessage` and `ClientMessage` gain variants and fields (`ClientMessage::RefreshAtLeast`, `ServerMessage::Hello.version`, `ServerMessage::Capabilities.revision`). All of them are now `#[non_exhaustive]`.
+
+**Before.**
+
+```rust title="Rust"
+let change = Change { scope, kind, .. };
+let req = CheckRequest { subject, permission, resource, env, at };
+match message { ServerMessage::Hello { .. } => .., ServerMessage::Change(c) => .. /* every variant */ }
+```
+
+**After.**
+
+```rust title="Rust"
+let change = Change::new(kind, scope).with_revision(rev);
+let req = CheckRequest::new(subject, permission, resource).with_env(env).at(at).with_min_revision(rev);
+match message { ServerMessage::Hello { .. } => .., ServerMessage::Change(c) => .., _ => .. }
+```
+
+**Step.** Build values with the constructors and builders (`Change::new` and `with_revision`, `Snapshot::new` with `with_revision` and `with_tuples`, `CheckRequest::new` with `with_env`, `at` and `with_min_revision`, `BatchRequest::new`, `ServerMessage::hello` and `ServerMessage::capabilities` with `with_revision`). Add `..` to every pattern that destructures these structs and the two `ServerMessage` variants, and a `_` arm to every `match` on the two enums. Responses are built by the server, so only code that built them by hand changes. The JSON protocol stays additive: every new field is optional and omitted when empty, and a peer that sends none keeps working.
+
+### Policies with separation of duties export `"schema": 5`
+
+`DSL_SCHEMA` is now 5. A policy that uses `mutually_exclusive`, `conflicting_actions` or the `separation_of_duties` invariant exports its canonical JSON with `"schema": 5`. A reader of an older schema refuses it instead of ignoring a rule that denies. A policy without them exports the schema it did before.
+
+**Step.** Upgrade every reader of the exported JSON (the JS package, `strig-cli`, other services) before you ship a policy that uses them.
+
+### New, no action
+
+Everything else in 0.10 is additive: the language server and VS Code extension, audit proofs (Merkle, RFC 3161), `why_not`, change impact, `strig diff` and `strig lint`, the Casbin and OpenFGA importers, temporary elevation and break-glass, separation of duties, recertification campaigns and revisions for reading your own writes.
+
+## 0.9.0
+
+One change breaks, and only for Rust code. The JavaScript package, the JSON spec and stored data need no edit.
+
+### Rust: `Grant`, `PermissionDef`, `Request`, `CatalogError`, `GrantError` and `Verdict` are `#[non_exhaustive]`
+
+Field permissions add `Grant::fields`, `PermissionDef::fields`, `Request::field` and new variants of `CatalogError`, `GrantError` and `Verdict`.
+
+**Before.**
+
+```rust title="Rust"
+let g = Grant { id, effect, subject, permission, target, condition, .. };
+match verdict { Verdict::Candidate => .., Verdict::OutOfScope => .. /* every variant */ }
+```
+
+**After.**
+
+```rust title="Rust"
+let g = Grant::allow(id, subject, permission, target).when(condition);
+let r = Request::new(subject, permission, resource).field("email");
+match verdict { Verdict::Candidate => .., Verdict::OutOfScope => .., _ => .. }
+```
+
+**Step.** Build values with the constructors and builders (`Grant::allow`, `Grant::deny`, `Grant::new` and its chained methods, `PermissionDef::new` and its builders, `Request::new` with `.field(..)`), and add a `_` arm to every `match` on `CatalogError`, `GrantError` and `Verdict`. Nothing changes for a policy that does not use fields.
+
+### Policies with fields export `"schema": 4`
+
+`DSL_SCHEMA` is now 4. A policy that uses `fields` exports its canonical JSON with `"schema": 4`. A reader of an older schema refuses it instead of reading a field-restricted grant as covering the whole resource. A policy without fields exports the schema it did before.
+
+**Step.** Upgrade every reader of the exported JSON before you ship a policy with fields.
+
+### New, no action
+
+ORM adapters (`/prisma`, `/drizzle`, `/kysely`), Envoy External Authorization in `strig-server` (`envoy` feature, off by default), policy tests and `strig-cli`, the Python package `strig-auth`, the Go and Java bindings over `strig-wasi`, and `allowedFields`, `explainFields` and `pickAllowed` in the JS binding.
+
+## 0.8.0
+
+Nothing breaks. Every change is additive and the defaults behave as in 0.7. Upgrading the crates and the npm package needs no edit to your code, your policies or your stored data.
+
+### New, no action: opt-in features
+
+- **`tracing`** (a feature of `strig`, `strig-sync`, `strig-postgres`, `strig-redis` and `strig-server`, off by default): spans through `tracing` and metrics through the `metrics` facade. With the feature off nothing is compiled in.
+- **`conformance`** (a feature of `strig`, off by default, not stable API): `strig::exclusive_conformance::run`, the battery to run against your own `ExclusiveStore`.
+- **React and Angular** (`@the-hades-organization/strig/react` and `/angular`): `react` (18 or 19) and `@angular/core` (17+) are optional peers. Install them only if you import those subpaths.
+
+### New, no action: Postgres and Redis storage
+
+`PgStore`, `PgExclusiveStore` and `RedisExclusiveStore` are additions. `strig-postgres` migration 4 adds the `<prefix>_exclusive` table. `migrate` is idempotent and additive, so run it as you already do. The `ExclusiveStore` trait gained `acquire_lease`, `renew_lease`, `release_lease` and `remove_expired` with default bodies, so a store you implemented keeps compiling. `PgQueryError` is `#[non_exhaustive]`; an exhaustive `match` on it already needs a `_` arm.
+
+### New, no action: AuthZEN in `strig-server`
+
+`DecisionServer::with_authzen(AuthzenConfig)` adds `/access/v1/*` and `/.well-known/authzen-configuration` next to `/v1`. Without that call the server has no such route and `/v1` is unchanged.
+
+### New, no action: `checkMany` and `explainMany`
+
+`engine.checkMany(ctx, requests)` and `engine.explainMany(ctx, requests)` decide a batch in one call. `check`, `decide` and `explain` return the same results and throw the same errors as before. They run faster for plain-JSON requests.
 
 ## 0.7.0
 

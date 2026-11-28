@@ -3,7 +3,7 @@ title: Policy language
 description: One policy, written in Blocks, Rules or Actors. All three compile to the same model, and you pick the one your team reads fastest.
 ---
 
-A Strig policy is data: a catalog of permissions, roles, assignments, grants and rules. You can build it in Rust, load it from JSON, or write it as text. The text form is the policy language. The examples on these pages ran against Strig 0.6.1; 0.7.0 adds only the optional `tz`.
+A Strig policy is data: a catalog of permissions, roles, assignments, grants and rules. You can build it in Rust, load it from JSON, or write it as text. The text form is the policy language. The examples on these pages run against Strig 1.0.
 
 The language has three syntaxes. They describe the same thing and differ only in layout:
 
@@ -33,7 +33,7 @@ assert!(a.equivalent(&b));
 The language needs the `dsl` feature of the `strig` crate. Reading and writing files needs `dsl-fs` as well.
 
 ```text title="Cargo.toml"
-strig = { version = "0.7", features = ["dsl", "dsl-fs"] }
+strig = { version = "1.0", features = ["dsl", "dsl-fs"] }
 ```
 
 ## Choose a syntax
@@ -73,6 +73,17 @@ The choice is per file, so it is cheap to change. `convert` moves a policy to an
 | Invariant | `invariant no_lockout { }` | `always no-lockout` | `no-lockout` |
 
 The cells show the shape of each construct and elide the rest, which the page of each syntax gives in full. In Actors, a line sits under a heading: kinds, broad kinds and permissions under `catalog`, strategy and depth under `engine`, a role assignment under `subject user:ana`, a grant under who it applies to, and an invariant under `governance`.
+
+Four constructs came after the first release, and each exists in all three syntaxes:
+
+| Construct | Blocks | Rules | Actors |
+| --- | --- | --- | --- |
+| Fields of a permission or a grant | `fields = [title, body]` | `... on document fields title, body` | `... on document fields title, body as g-edit` |
+| Exclusive set | `mutually_exclusive payment_duties { of = roles members = [maker, checker] }` | `mutually-exclusive payment_duties of roles members [maker, checker]` | the same line, under `catalog` |
+| Conflicting actions | `conflicting_actions four_eyes { first = [payment.create] then = [payment.approve] }` | `conflicting-actions four_eyes first [payment.create] then [payment.approve]` | the same line, under `catalog` |
+| Separation invariant | `invariant separation_of_duties { }` | `always separation-of-duties` | `separation-of-duties`, under `governance` |
+
+[Field permissions](/docs/modeling/field-permissions) and [Separation of duties](/docs/governance/separation-of-duties) explain what they decide.
 
 Names change with the syntax in two places. A flag written `non_delegable` in Blocks is `non-delegable` in Rules and Actors, and the same goes for `management_only` and `override_only`. An invariant such as `no_lockout` is `no-lockout` outside Blocks.
 
@@ -158,7 +169,7 @@ Attributes start with `subject.`, `resource.` or `env.`, as in `subject.dept == 
 - A condition the engine cannot evaluate never opens access. With a wrong operand type or an unreadable operand, an `allow` does not apply and a `deny` does.
 - The time conditions read the decision instant, in UTC unless `tz` names a zone. Without an instant they cannot be resolved, so a grant that uses them never allows.
 - `tz` takes an IANA name in quotes after the other arguments, in all three syntaxes. An unknown name is a validation error with a position and a hint. See [Time zones](/docs/concepts#time-zones).
-- A policy that uses `tz` exports its JSON with `"schema": 3`, so a reader on schema 2 refuses it instead of reading the window in UTC. A policy without `tz` exports what it did before.
+- A policy that uses `tz` exports its JSON with `"schema": 3`, so a reader on schema 2 refuses it instead of reading the window in UTC. A policy without `tz` exports what it did before. The [schema numbers](#the-schema-number) below list the others.
 
 ```text title="Error"
 g.strig:6:60: `9:00` is not a time of day
@@ -179,6 +190,20 @@ A relation is defined in terms of others with a rewrite:
 | `union(...)`, `intersection(...)`, `exclusion(a, b)` | the function forms |
 
 Do not mix `|`, `&` and `-` without parentheses.
+
+## The schema number
+
+The canonical JSON of a policy carries a `schema` only when the policy needs a newer reader than the first. A reader refuses a schema above the one it knows, so an older reader never reads a restricted grant as an open one.
+
+| Schema | A policy gets it when it uses |
+| --- | --- |
+| none or 1 | nothing below |
+| 2 | the text, set, network and time conditions |
+| 3 | `tz` in a time condition |
+| 4 | `fields` in a grant or a permission |
+| 5 | `mutually_exclusive` or `conflicting_actions` |
+
+The current DSL schema is 5. What changes at a major version is in [Upgrading](/docs/upgrading).
 
 ## Several files, and checks on the way
 
@@ -201,7 +226,7 @@ two.strig:3:1: the kind `doc` is listed in target_kinds twice (also at one.strig
   hint: list each kind in one source only
 ```
 
-`strig-inspect fmt <file|dir>` rewrites `.strig` files in the canonical layout of their syntax, and `fmt --check` lists the files that would change and exits with 1. In Rust, `format` and `is_formatted` do the same on text, and in Node, `strig.format` and `strig.isFormatted`. Two other crates read the language: `strig-macros` checks a policy while your program compiles, with `policy!` and `include_policy!`, and the [playground](https://github.com/The-Hades-Organization/Strig/tree/main/playground) edits it in all three syntaxes.
+`strig-inspect fmt <file|dir>` rewrites `.strig` files in the canonical layout of their syntax, and `fmt --check` lists the files that would change and exits with 1. In Rust, `format` and `is_formatted` do the same on text, and in Node, `strig.format` and `strig.isFormatted`. Two other crates read the language: `strig-macros` checks a policy while your program compiles, with `policy!` and `include_policy!`, and the [playground](https://github.com/The-Hades-Organization/Strig/tree/main/playground) edits it in all three syntaxes. `strig test`, `strig diff` and `strig lint` check a policy in CI: see [Tools](/docs/tools/testing).
 
 ### Errors
 

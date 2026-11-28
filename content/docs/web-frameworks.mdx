@@ -135,3 +135,7 @@ import { RemoteClient } from '@the-hades-organization/strig/remote';
 const remote = new RemoteClient({ url: 'http://127.0.0.1:8080', timeoutMs: 250 });
 const { allowed } = await remote.check({ subject, permission: 'document.view', resource });
 ```
+
+## Next
+
+A route guard answers one question per request. To filter a list down to the rows a subject may see, turn `engine.list` into a `where` with the [ORM adapters](/docs/integrations/orms). To run the decision server itself, see [Server](/docs/integrations/server).

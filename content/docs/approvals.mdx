@@ -100,6 +100,40 @@ An approver who is the author, lacks the permission, or meets invariants that no
 
 The crate keeps no clock and no database: pass the instant, and serialise approvals of one request when several processes share a store. Requests live behind the `PendingStore` trait, with `MemoryPendingStore` in memory.
 
+## What the approver sees
+
+<VersionBadge version="0.10.0" />
+
+With `impact` set, `propose` keeps the [impact](/docs/governance/impact) of the change in the request, and `reviewImpact` hands the approver both numbers before they decide:
+
+```js title="JavaScript"
+const flow = new Approvals(engine, store, { approval, invariants, impact: { limits: { maxParties: 1000 } } });
+
+await flow.propose(ana, { add: grant }, grants, { id: 'req-1' });
+
+const review = await flow.reviewImpact('req-1', grants);
+// { proposed: { gained, lost, … }, current: { gained, lost, … }, changed: false }
+```
+
+`proposed` is what the change would do when Ana proposed it. `current` is what it would do over the grants today. `changed: true` means the grants moved in between, so the approver is judging something different from what was asked. Nothing is recorded by the call. `approve` recomputes the impact the same way and returns the one from the proposal as `proposedImpact`.
+
+In Rust, `Approvals::with_impact` and `Approvals::review_impact` do the same, and `Approved::proposed_impact` carries the proposed one. Stores keep the request whole, so the Postgres store and the JSON store need no migration, and a request from before reads as without impact.
+
+## Distinct roles
+
+<VersionBadge version="0.10.0" />
+
+By default only the person is compared: the author cannot approve their own request. `Approvals::with_distinct_roles` also refuses an approver who holds a role, directly or by inheritance, that the author holds on the resource the policy names.
+
+```rust title="Rust"
+let flow = Approvals::new(&governance, &policy, &store).with_distinct_roles();
+// Ana and Caio are both `finance-editor`: Caio's approval is refused.
+```
+
+The refusal is an `ApprovalError::Refused` with the violation `distinct_approver_roles`, and the request stays pending. The same idea applies to actions in a policy: see [Separation of duties](/docs/governance/separation-of-duties).
+
+A change that grants a break-glass or time-limited role goes through [Temporary elevation](/docs/governance/elevation), which reuses this flow, and a periodic review of who still needs a grant is [Recertification](/docs/governance/recertification).
+
 ## What the audit records
 
 Every step is audited, under the fail mode of the call. With an auditor on the governance, each step becomes a record of one of four actions, and the approval record is written before the change is applied.
