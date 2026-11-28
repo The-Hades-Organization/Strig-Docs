@@ -1,15 +1,15 @@
 ---
 title: Reference
-description: "The public API of Strig 1.0: the Rust crates, the command line, the npm and Python packages, the Go and Java bindings, the Wasm ABI, the HTTP API, protocol 2 and the closed lists of error codes."
+description: "The public API of Strig: the Rust crates, the command line, the npm and Python packages, the Go and Java bindings, the Wasm ABI, the HTTP API, protocol 2 and the closed lists of error codes."
 ---
 
-This page lists every name in the 1.0 public surface, copied from the sources and the type snapshots of the release. Pick a name to see it in the bench with a real example and what it returns.
+This page lists every name in the public surface, copied from the sources and the type snapshots of the release. Pick a name to see it in the bench with a real example and what it returns.
 
 | Surface | Install | Section |
 | --- | --- | --- |
-| `strig` | `strig = "1.0"` (default feature `audit`; `dsl` and `dsl-fs` add the policy language) | [Engine](#engine) |
-| `strig-sync`, `strig-redis`, `strig-postgres` | `strig-sync = "1.0"` | [Real-time](#real-time-strig-sync) |
-| `strig-axum`, `strig-server`, `strig-macros` | `strig-server = "1.0"` | [Server](#decision-server-strig-server) |
+| `strig` | `strig = "0.10"` (default feature `audit`; `dsl` and `dsl-fs` add the policy language) | [Engine](#engine) |
+| `strig-sync`, `strig-redis`, `strig-postgres` | `strig-sync = "0.10"` | [Real-time](#real-time-strig-sync) |
+| `strig-axum`, `strig-server`, `strig-macros` | `strig-server = "0.10"` | [Server](#decision-server-strig-server) |
 | `strig-cli` | `cargo install strig-cli` | [Command line](#command-line) |
 | npm package | `npm install @the-hades-organization/strig` | [npm](#javascript-the-npm-package) |
 | `strig-auth` (Python), Go, Java | `pip install strig-auth` | [Python](#python-strig-auth) |
@@ -1824,7 +1824,7 @@ Exclusive ownership of resources over a store.
 
 ## Real time: strig-sync
 
-`strig-sync = "1.0"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
+`strig-sync = "0.10"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
 
 <ApiGroup>
   <ApiItem id="hub-builder" name="Hub::builder" sig={"pub fn builder() -> HubBuilder\npub fn new() -> Self"}>
@@ -1929,7 +1929,7 @@ Exclusive ownership of resources over a store.
 
 ## axum routes: strig-axum
 
-`strig-axum = "1.0"`. Authentication stays with your application: your handler identifies the subject and calls the route.
+`strig-axum = "0.10"`. Authentication stays with your application: your handler identifies the subject and calls the route.
 
 <ApiGroup>
   <ApiItem id="realtime-new" name="Realtime::new" sig={"pub fn new(hub: Hub) -> Self\npub fn with_provider(mut self, provider: Arc<dyn CapabilityProvider>) -> Self\npub fn with_options(mut self, options: SessionOptions) -> Self\npub fn hub(&self) -> &Hub"}>
@@ -1949,10 +1949,10 @@ Both are a `Transport` for `Hub::builder().transport(..)`.
 
 <ApiGroup>
   <ApiItem id="redis-transport" name="RedisTransport::new" pick="redis" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn from_client(client: Client, channel: impl Into<String>) -> Self\npub fn channel(&self) -> &str"}>
-    `strig-redis = "1.0"`. Redis pub/sub. Publishing reconnects on its own; each `subscribe` opens a dedicated connection, and when it drops the hub reopens it and emits `Resync`.
+    `strig-redis = "0.10"`. Redis pub/sub. Publishing reconnects on its own; each `subscribe` opens a dedicated connection, and when it drops the hub reopens it and emits `Resync`.
   </ApiItem>
   <ApiItem id="pg-transport" name="PgTransport::new" pick="pg" sig={"pub fn new(url: &str, channel: impl Into<String>) -> Result<Self, TransportError>\npub fn with_tls<T>(url: &str, channel: impl Into<String>, tls: T) -> Result<Self, TransportError>"}>
-    `strig-postgres = "1.0"`. Postgres `LISTEN/NOTIFY`, without TLS or with any `tokio-postgres` connector.
+    `strig-postgres = "0.10"`. Postgres `LISTEN/NOTIFY`, without TLS or with any `tokio-postgres` connector.
   </ApiItem>
   <ApiItem id="pg-notify" name="strig_postgres::notify" sig={"pub async fn notify<C: GenericClient + Sync>(client: &C, channel: &str, change: &Change) -> Result<(), TransportError>"}>
     Sends a change through a client or a transaction. `NOTIFY` goes out on commit, so a notice sent in the transaction that writes the grant goes out only if the write does. It arrives without an origin, so every instance delivers it, the writer included. `MAX_PAYLOAD` is 7999 bytes.
@@ -1982,7 +1982,7 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 ### Postgres stores
 
-`strig-postgres = "1.0"`. Every store is built from a `PgTables` and a connection URL; each has a `connect_with_tls` twin that takes a TLS connector, and `with_timeout` bounds every statement.
+`strig-postgres = "0.10"`. Every store is built from a `PgTables` and a connection URL; each has a `connect_with_tls` twin that takes a TLS connector, and `with_timeout` bounds every statement.
 
 <ApiWide>
 
@@ -2007,7 +2007,7 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 ### Redis store
 
-`strig-redis = "1.0"` has one public type, `RedisExclusiveStore`, an `ExclusiveStore` for a resource held across processes.
+`strig-redis = "0.10"` has one public type, `RedisExclusiveStore`, an `ExclusiveStore` for a resource held across processes.
 
 <ApiWide>
 
@@ -2022,7 +2022,7 @@ The `strig_postgres::query` module stores grants and tuples and turns a listing 
 
 ## Decision server: strig-server
 
-`strig-server = "1.0"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
+`strig-server = "0.10"`, with the `client` feature on by default. The server answers over HTTP from a `DecisionSource` you provide and decides with its own clock. It does no authentication and no rate limiting: put it behind your gateway. Any answer that is not a `200` from a decision route means no access.
 
 <ApiGroup>
   <ApiItem id="decision-server" name="DecisionServer::router" pick="server" sig={"pub fn new(source: Arc<dyn DecisionSource>) -> Self\npub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self\npub fn with_config(mut self, config: ServerConfig) -> Self\npub fn router(self) -> Router"}>
@@ -2248,7 +2248,7 @@ $ echo $?
 
 ## Policies at compile time: strig-macros
 
-`strig-macros = "1.0"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
+`strig-macros = "0.10"`. A policy that does not validate does not build. Add `strig` with the `dsl` feature to your own `Cargo.toml`, and use the same version of both: `strig-macros` pins `strig` with `=`.
 
 <ApiGroup>
   <ApiItem id="policy-macro" name="policy!" pick="policy" sig={"policy!(\"<policy text>\")"}>
@@ -2263,7 +2263,7 @@ The expansion embeds the validated policy as JSON and reads that JSON back on ea
 
 ## JavaScript: the npm package
 
-`npm install @the-hades-organization/strig`, version 1.0, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
+`npm install @the-hades-organization/strig`, for Node, Bun and the browser. The native module (N-API) serves Node and Bun, WebAssembly serves the browser and is the fallback. The native module comes as one package per platform; see [JavaScript](/docs/javascript#install-by-platform). Set `STRIG_BACKEND=native` or `wasm` to force one. The Rust crate behind it, `strig-node`, is not published on its own.
 
 `call` condition functions, your own overrides and your own invariants are synchronous callbacks passed to `new Engine(spec, hooks)`; see [JavaScript](/docs/javascript#rules-written-in-javascript). The JSON spec covers the built-in `resource_owner` and `permission_holder`.
 
@@ -2925,7 +2925,7 @@ class DslError(StrigError):
 ## Go
 
 ```bash
-go get github.com/The-Hades-Organization/Strig/bindings/go
+go get github.com/The-Hades-Organization/Strig/bindings/go@v0.10.0
 ```
 
 Go 1.22 or later. The engine is the Wasm module, run on wazero; there is no cgo. `Engine` and `Context` hold module memory, so `Close` them. An `Engine` is single-threaded: `Fork` gives each worker its own. Every error is a `*Error` with a stable `Code`; `errors.Is` matches two of them by `Code`. Walk-through: [Go](/docs/integrations/go).
@@ -2987,7 +2987,7 @@ if strig.CodeOf(err) == "INVALID_GRANT" { /* ... */ }
 <dependency>
   <groupId>io.github.the-hades-organization</groupId>
   <artifactId>strig</artifactId>
-  <version>1.0.0</version>
+  <version>0.10.0</version>
 </dependency>
 ```
 

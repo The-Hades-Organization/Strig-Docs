@@ -42,16 +42,18 @@ const ACTORS_SAMPLE = `role editor
   in org:acme
     allow document.edit on project as g-edit`;
 
-const RUST_SAMPLE = `use strig::Engine;
+const RUST_SAMPLE = `use strig::dsl;
 
-fn main() {
-    let engine = Engine::default();
-    println!("{}", engine.is_empty());
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let parsed = dsl::parse("policy.strig", SOURCE)?;
+    println!("{}", parsed.policy.to_json()?);
+    Ok(())
 }`;
 
-const TS_SAMPLE = `import { compile } from '@the-hades-organization/strig';
+const TS_SAMPLE = `import { load } from '@the-hades-organization/strig';
 
-const policy = compile(source); // 3 permissions
+const strig = await load();
+const policy = strig.compile(source, { file: 'policy.strig' }); // canonical JSON
 console.log(policy.permissions.length);`;
 
 const JSON_SAMPLE = `{

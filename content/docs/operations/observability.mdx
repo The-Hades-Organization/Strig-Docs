@@ -6,8 +6,8 @@ description: Turn on spans and metrics with the tracing feature, pick your own b
 Every crate has an optional `tracing` feature, off by default. It adds spans through [`tracing`](https://docs.rs/tracing) and metrics through the [`metrics`](https://docs.rs/metrics) facade. You pick the backend: Prometheus, OpenTelemetry or your own recorder.
 
 ```toml title="Cargo.toml"
-strig = { version = "1", features = ["tracing"] }
-strig-server = { version = "1", features = ["tracing"] }
+strig = { version = "0.10", features = ["tracing"] }
+strig-server = { version = "0.10", features = ["tracing"] }
 ```
 
 The features chain: `strig-sync/tracing` turns on `strig/tracing`; `strig-postgres/tracing` and `strig-redis/tracing` turn on `strig-sync/tracing`; `strig-server/tracing` turns on `strig/tracing`.
