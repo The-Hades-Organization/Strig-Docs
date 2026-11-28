@@ -717,6 +717,433 @@ A dynamic rule of the catalog as an override that only denies.
 </ApiWide>
 
 
+## Approvals, elevation and recertification
+
+Changes that wait for a reviewer, time-boxed elevation, and periodic review of who holds what. Walk-throughs: [Approvals](/docs/approvals), [Elevation](/docs/governance/elevation) and [Recertification](/docs/governance/recertification).
+
+#### `ApprovalRule`
+
+Who may approve a kind of change: whoever holds `permission` on `resource`.
+
+#### `ApprovalPolicy`
+
+The kinds of change that wait for approval.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `from_rules` | `pub fn from_rules(rules: impl IntoIterator<Item = ApprovalRule>) -> Self` |
+| `require` | `pub fn require(mut self, kind: MutationKind, permission: impl Into<String>, resource: Resource) -> Self` |
+| `require_all` | `pub fn require_all(self, permission: impl Into<String>, resource: Resource) -> Self` |
+| `rule_for` | `pub fn rule_for(&self, mutation: &Mutation) -> Option<&ApprovalRule>` |
+| `rules` | `pub fn rules(&self) -> &[ApprovalRule]` |
+
+</ApiWide>
+
+#### `PendingStatus`
+
+Where a request stands.
+
+#### `PendingRequest`
+
+A change waiting for another actor.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(id: impl Into<String>, actor: Subject, mutation: Mutation, requested_at: u64) -> Self` |
+| `expiring_at` | `pub fn expiring_at(mut self, expires_at: Option<u64>) -> Self` |
+| `with_status` | `pub fn with_status(mut self, status: PendingStatus) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, impact: Impact) -> Self` |
+| `with_elevation` | `pub fn with_elevation(mut self, elevation: ElevationInfo) -> Self` |
+| `is_pending` | `pub fn is_pending(&self) -> bool` |
+| `is_due` | `pub fn is_due(&self, now: u64) -> bool` |
+| `target` | `pub fn target(&self) -> String` |
+
+</ApiWide>
+
+#### `PendingError`
+
+#### `PendingStore`
+
+Where the requests are kept.
+
+#### `MemoryPendingStore`
+
+``PendingStore`` in memory.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+
+</ApiWide>
+
+#### `ApprovalError`
+
+#### `Review`
+
+What a change is judged against: the grants as they are now, the tuples, the instant and the metadata of the call (ip, request id, reason) that the audit keeps from the `detailed` level.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(engine: &'a Engine, current: &'a [Grant], now: u64, meta: &'a Attributes) -> Self` |
+| `with_tuples` | `pub fn with_tuples(mut self, tuples: &'a dyn TupleStore) -> Self` |
+| `with_now` | `pub fn with_now(mut self, now: u64) -> Self` |
+| `with_current` | `pub fn with_current(mut self, current: &'a [Grant]) -> Self` |
+
+</ApiWide>
+
+#### `Proposed`
+
+The outcome of ``Approvals::propose``.
+
+#### `Approved`
+
+A request approved and applied: the grants to persist (unchanged for a role change; the subject to write comes from ``Mutation::subject_after`` of the request) and the request as it now stands.
+
+#### `ImpactReview`
+
+The impact of a pending request as proposed and as it would be now, from ``Approvals::review_impact``.
+
+#### `Approvals`
+
+The approval flow over a ``Governance``, an ``ApprovalPolicy`` and a ``PendingStore``.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(governance: &'a Governance, policy: &'a ApprovalPolicy, store: &'a dyn PendingStore) -> Self` |
+| `with_distinct_roles` | `pub fn with_distinct_roles(mut self) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, options: &'a ImpactOptions<'a>) -> Self` |
+| `review_impact` | `pub fn review_impact(&self, review: &Review<'_>, id: &str) -> Result<ImpactReview, ApprovalError>` |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `pending` | `pub fn pending(&self, now: u64) -> Result<Vec<PendingRequest>, PendingError>` |
+| `propose` | `pub fn propose( &self, review: &Review<'_>, actor: &Subject, mutation: &Mutation, id: impl Into<String>, expires_at: Option<u64>) -> Result<Proposed, ApprovalError>` |
+| `approve` | `pub fn approve(&self, review: &Review<'_>, approver: &Subject, id: &str) -> Result<Approved, ApprovalError>` |
+| `reject` | `pub fn reject( &self, review: &Review<'_>, approver: &Subject, id: &str, reason: &str) -> Result<PendingRequest, ApprovalError>` |
+| `expire_due` | `pub fn expire_due(&self, now: u64, meta: &Attributes) -> Result<Vec<PendingRequest>, ApprovalError>` |
+
+</ApiWide>
+
+#### `ElevationTarget`
+
+What an elevation gives: a role, or a permission on a target.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `role` | `pub fn role(role: impl Into<String>) -> Self` |
+| `permission` | `pub fn permission(permission: impl Into<String>, target: TargetSelector) -> Self` |
+| `scoped` | `pub fn scoped(mut self, new_scope: Anchor) -> Self` |
+| `key` | `pub fn key(&self) -> ElevationKey` |
+
+</ApiWide>
+
+#### `ElevationKey`
+
+A role or a permission, as the policy names it.
+
+#### `ElevationRule`
+
+How a role or permission may be elevated.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new( key: ElevationKey, max_duration_ms: u64, approver_permission: impl Into<String>, approver_resource: Resource) -> Self` |
+| `requiring_justification` | `pub fn requiring_justification(mut self) -> Self` |
+| `allowing_break_glass` | `pub fn allowing_break_glass(mut self, max_duration_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `BreakGlassRule`
+
+The limit of a break-glass elevation.
+
+#### `ElevationPolicy`
+
+The roles and permissions that can be elevated, and how.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `from_rules` | `pub fn from_rules(rules: impl IntoIterator<Item = ElevationRule>) -> Self` |
+| `with` | `pub fn with(mut self, rule: ElevationRule) -> Self` |
+| `rule_for` | `pub fn rule_for(&self, target: &ElevationTarget) -> Option<&ElevationRule>` |
+| `rules` | `pub fn rules(&self) -> &[ElevationRule]` |
+
+</ApiWide>
+
+#### `ElevationRequest`
+
+A request for an elevation.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(id: impl Into<String>, actor: Subject, target: ElevationTarget, duration_ms: u64) -> Self` |
+| `justified` | `pub fn justified(mut self, justification: impl Into<String>) -> Self` |
+| `break_glass` | `pub fn break_glass(mut self) -> Self` |
+
+</ApiWide>
+
+#### `ElevationInfo`
+
+What a ``PendingRequest`` says about the elevation it carries.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(target: ElevationTarget, duration_ms: u64) -> Self` |
+
+</ApiWide>
+
+#### `ReviewState`
+
+Where the review of a break-glass elevation stands.
+
+#### `Revocation`
+
+An elevation taken back before its time.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(by: impl Into<String>, at: u64, reason: Option<String>) -> Self` |
+
+</ApiWide>
+
+#### `Elevated`
+
+The outcome of ``Elevations::request``.
+
+#### `Revoked`
+
+An elevation revoked and the grants to persist.
+
+#### `Elevations`
+
+The elevation flow over a ``Governance``, an ``ElevationPolicy`` and a ``PendingStore``.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(governance: &'a Governance, policy: &'a ElevationPolicy, store: &'a dyn PendingStore) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, options: &'a ImpactOptions<'a>) -> Self` |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `active` | `pub fn active(&self, now: u64) -> Result<Vec<PendingRequest>, PendingError>` |
+| `pending_reviews` | `pub fn pending_reviews(&self) -> Result<Vec<PendingRequest>, PendingError>` |
+| `expire_due` | `pub fn expire_due(&self, now: u64, meta: &Attributes) -> Result<Vec<PendingRequest>, ApprovalError>` |
+| `request` | `pub fn request( &self, review: &Review<'_>, req: &ElevationRequest, expires_at: Option<u64>) -> Result<Elevated, ApprovalError>` |
+| `approve` | `pub fn approve(&self, review: &Review<'_>, approver: &Subject, id: &str) -> Result<Approved, ApprovalError>` |
+| `reject` | `pub fn reject( &self, review: &Review<'_>, approver: &Subject, id: &str, reason: &str) -> Result<PendingRequest, ApprovalError>` |
+| `revoke` | `pub fn revoke( &self, review: &Review<'_>, by: &Subject, id: &str, reason: Option<&str>) -> Result<Revoked, ApprovalError>` |
+| `close_review` | `pub fn close_review( &self, review: &Review<'_>, reviewer: &Subject, id: &str, note: &str) -> Result<PendingRequest, ApprovalError>` |
+
+</ApiWide>
+
+#### More on `PendingRequest`
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `elevation_active` | `pub fn elevation_active(&self, now: u64) -> bool` |
+
+</ApiWide>
+
+#### `RecertError`
+
+Why a recertification step failed.
+
+#### `ReviewerRule`
+
+Who may review an item.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `permission` | `pub fn permission(permission: impl Into<String>, resource: Resource) -> Self` |
+| `role` | `pub fn role(role: impl Into<String>) -> Self` |
+| `subject` | `pub fn subject(id: impl Into<String>) -> Self` |
+
+</ApiWide>
+
+#### `ReviewerRoute`
+
+Sends the items about one permission or role to a reviewer rule other than the campaign's default.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `for_permission` | `pub fn for_permission(permission: impl Into<String>, reviewer: ReviewerRule) -> Self` |
+| `for_role` | `pub fn for_role(role: impl Into<String>, reviewer: ReviewerRule) -> Self` |
+
+</ApiWide>
+
+#### `RecertScope`
+
+What a campaign reviews.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+| `anchored` | `pub fn anchored(mut self, anchor: Anchor) -> Self` |
+| `permissions` | `pub fn permissions<I, S>(mut self, permissions: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+| `roles` | `pub fn roles<I, S>(mut self, roles: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+| `subject_kinds` | `pub fn subject_kinds<I, S>(mut self, kinds: I) -> Self where I: IntoIterator<Item = S>, S: Into<String>,` |
+
+</ApiWide>
+
+#### `DefaultAction`
+
+What runs on an item nobody reviewed when the campaign closes.
+
+#### `CampaignSpec`
+
+What a campaign is made of, before it opens.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new( id: impl Into<String>, reviewer: ReviewerRule, reviewer_permission: impl Into<String>, reviewer_resource: Resource, due_at: u64, keep_period_ms: u64) -> Self` |
+| `named` | `pub fn named(mut self, name: impl Into<String>) -> Self` |
+| `scoped` | `pub fn scoped(mut self, scope: RecertScope) -> Self` |
+| `routed` | `pub fn routed(mut self, route: ReviewerRoute) -> Self` |
+| `defaulting_to` | `pub fn defaulting_to(mut self, action: DefaultAction) -> Self` |
+| `escalating_to` | `pub fn escalating_to(mut self, reviewer: ReviewerRule) -> Self` |
+
+</ApiWide>
+
+#### `RecertTarget`
+
+The access an item is about.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `label` | `pub fn label(&self) -> String` |
+
+</ApiWide>
+
+#### `Delegation`
+
+A reviewer handing an item over.
+
+#### `ItemState`
+
+Where an item stands.
+
+#### `RecertItem`
+
+One access to certify.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_open` | `pub fn is_open(&self) -> bool` |
+
+</ApiWide>
+
+#### `CampaignStatus`
+
+Where a campaign stands.
+
+#### `Campaign`
+
+A recertification campaign and its items.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `is_open` | `pub fn is_open(&self) -> bool` |
+| `item` | `pub fn item(&self, id: &str) -> Option<&RecertItem>` |
+| `open_items` | `pub fn open_items(&self) -> impl Iterator<Item = &RecertItem>` |
+| `certified` | `pub fn certified(&self, now: u64) -> impl Iterator<Item = &RecertItem>` |
+| `report` | `pub fn report(&self) -> CampaignReport` |
+
+</ApiWide>
+
+#### `ReviewerTally`
+
+What each reviewer did.
+
+#### `CampaignReport`
+
+A campaign counted by outcome and by reviewer, from ``Campaign::report``.
+
+#### `RecertDecision`
+
+What a reviewer decides about an item.
+
+#### `Decided`
+
+A decision taken and the grants to persist.
+
+#### `Closed`
+
+A campaign closed: the grants to persist, the subjects whose roles changed and the report.
+
+#### `RecertStore`
+
+Where the campaigns are kept.
+
+#### `MemoryRecertStore`
+
+``RecertStore`` in memory.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new() -> Self` |
+
+</ApiWide>
+
+#### `Recertifications`
+
+The recertification flow over a ``Governance`` and a ``RecertStore``.
+
+<ApiWide>
+
+| Method | Signature |
+| --- | --- |
+| `new` | `pub fn new(governance: &'a Governance, store: &'a dyn RecertStore) -> Self` |
+| `with_impact` | `pub fn with_impact(mut self, options: &'a ImpactOptions<'a>) -> Self` |
+| `fail_mode` | `pub fn fail_mode(mut self, mode: FailMode) -> Self` |
+| `open_campaigns` | `pub fn open_campaigns(&self) -> Result<Vec<Campaign>, RecertError>` |
+| `report` | `pub fn report(&self, id: &str) -> Result<CampaignReport, RecertError>` |
+| `open` | `pub fn open( &self, review: &Review<'_>, opener: &Subject, spec: CampaignSpec, subjects: &[Subject]) -> Result<Campaign, RecertError>` |
+| `decide` | `pub fn decide( &self, review: &Review<'_>, reviewer: &Subject, id: &str, item: &str, decision: RecertDecision, reason: Option<&str>) -> Result<Decided, RecertError>` |
+| `close` | `pub fn close(&self, review: &Review<'_>, closer: &Subject, id: &str) -> Result<Closed, RecertError>` |
+
+</ApiWide>
+
+
 ## Real time: strig-sync
 
 `strig-sync = "0.7"`. A permission change becomes a `Change` notice; the `Hub` delivers it to the sessions and caches of this instance and publishes it on a `Transport` for the others. A notice never carries grants: whoever receives it reloads from its own source.
